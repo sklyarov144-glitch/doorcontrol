@@ -2,9 +2,7 @@ import React, { useMemo, useState } from "react";
 import { createRoot } from "react-dom/client";
 import "./styles.css";
 
-const floors = Array.from({ length: 25 }, (_, index) => index + 1);
-
-const doors = [
+const doorTemplates = [
   {
     id: "apt-1501",
     number: "Квартира 1501",
@@ -68,25 +66,53 @@ const openingStatuses = [
   "исправлен",
 ];
 
-const project = {
-  name: "ЖК Северный",
-  address: "Строительный объект",
-  readiness: 72,
-  issues: 5,
-  openingsOnCorrection: 12,
-  building: "Корпус 1",
-  section: "Секция 1",
-};
+function createProjectStructure() {
+  return {
+    name: "ЖК Северный",
+    address: "Строительный объект",
+    readiness: 72,
+    issues: 5,
+    openingsOnCorrection: 12,
+    buildings: [
+      {
+        id: "building-1",
+        name: "Корпус 1",
+        floors: Array.from({ length: 25 }, (_, index) => {
+          const floorNumber = index + 1;
+
+          return {
+            id: `floor-${floorNumber}`,
+            number: floorNumber,
+            doors: doorTemplates.map((door) => ({
+              ...door,
+              id: `${door.id}-floor-${floorNumber}`,
+            })),
+          };
+        }),
+      },
+    ],
+  };
+}
+
+const project = createProjectStructure();
+const currentBuilding = project.buildings[0];
 
 function App() {
   const [isLoggedIn, setIsLoggedIn] = useState(false);
   const [screen, setScreen] = useState("objects");
   const [selectedFloor, setSelectedFloor] = useState(15);
+  const selectedFloorData = useMemo(
+    () =>
+      currentBuilding.floors.find((floor) => floor.number === selectedFloor) ??
+      currentBuilding.floors[0],
+    [selectedFloor]
+  );
+  const doors = selectedFloorData.doors;
   const [selectedDoorId, setSelectedDoorId] = useState(doors[0].id);
 
   const selectedDoor = useMemo(
     () => doors.find((door) => door.id === selectedDoorId) ?? doors[0],
-    [selectedDoorId]
+    [doors, selectedDoorId]
   );
 
   if (!isLoggedIn) {
@@ -104,7 +130,6 @@ function App() {
           <button onClick={() => setScreen("objects")}>Объекты</button>
           <button onClick={() => setScreen("object")}>Объект</button>
           <button onClick={() => setScreen("building")}>Корпус</button>
-          <button onClick={() => setScreen("section")}>Секция</button>
           <button onClick={() => setScreen("floor")}>Этаж</button>
         </nav>
         <button className="ghost-button" onClick={() => setIsLoggedIn(false)}>
@@ -121,17 +146,18 @@ function App() {
         />
         {screen === "objects" && <ObjectsPage setScreen={setScreen} />}
         {screen === "object" && <ObjectPage setScreen={setScreen} />}
-        {screen === "building" && <BuildingPage setScreen={setScreen} />}
-        {screen === "section" && (
-          <SectionPage
+        {screen === "building" && (
+          <BuildingPage
             setScreen={setScreen}
             selectedFloor={selectedFloor}
             setSelectedFloor={setSelectedFloor}
+            floors={currentBuilding.floors}
           />
         )}
         {screen === "floor" && (
           <FloorPage
             selectedFloor={selectedFloor}
+            doors={doors}
             setScreen={setScreen}
             setSelectedDoorId={setSelectedDoorId}
           />
@@ -206,8 +232,7 @@ function Header({ screen, setScreen, selectedFloor, selectedDoor }) {
   const labels = {
     objects: "Объекты",
     object: project.name,
-    building: project.building,
-    section: project.section,
+    building: currentBuilding.name,
     floor: `Этаж ${selectedFloor}`,
     door: selectedDoor.number,
   };
@@ -220,9 +245,7 @@ function Header({ screen, setScreen, selectedFloor, selectedDoor }) {
           <span>/</span>
           <button onClick={() => setScreen("object")}>{project.name}</button>
           <span>/</span>
-          <button onClick={() => setScreen("building")}>{project.building}</button>
-          <span>/</span>
-          <button onClick={() => setScreen("section")}>{project.section}</button>
+          <button onClick={() => setScreen("building")}>{currentBuilding.name}</button>
         </div>
         <h1>{labels[screen]}</h1>
       </div>
@@ -234,7 +257,7 @@ function Header({ screen, setScreen, selectedFloor, selectedDoor }) {
 function ObjectsPage({ setScreen }) {
   return (
     <section className="panel">
-      <div className="section-title">
+      <div className="panel-title">
         <h2>Доступные объекты</h2>
         <span>1 объект</span>
       </div>
@@ -276,18 +299,18 @@ function Metric({ label, value, tone = "neutral" }) {
 function ObjectPage({ setScreen }) {
   return (
     <section className="panel">
-      <div className="section-title">
+      <div className="panel-title">
         <h2>Корпуса объекта</h2>
         <span>{project.name}</span>
       </div>
       <button
         className="row-card"
-        aria-label={`Открыть корпус ${project.building}`}
+        aria-label={`Открыть корпус ${currentBuilding.name}`}
         onClick={() => setScreen("building")}
       >
         <div>
-          <strong>{project.building}</strong>
-          <p>Секции: 1. Этажи: 25.</p>
+          <strong>{currentBuilding.name}</strong>
+          <p>Этажи: {currentBuilding.floors.length}. Двери заведены на уровне этажа.</p>
         </div>
         <Status label="Активен" />
       </button>
@@ -295,46 +318,26 @@ function ObjectPage({ setScreen }) {
   );
 }
 
-function BuildingPage({ setScreen }) {
+function BuildingPage({ setScreen, selectedFloor, setSelectedFloor, floors }) {
   return (
     <section className="panel">
-      <div className="section-title">
-        <h2>Секции корпуса</h2>
-        <span>{project.building}</span>
-      </div>
-      <button
-        className="row-card"
-        aria-label={`Открыть секцию ${project.section}`}
-        onClick={() => setScreen("section")}
-      >
-        <div>
-          <strong>{project.section}</strong>
-          <p>25 этажей, мок-данные дверей на каждом этаже.</p>
-        </div>
-        <Status label="В работе" />
-      </button>
-    </section>
-  );
-}
-
-function SectionPage({ setScreen, selectedFloor, setSelectedFloor }) {
-  return (
-    <section className="panel">
-      <div className="section-title">
-        <h2>Этажи секции</h2>
-        <span>{project.section}</span>
+      <div className="panel-title">
+        <h2>Этажи корпуса</h2>
+        <span>{currentBuilding.name}</span>
       </div>
       <div className="floor-grid">
         {floors.map((floor) => (
           <button
-            className={floor === selectedFloor ? "floor-tile active" : "floor-tile"}
-            key={floor}
+            className={
+              floor.number === selectedFloor ? "floor-tile active" : "floor-tile"
+            }
+            key={floor.id}
             onClick={() => {
-              setSelectedFloor(floor);
+              setSelectedFloor(floor.number);
               setScreen("floor");
             }}
           >
-            {floor}
+            {floor.number}
           </button>
         ))}
       </div>
@@ -342,10 +345,10 @@ function SectionPage({ setScreen, selectedFloor, setSelectedFloor }) {
   );
 }
 
-function FloorPage({ selectedFloor, setScreen, setSelectedDoorId }) {
+function FloorPage({ selectedFloor, doors, setScreen, setSelectedDoorId }) {
   return (
     <section className="panel">
-      <div className="section-title">
+      <div className="panel-title">
         <h2>Двери на этаже {selectedFloor}</h2>
         <span>{doors.length} дверей</span>
       </div>
@@ -384,14 +387,13 @@ function DoorPage({ selectedFloor, selectedDoor, setScreen }) {
   return (
     <section className="door-layout">
       <div className="panel">
-        <div className="section-title">
+        <div className="panel-title">
           <h2>Карточка двери</h2>
           <span>{project.name}</span>
         </div>
         <div className="detail-grid">
           <Detail label="Объект" value={project.name} />
-          <Detail label="Корпус" value={project.building} />
-          <Detail label="Секция" value={project.section} />
+          <Detail label="Корпус" value={currentBuilding.name} />
           <Detail label="Этаж" value={selectedFloor} />
           <Detail label="Номер" value={selectedDoor.number} />
           <Detail label="Тип двери" value={selectedDoor.type} />
@@ -405,7 +407,7 @@ function DoorPage({ selectedFloor, selectedDoor, setScreen }) {
         </button>
       </div>
       <div className="panel">
-        <div className="section-title">
+        <div className="panel-title">
           <h2>Доступные статусы</h2>
         </div>
         <div className="status-list">

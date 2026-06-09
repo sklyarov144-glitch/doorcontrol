@@ -219,7 +219,7 @@ input:focus {
   border-radius: 8px;
 }
 
-.section-title {
+.panel-title {
   display: flex;
   justify-content: space-between;
   align-items: center;
@@ -227,7 +227,7 @@ input:focus {
   margin-bottom: 18px;
 }
 
-.section-title span {
+.panel-title span {
   color: #6d7783;
 }
 
@@ -468,7 +468,7 @@ input:focus {
   }
 
   .page-header,
-  .section-title,
+  .panel-title,
   .row-card,
   .object-card-main {
     align-items: stretch;
