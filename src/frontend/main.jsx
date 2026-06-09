@@ -2,7 +2,7 @@ import React, { useMemo, useState } from "react";
 import { createRoot } from "react-dom/client";
 import "./styles.css";
 
-const STORAGE_KEY = "doorcontrol.visual.mvp.v2";
+const STORAGE_KEY = "gross-montage.visual.mvp.v1";
 
 const doorStatusOptions = [
   "не начато",
@@ -381,10 +381,10 @@ function LoginPage({ onLogin }) {
   return (
     <main className="login-page">
       <section className="login-panel">
-        <div>
+        <div className="login-brand-zone">
           <BrandMark variant="login" />
-          <h1>Вход в систему</h1>
-          <p>Визуальная закрытая часть для контроля дверей на объекте.</p>
+          <h1>ГРОСС Монтаж</h1>
+          <p>Цифровое управление монтажом</p>
         </div>
         <form
           className="login-form"
@@ -432,7 +432,7 @@ function Sidebar({ setScreen, onLogout }) {
     <aside className="sidebar">
       <div>
         <BrandMark />
-        <div className="brand-subtitle">Визуальное управление объектом</div>
+        <div className="brand-subtitle">Цифровое управление монтажом</div>
         <nav className="nav">
           <button onClick={() => setScreen("objects")}>Мои объекты</button>
           <button onClick={() => setScreen("object")}>Корпуса объекта</button>
@@ -456,8 +456,8 @@ function BrandMark({ variant = "default" }) {
         <span className="mark-cut" />
       </div>
       <div>
-        <div className="company-name">РОСС</div>
-        <div className="product-name">DoorControl</div>
+        <div className="company-name">ГРОСС</div>
+        <div className="product-name">Монтаж</div>
       </div>
     </div>
   );
@@ -653,7 +653,7 @@ function FloorSelector({ building, selectedFloorId, onSelectFloor }) {
         </div>
       </div>
       <div className="floor-list">
-        {building.floors.map((floor) => (
+        {[...building.floors].reverse().map((floor) => (
           <button
             className={floor.id === selectedFloorId ? "floor-chip active" : "floor-chip"}
             key={floor.id}
@@ -669,6 +669,16 @@ function FloorSelector({ building, selectedFloorId, onSelectFloor }) {
 
 function FloorPlan({ object, building, floor, onOpenDoor, onBack }) {
   const label = floor.type === "floor" ? `Этаж ${floor.number}` : floor.label;
+  const [doorFilter, setDoorFilter] = useState("all");
+  const visibleDoors = floor.doors.filter((door) => {
+    if (doorFilter === "apartments") {
+      return door.type === "Квартирная";
+    }
+    if (doorFilter === "common") {
+      return door.type === "МОП";
+    }
+    return true;
+  });
 
   return (
     <section className="floor-dashboard">
@@ -686,6 +696,29 @@ function FloorPlan({ object, building, floor, onOpenDoor, onBack }) {
         </div>
         {floor.doors.length > 0 ? (
           <>
+            <div className="plan-toolbar">
+              <div className="filter-tabs" aria-label="Фильтр дверей">
+                <button
+                  className={doorFilter === "all" ? "active" : ""}
+                  onClick={() => setDoorFilter("all")}
+                >
+                  Все двери
+                </button>
+                <button
+                  className={doorFilter === "apartments" ? "active" : ""}
+                  onClick={() => setDoorFilter("apartments")}
+                >
+                  Квартирные
+                </button>
+                <button
+                  className={doorFilter === "common" ? "active" : ""}
+                  onClick={() => setDoorFilter("common")}
+                >
+                  МОП
+                </button>
+              </div>
+              <span>{visibleDoors.length} из {floor.doors.length}</span>
+            </div>
             <div className="floor-plan">
               <div className="room room-left-top">Квартира 1501</div>
               <div className="room room-right-top">Квартира 1502</div>
@@ -695,7 +728,7 @@ function FloorPlan({ object, building, floor, onOpenDoor, onBack }) {
               <div className="plan-core">Лифтовой холл</div>
               <div className="plan-corridor horizontal" />
               <div className="plan-corridor vertical" />
-              {floor.doors.map((door) => (
+              {visibleDoors.map((door) => (
                 <DoorMarker key={door.id} door={door} onOpen={() => onOpenDoor(door.id)} />
               ))}
             </div>
@@ -746,7 +779,7 @@ function DoorDetails({ object, building, floor, door, onSave, onBack }) {
       storageAct: door.storageAct,
     });
     setSaved(false);
-  }, [door]);
+  }, [door.id]);
 
   const handleChange = (field, value) => {
     setForm((current) => ({ ...current, [field]: value }));
