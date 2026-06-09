@@ -71,6 +71,9 @@ const openingStatuses = [
 const project = {
   name: "ЖК Северный",
   address: "Строительный объект",
+  readiness: 72,
+  issues: 5,
+  openingsOnCorrection: 12,
   building: "Корпус 1",
   section: "Секция 1",
 };
@@ -146,6 +149,10 @@ function App() {
 }
 
 function LoginPage({ onLogin }) {
+  const [login, setLogin] = useState("");
+  const [password, setPassword] = useState("");
+  const [error, setError] = useState("");
+
   return (
     <main className="login-page">
       <section className="login-panel">
@@ -158,17 +165,36 @@ function LoginPage({ onLogin }) {
           className="login-form"
           onSubmit={(event) => {
             event.preventDefault();
-            onLogin();
+            if (login === "admin" && password === "123456") {
+              setError("");
+              onLogin();
+              return;
+            }
+
+            setError("Неверный логин или пароль");
           }}
         >
           <label>
             Логин
-            <input type="text" defaultValue="demo" />
+            <input
+              type="text"
+              autoComplete="username"
+              value={login}
+              onChange={(event) => setLogin(event.target.value)}
+              placeholder="admin"
+            />
           </label>
           <label>
             Пароль
-            <input type="password" defaultValue="demo" />
+            <input
+              type="password"
+              autoComplete="current-password"
+              value={password}
+              onChange={(event) => setPassword(event.target.value)}
+              placeholder="123456"
+            />
           </label>
+          {error && <div className="form-error">{error}</div>}
           <button type="submit">Войти</button>
         </form>
       </section>
@@ -200,7 +226,7 @@ function Header({ screen, setScreen, selectedFloor, selectedDoor }) {
         </div>
         <h1>{labels[screen]}</h1>
       </div>
-      <div className="user-chip">demo</div>
+      <div className="user-chip">admin</div>
     </header>
   );
 }
@@ -213,17 +239,37 @@ function ObjectsPage({ setScreen }) {
         <span>1 объект</span>
       </div>
       <button
-        className="row-card"
+        className="object-card"
         aria-label={`Открыть объект ${project.name}`}
         onClick={() => setScreen("object")}
       >
-        <div>
-          <strong>{project.name}</strong>
-          <p>{project.address}</p>
+        <div className="object-card-main">
+          <div>
+            <strong>{project.name}</strong>
+            <p>{project.address}</p>
+          </div>
+          <Status label="В работе" />
         </div>
-        <Status label="В работе" />
+        <div className="metric-grid">
+          <Metric label="Готовность" value={`${project.readiness}%`} />
+          <Metric label="Замечания" value={project.issues} tone="warning" />
+          <Metric
+            label="Проемы на корректировке"
+            value={project.openingsOnCorrection}
+            tone="alert"
+          />
+        </div>
       </button>
     </section>
+  );
+}
+
+function Metric({ label, value, tone = "neutral" }) {
+  return (
+    <div className={`metric ${tone}`}>
+      <span>{label}</span>
+      <strong>{value}</strong>
+    </div>
   );
 }
 

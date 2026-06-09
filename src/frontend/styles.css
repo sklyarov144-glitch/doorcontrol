@@ -33,7 +33,7 @@ button {
   place-items: center;
   padding: 24px;
   background:
-    linear-gradient(rgba(238, 242, 245, 0.92), rgba(238, 242, 245, 0.92)),
+    linear-gradient(rgba(238, 242, 245, 0.9), rgba(238, 242, 245, 0.9)),
     url("https://images.unsplash.com/photo-1486406146926-c627a92ad1ab?auto=format&fit=crop&w=1800&q=80")
       center / cover;
 }
@@ -100,6 +100,21 @@ input {
   padding: 12px 14px;
   color: #18202b;
   background: #ffffff;
+}
+
+input:focus {
+  border-color: #0f5e63;
+  box-shadow: 0 0 0 3px rgba(15, 94, 99, 0.14);
+  outline: 0;
+}
+
+.form-error {
+  border: 1px solid #efb1a8;
+  border-radius: 6px;
+  padding: 10px 12px;
+  color: #8f2f24;
+  background: #fff1ee;
+  font-weight: 700;
 }
 
 .login-form button,
@@ -237,6 +252,77 @@ input {
 
 .row-card p {
   margin-bottom: 0;
+}
+
+.object-card {
+  width: 100%;
+  display: grid;
+  gap: 18px;
+  padding: 20px;
+  border: 1px solid #d9e1e8;
+  border-radius: 8px;
+  background: #fbfcfd;
+  color: #22303d;
+  text-align: left;
+}
+
+.object-card:hover {
+  border-color: #0f5e63;
+  box-shadow: 0 10px 24px rgba(22, 35, 50, 0.08);
+}
+
+.object-card-main {
+  display: flex;
+  justify-content: space-between;
+  align-items: flex-start;
+  gap: 18px;
+}
+
+.object-card strong {
+  display: block;
+  font-size: 22px;
+  margin-bottom: 4px;
+}
+
+.object-card p {
+  margin-bottom: 0;
+}
+
+.metric-grid {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: 12px;
+}
+
+.metric {
+  min-height: 92px;
+  display: grid;
+  align-content: center;
+  gap: 6px;
+  padding: 14px;
+  border: 1px solid #d9e1e8;
+  border-radius: 8px;
+  background: #ffffff;
+}
+
+.metric span {
+  color: #6a7785;
+  font-size: 13px;
+  font-weight: 800;
+}
+
+.metric strong {
+  color: #0f5e63;
+  font-size: 30px;
+  line-height: 1;
+}
+
+.metric.warning strong {
+  color: #9f5b00;
+}
+
+.metric.alert strong {
+  color: #9b3528;
 }
 
 .floor-grid {
@@ -383,13 +469,18 @@ input {
 
   .page-header,
   .section-title,
-  .row-card {
+  .row-card,
+  .object-card-main {
     align-items: stretch;
     flex-direction: column;
   }
 
   .door-layout,
   .detail-grid {
+    grid-template-columns: 1fr;
+  }
+
+  .metric-grid {
     grid-template-columns: 1fr;
   }
 }
