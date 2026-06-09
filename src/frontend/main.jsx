@@ -2,6 +2,45 @@ import React, { useMemo, useState } from "react";
 import { createRoot } from "react-dom/client";
 import "./styles.css";
 
+const STORAGE_KEY = "doorcontrol.visual.mvp.v2";
+
+const doorStatusOptions = [
+  "не начато",
+  "доставлена",
+  "смонтирована",
+  "замечание",
+  "принято технадзором",
+  "передано по акту",
+];
+
+const openingStatusOptions = [
+  "готов",
+  "требует корректировки",
+  "передан на исправление",
+  "исправлен",
+];
+
+const issueOptions = ["нет", "есть замечание", "устранено"];
+const storageActOptions = ["не передана", "акт подготовлен", "передано по акту"];
+
+const statusMeta = {
+  "не начато": { tone: "gray", label: "не начато" },
+  доставлена: { tone: "blue", label: "доставлена" },
+  смонтирована: { tone: "green", label: "смонтирована" },
+  замечание: { tone: "red", label: "замечание" },
+  "принято технадзором": { tone: "teal", label: "принято технадзором" },
+  "передано по акту": { tone: "purple", label: "передано по акту" },
+  готов: { tone: "green", label: "готов" },
+  "требует корректировки": { tone: "orange", label: "требует корректировки" },
+  "передан на исправление": { tone: "orange", label: "передан на исправление" },
+  исправлен: { tone: "teal", label: "исправлен" },
+  нет: { tone: "gray", label: "нет" },
+  "есть замечание": { tone: "red", label: "есть замечание" },
+  устранено: { tone: "green", label: "устранено" },
+  "не передана": { tone: "gray", label: "не передана" },
+  "акт подготовлен": { tone: "blue", label: "акт подготовлен" },
+};
+
 const baseDoors = [
   {
     id: "apt-1501",
@@ -9,10 +48,11 @@ const baseDoors = [
     type: "Квартирная",
     doorStatus: "смонтирована",
     openingStatus: "готов",
-    issue: "Нет",
-    storageAct: "Не требуется",
-    x: 16,
-    y: 20,
+    issue: "нет",
+    storageAct: "не передана",
+    x: 17,
+    y: 24,
+    roomClass: "room-left-top",
   },
   {
     id: "apt-1502",
@@ -20,10 +60,11 @@ const baseDoors = [
     type: "Квартирная",
     doorStatus: "доставлена",
     openingStatus: "требует корректировки",
-    issue: "Отклонение по геометрии проема",
-    storageAct: "Не требуется",
-    x: 58,
-    y: 20,
+    issue: "есть замечание",
+    storageAct: "не передана",
+    x: 67,
+    y: 24,
+    roomClass: "room-right-top",
   },
   {
     id: "apt-1503",
@@ -31,10 +72,11 @@ const baseDoors = [
     type: "Квартирная",
     doorStatus: "замечание",
     openingStatus: "передан на исправление",
-    issue: "Требуется регулировка полотна",
-    storageAct: "Не требуется",
-    x: 16,
-    y: 68,
+    issue: "есть замечание",
+    storageAct: "не передана",
+    x: 18,
+    y: 72,
+    roomClass: "room-left-bottom",
   },
   {
     id: "mop-15-01",
@@ -42,10 +84,11 @@ const baseDoors = [
     type: "МОП",
     doorStatus: "принято технадзором",
     openingStatus: "исправлен",
-    issue: "Нет",
-    storageAct: "Акт подготовлен",
-    x: 43,
-    y: 48,
+    issue: "устранено",
+    storageAct: "акт подготовлен",
+    x: 46,
+    y: 50,
+    roomClass: "room-core-left",
   },
   {
     id: "mop-15-02",
@@ -53,10 +96,11 @@ const baseDoors = [
     type: "МОП",
     doorStatus: "передано по акту",
     openingStatus: "готов",
-    issue: "Нет",
-    storageAct: "Передано на ответственное хранение",
-    x: 70,
-    y: 68,
+    issue: "нет",
+    storageAct: "передано по акту",
+    x: 73,
+    y: 72,
+    roomClass: "room-right-bottom",
   },
 ];
 
@@ -69,26 +113,10 @@ const floorOptions = [
   { id: "roof", label: "Кровля", type: "service" },
 ];
 
-function createProjectStructure() {
-  return {
-    id: "object-north",
-    name: "ЖК Северный",
-    address: "Северный район, строительная площадка",
-    readiness: 72,
-    issues: 5,
-    openingsOnCorrection: 12,
-    buildings: [
-      createBuilding("building-1", "Корпус 1", 72),
-      createBuilding("building-2", "Корпус 2", 41),
-    ],
-  };
-}
-
-function createBuilding(id, name, readiness) {
+function createBuilding(id, name, readinessOffset = 0) {
   return {
     id,
     name,
-    readiness,
     floors: floorOptions.map((floor) => ({
       ...floor,
       doors:
@@ -96,27 +124,97 @@ function createBuilding(id, name, readiness) {
           ? baseDoors.map((door) => ({
               ...door,
               id: `${id}-${floor.id}-${door.id}`,
+              history: [
+                {
+                  id: `${id}-${floor.id}-${door.id}-init`,
+                  text: "Создана мок-карточка двери",
+                  date: "сегодня",
+                },
+              ],
             }))
           : [],
     })),
+    readinessOffset,
   };
 }
 
-const mockObjects = [createProjectStructure()];
+function createInitialObjects() {
+  return [
+    {
+      id: "object-north",
+      name: "ЖК Северный",
+      address: "Северный район, строительная площадка",
+      status: "В работе",
+      buildings: [
+        createBuilding("building-1", "Корпус 1", 0),
+        createBuilding("building-2", "Корпус 2", -18),
+      ],
+    },
+  ];
+}
+
+function loadObjects() {
+  try {
+    const saved = localStorage.getItem(STORAGE_KEY);
+    return saved ? JSON.parse(saved) : createInitialObjects();
+  } catch {
+    return createInitialObjects();
+  }
+}
+
+function saveObjects(objects) {
+  localStorage.setItem(STORAGE_KEY, JSON.stringify(objects));
+}
+
+function getAllDoors(object) {
+  return object.buildings.flatMap((building) =>
+    building.floors.flatMap((floor) => floor.doors)
+  );
+}
+
+function getMetrics(object) {
+  const doors = getAllDoors(object);
+  const ready = doors.filter((door) =>
+    ["смонтирована", "принято технадзором", "передано по акту"].includes(
+      door.doorStatus
+    )
+  ).length;
+
+  return {
+    readiness: doors.length ? Math.round((ready / doors.length) * 100) : 0,
+    issues: doors.filter((door) => door.issue === "есть замечание").length,
+    openingsOnCorrection: doors.filter((door) =>
+      ["требует корректировки", "передан на исправление"].includes(
+        door.openingStatus
+      )
+    ).length,
+  };
+}
+
+function getBuildingReadiness(building) {
+  const doors = building.floors.flatMap((floor) => floor.doors);
+  const ready = doors.filter((door) =>
+    ["смонтирована", "принято технадзором", "передано по акту"].includes(
+      door.doorStatus
+    )
+  ).length;
+  return doors.length ? Math.round((ready / doors.length) * 100) : 0;
+}
 
 function App() {
+  const [objects, setObjects] = useState(loadObjects);
   const [isLoggedIn, setIsLoggedIn] = useState(false);
   const [screen, setScreen] = useState("objects");
-  const [selectedObjectId, setSelectedObjectId] = useState(mockObjects[0].id);
+  const [selectedObjectId, setSelectedObjectId] = useState(objects[0].id);
   const [selectedBuildingId, setSelectedBuildingId] = useState(
-    mockObjects[0].buildings[0].id
+    objects[0].buildings[0].id
   );
   const [selectedFloorId, setSelectedFloorId] = useState("floor-15");
   const [selectedDoorId, setSelectedDoorId] = useState("");
 
   const selectedObject = useMemo(
-    () => mockObjects.find((object) => object.id === selectedObjectId) ?? mockObjects[0],
-    [selectedObjectId]
+    () => objects.find((object) => object.id === selectedObjectId) ?? objects[0],
+    [objects, selectedObjectId]
   );
   const selectedBuilding = useMemo(
     () =>
@@ -138,8 +236,60 @@ function App() {
     [selectedDoorId, selectedFloor]
   );
 
+  const updateDoor = (doorId, values) => {
+    const nextObjects = objects.map((object) => ({
+      ...object,
+      buildings: object.buildings.map((building) => ({
+        ...building,
+        floors: building.floors.map((floor) => ({
+          ...floor,
+          doors: floor.doors.map((door) => {
+            if (door.id !== doorId) {
+              return door;
+            }
+
+            const changed = [];
+            if (door.doorStatus !== values.doorStatus) {
+              changed.push(`Статус двери: ${door.doorStatus} -> ${values.doorStatus}`);
+            }
+            if (door.openingStatus !== values.openingStatus) {
+              changed.push(
+                `Статус проема: ${door.openingStatus} -> ${values.openingStatus}`
+              );
+            }
+            if (door.issue !== values.issue) {
+              changed.push(`Замечания: ${door.issue} -> ${values.issue}`);
+            }
+            if (door.storageAct !== values.storageAct) {
+              changed.push(`Акт: ${door.storageAct} -> ${values.storageAct}`);
+            }
+
+            return {
+              ...door,
+              ...values,
+              history:
+                changed.length > 0
+                  ? [
+                      {
+                        id: `${door.id}-${Date.now()}`,
+                        text: changed.join("; "),
+                        date: new Date().toLocaleString("ru-RU"),
+                      },
+                      ...door.history,
+                    ]
+                  : door.history,
+            };
+          }),
+        })),
+      })),
+    }));
+
+    setObjects(nextObjects);
+    saveObjects(nextObjects);
+  };
+
   const goToObject = (objectId) => {
-    const nextObject = mockObjects.find((object) => object.id === objectId) ?? mockObjects[0];
+    const nextObject = objects.find((object) => object.id === objectId) ?? objects[0];
     setSelectedObjectId(nextObject.id);
     setSelectedBuildingId(nextObject.buildings[0].id);
     setScreen("object");
@@ -169,22 +319,7 @@ function App() {
 
   return (
     <div className="app-shell">
-      <aside className="sidebar">
-        <div>
-          <div className="brand">DoorControl</div>
-          <div className="brand-subtitle">Визуальное управление объектом</div>
-        </div>
-        <nav className="nav">
-          <button onClick={() => setScreen("objects")}>Мои объекты</button>
-          <button onClick={() => setScreen("object")}>Корпуса объекта</button>
-          <button onClick={() => setScreen("building")}>Визуализация корпуса</button>
-          <button onClick={() => setScreen("floor")}>План этажа</button>
-        </nav>
-        <button className="ghost-button" onClick={() => setIsLoggedIn(false)}>
-          Выйти
-        </button>
-      </aside>
-
+      <Sidebar setScreen={setScreen} onLogout={() => setIsLoggedIn(false)} />
       <main className="content">
         <Header
           screen={screen}
@@ -195,19 +330,26 @@ function App() {
           selectedDoor={selectedDoor}
         />
         <div className="page-transition" key={screen}>
-          {screen === "objects" && <ObjectsPage objects={mockObjects} onOpen={goToObject} />}
+          {screen === "objects" && <ObjectsPage objects={objects} onOpen={goToObject} />}
           {screen === "object" && (
             <ObjectPage object={selectedObject} onOpenBuilding={goToBuilding} />
           )}
           {screen === "building" && (
-            <BuildingPage
-              building={selectedBuilding}
-              selectedFloorId={selectedFloor.id}
-              onSelectFloor={goToFloor}
-            />
+            <section className="building-dashboard">
+              <BuildingVisualization
+                building={selectedBuilding}
+                selectedFloorId={selectedFloor.id}
+                onSelectFloor={goToFloor}
+              />
+              <FloorSelector
+                building={selectedBuilding}
+                selectedFloorId={selectedFloor.id}
+                onSelectFloor={goToFloor}
+              />
+            </section>
           )}
           {screen === "floor" && (
-            <FloorPage
+            <FloorPlan
               object={selectedObject}
               building={selectedBuilding}
               floor={selectedFloor}
@@ -216,11 +358,12 @@ function App() {
             />
           )}
           {screen === "door" && selectedDoor && (
-            <DoorPage
+            <DoorDetails
               object={selectedObject}
               building={selectedBuilding}
               floor={selectedFloor}
               door={selectedDoor}
+              onSave={updateDoor}
               onBack={() => setScreen("floor")}
             />
           )}
@@ -284,6 +427,26 @@ function LoginPage({ onLogin }) {
   );
 }
 
+function Sidebar({ setScreen, onLogout }) {
+  return (
+    <aside className="sidebar">
+      <div>
+        <div className="brand">DoorControl</div>
+        <div className="brand-subtitle">Визуальное управление объектом</div>
+        <nav className="nav">
+          <button onClick={() => setScreen("objects")}>Мои объекты</button>
+          <button onClick={() => setScreen("object")}>Корпуса объекта</button>
+          <button onClick={() => setScreen("building")}>Визуализация корпуса</button>
+          <button onClick={() => setScreen("floor")}>План этажа</button>
+        </nav>
+      </div>
+      <button className="ghost-button" onClick={onLogout}>
+        Выйти
+      </button>
+    </aside>
+  );
+}
+
 function Header({ screen, setScreen, selectedObject, selectedBuilding, selectedFloor, selectedDoor }) {
   const labels = {
     objects: "Мои объекты",
@@ -314,7 +477,7 @@ function Header({ screen, setScreen, selectedObject, selectedBuilding, selectedF
             <>
               <span>/</span>
               <button onClick={() => setScreen("floor")}>
-                {selectedFloor.label === "15" ? "Этаж 15" : selectedFloor.label}
+                {selectedFloor.type === "floor" ? `Этаж ${selectedFloor.number}` : selectedFloor.label}
               </button>
             </>
           )}
@@ -327,55 +490,75 @@ function Header({ screen, setScreen, selectedObject, selectedBuilding, selectedF
         </div>
         <h1>{labels[screen]}</h1>
       </div>
-      <div className="user-chip">admin</div>
+      <div className="user-chip">ИТР: admin</div>
     </header>
   );
 }
 
 function ObjectsPage({ objects, onOpen }) {
   return (
-    <section className="panel visual-panel">
-      <div className="panel-title">
-        <h2>Объекты в работе</h2>
+    <section className="visual-panel">
+      <div className="view-heading">
+        <div>
+          <h2>Объекты в работе</h2>
+          <p>Выберите объект, чтобы перейти к корпусам и визуальному плану.</p>
+        </div>
         <span>{objects.length} объект</span>
       </div>
       <div className="object-grid">
         {objects.map((object) => (
-          <button
-            className="object-card visual-card"
-            key={object.id}
-            aria-label={`Открыть объект ${object.name}`}
-            onClick={() => onOpen(object.id)}
-          >
-            <div className="object-card-main">
-              <div>
-                <strong>{object.name}</strong>
-                <p>{object.address}</p>
-              </div>
-              <Status label="В работе" />
-            </div>
-            <div className="metric-grid">
-              <Metric label="Готовность" value={`${object.readiness}%`} />
-              <Metric label="Замечания" value={object.issues} tone="warning" />
-              <Metric
-                label="Проемы на корректировке"
-                value={object.openingsOnCorrection}
-                tone="alert"
-              />
-            </div>
-          </button>
+          <ObjectCard key={object.id} object={object} onOpen={() => onOpen(object.id)} />
         ))}
       </div>
     </section>
   );
 }
 
+function ObjectCard({ object, onOpen }) {
+  const metrics = getMetrics(object);
+
+  return (
+    <button
+      className="object-card visual-card"
+      aria-label={`Открыть объект ${object.name}`}
+      onClick={onOpen}
+    >
+      <div className="object-image">
+        <div className="object-tower tower-a" />
+        <div className="object-tower tower-b" />
+        <div className="object-ground" />
+      </div>
+      <div className="object-card-body">
+        <div className="object-card-main">
+          <div>
+            <strong>{object.name}</strong>
+            <p>{object.address}</p>
+          </div>
+          <StatusBadge value={object.status} />
+        </div>
+        <div className="metric-grid">
+          <Metric label="Готовность" value={`${metrics.readiness}%`} />
+          <Metric label="Замечания" value={metrics.issues} tone="warning" />
+          <Metric
+            label="Проемы на корректировке"
+            value={metrics.openingsOnCorrection}
+            tone="alert"
+          />
+        </div>
+      </div>
+    </button>
+  );
+}
+
 function ObjectPage({ object, onOpenBuilding }) {
   return (
-    <section className="panel visual-panel">
-      <div className="panel-title">
-        <h2>{object.name}</h2>
-        <span>Корпуса объекта</span>
+    <section className="visual-panel">
+      <div className="view-heading">
+        <div>
+          <h2>{object.name}</h2>
+          <p>Корпуса объекта в текущей mock-структуре.</p>
+        </div>
+        <StatusBadge value={object.status} />
       </div>
       <div className="building-grid">
         {object.buildings.map((building) => (
@@ -386,7 +569,7 @@ function ObjectPage({ object, onOpenBuilding }) {
             onClick={() => onOpenBuilding(building.id)}
           >
             <div className="mini-building">
-              {Array.from({ length: 7 }, (_, index) => (
+              {Array.from({ length: 9 }, (_, index) => (
                 <span key={index} />
               ))}
             </div>
@@ -394,7 +577,7 @@ function ObjectPage({ object, onOpenBuilding }) {
               <strong>{building.name}</strong>
               <p>{building.floors.filter((floor) => floor.type === "floor").length} этажей</p>
             </div>
-            <Status label={`Готовность ${building.readiness}%`} />
+            <StatusBadge value={`Готовность ${getBuildingReadiness(building)}%`} />
           </button>
         ))}
       </div>
@@ -402,48 +585,227 @@ function ObjectPage({ object, onOpenBuilding }) {
   );
 }
 
-function BuildingPage({ building, selectedFloorId, onSelectFloor }) {
+function BuildingVisualization({ building, selectedFloorId, onSelectFloor }) {
+  const selectedNumber = selectedFloorId.startsWith("floor-")
+    ? Number(selectedFloorId.replace("floor-", ""))
+    : null;
+
   return (
-    <section className="building-dashboard">
-      <div className="panel building-visual-card">
-        <div className="panel-title">
+    <div className="panel building-visual-card">
+      <div className="panel-title">
+        <div>
           <h2>{building.name}</h2>
-          <span>Стилизованная визуализация</span>
+          <p>Фасад корпуса с горизонтальными уровнями</p>
         </div>
-        <div className="building-visual">
-          <div className="roof-line" />
-          {Array.from({ length: 25 }, (_, index) => {
-            const floorNumber = 25 - index;
-            return (
-              <button
-                className={floorNumber === 15 ? "facade-floor active" : "facade-floor"}
-                key={floorNumber}
-                onClick={() => onSelectFloor(`floor-${floorNumber}`)}
-              >
-                <span>{floorNumber}</span>
-                <i />
-                <i />
-                <i />
-              </button>
-            );
-          })}
-          <div className="parking-line">Паркинг</div>
+        <StatusBadge value={`Готовность ${getBuildingReadiness(building)}%`} />
+      </div>
+      <div className="building-visual">
+        <div className="roof-line">Кровля</div>
+        {Array.from({ length: 25 }, (_, index) => {
+          const floorNumber = 25 - index;
+          return (
+            <button
+              className={
+                floorNumber === selectedNumber ? "facade-floor active" : "facade-floor"
+              }
+              key={floorNumber}
+              onClick={() => onSelectFloor(`floor-${floorNumber}`)}
+            >
+              <span>{floorNumber}</span>
+              <i />
+              <i />
+              <i />
+              <i />
+            </button>
+          );
+        })}
+        <button className="parking-line" onClick={() => onSelectFloor("parking")}>
+          Паркинг
+        </button>
+      </div>
+    </div>
+  );
+}
+
+function FloorSelector({ building, selectedFloorId, onSelectFloor }) {
+  return (
+    <aside className="panel floor-selector">
+      <div className="panel-title">
+        <div>
+          <h2>Этажи</h2>
+          <p>{building.name}</p>
         </div>
       </div>
-      <aside className="panel floor-selector">
+      <div className="floor-list">
+        {building.floors.map((floor) => (
+          <button
+            className={floor.id === selectedFloorId ? "floor-chip active" : "floor-chip"}
+            key={floor.id}
+            onClick={() => onSelectFloor(floor.id)}
+          >
+            {floor.label}
+          </button>
+        ))}
+      </div>
+    </aside>
+  );
+}
+
+function FloorPlan({ object, building, floor, onOpenDoor, onBack }) {
+  const label = floor.type === "floor" ? `Этаж ${floor.number}` : floor.label;
+
+  return (
+    <section className="floor-dashboard">
+      <div className="panel floor-plan-panel">
         <div className="panel-title">
-          <h2>Выбор этажа</h2>
-          <span>{building.name}</span>
+          <div>
+            <h2>План этажа сверху</h2>
+            <p>
+              {object.name} / {building.name} / {label}
+            </p>
+          </div>
+          <button className="secondary-button slim" onClick={onBack}>
+            К корпусу
+          </button>
         </div>
-        <div className="floor-list">
-          {building.floors.map((floor) => (
-            <button
-              className={floor.id === selectedFloorId ? "floor-chip active" : "floor-chip"}
-              key={floor.id}
-              onClick={() => onSelectFloor(floor.id)}
-            >
-              {floor.label}
-            </button>
+        {floor.doors.length > 0 ? (
+          <>
+            <div className="floor-plan">
+              <div className="room room-left-top">Квартира 1501</div>
+              <div className="room room-right-top">Квартира 1502</div>
+              <div className="room room-left-bottom">Квартира 1503</div>
+              <div className="room room-core-left">МОП</div>
+              <div className="room room-right-bottom">МОП</div>
+              <div className="plan-core">Лифтовой холл</div>
+              <div className="plan-corridor horizontal" />
+              <div className="plan-corridor vertical" />
+              {floor.doors.map((door) => (
+                <DoorMarker key={door.id} door={door} onOpen={() => onOpenDoor(door.id)} />
+              ))}
+            </div>
+            <StatusLegend />
+          </>
+        ) : (
+          <div className="empty-plan">
+            Для уровня "{floor.label}" двери пока не заведены в mock-структуре.
+          </div>
+        )}
+      </div>
+    </section>
+  );
+}
+
+function DoorMarker({ door, onOpen }) {
+  const tone =
+    door.openingStatus === "требует корректировки"
+      ? "orange"
+      : statusMeta[door.doorStatus]?.tone ?? "gray";
+
+  return (
+    <button
+      className={`door-marker ${door.type === "МОП" ? "common" : ""} status-${tone}`}
+      style={{ left: `${door.x}%`, top: `${door.y}%` }}
+      onClick={onOpen}
+    >
+      <span>{door.number}</span>
+      <small>{door.doorStatus}</small>
+    </button>
+  );
+}
+
+function DoorDetails({ object, building, floor, door, onSave, onBack }) {
+  const [form, setForm] = useState({
+    doorStatus: door.doorStatus,
+    openingStatus: door.openingStatus,
+    issue: door.issue,
+    storageAct: door.storageAct,
+  });
+  const [saved, setSaved] = useState(false);
+
+  React.useEffect(() => {
+    setForm({
+      doorStatus: door.doorStatus,
+      openingStatus: door.openingStatus,
+      issue: door.issue,
+      storageAct: door.storageAct,
+    });
+    setSaved(false);
+  }, [door]);
+
+  const handleChange = (field, value) => {
+    setForm((current) => ({ ...current, [field]: value }));
+    setSaved(false);
+  };
+
+  const handleSubmit = (event) => {
+    event.preventDefault();
+    onSave(door.id, form);
+    setSaved(true);
+  };
+
+  return (
+    <section className="door-layout">
+      <form className="panel door-form" onSubmit={handleSubmit}>
+        <div className="panel-title">
+          <div>
+            <h2>{door.number}</h2>
+            <p>
+              {object.name} / {building.name} / Этаж {floor.number}
+            </p>
+          </div>
+          <StatusBadge value={form.doorStatus} />
+        </div>
+        <div className="detail-grid">
+          <Detail label="Номер двери" value={door.number} />
+          <Detail label="Тип двери" value={door.type} />
+          <SelectField
+            label="Статус двери"
+            value={form.doorStatus}
+            options={doorStatusOptions}
+            onChange={(value) => handleChange("doorStatus", value)}
+          />
+          <SelectField
+            label="Статус проема"
+            value={form.openingStatus}
+            options={openingStatusOptions}
+            onChange={(value) => handleChange("openingStatus", value)}
+          />
+          <SelectField
+            label="Замечания"
+            value={form.issue}
+            options={issueOptions}
+            onChange={(value) => handleChange("issue", value)}
+          />
+          <SelectField
+            label="Акт ответственного хранения"
+            value={form.storageAct}
+            options={storageActOptions}
+            onChange={(value) => handleChange("storageAct", value)}
+          />
+        </div>
+        <div className="form-actions">
+          <button className="secondary-button" type="button" onClick={onBack}>
+            Назад к плану
+          </button>
+          <button className="primary-button" type="submit">
+            Сохранить изменения
+          </button>
+        </div>
+        {saved && <div className="save-notice">Изменения сохранены</div>}
+      </form>
+      <aside className="panel history-panel">
+        <div className="panel-title">
+          <div>
+            <h2>История изменений</h2>
+            <p>Локальная история по двери</p>
+          </div>
+        </div>
+        <div className="history-list">
+          {door.history.map((item) => (
+            <div className="history-item" key={item.id}>
+              <strong>{item.date}</strong>
+              <span>{item.text}</span>
+            </div>
           ))}
         </div>
       </aside>
@@ -451,76 +813,42 @@ function BuildingPage({ building, selectedFloorId, onSelectFloor }) {
   );
 }
 
-function FloorPage({ object, building, floor, onOpenDoor, onBack }) {
-  const label = floor.type === "floor" ? `Этаж ${floor.number}` : floor.label;
-
+function SelectField({ label, value, options, onChange }) {
   return (
-    <section className="floor-dashboard">
-      <div className="panel floor-plan-panel">
-        <div className="panel-title">
-          <h2>План этажа сверху</h2>
-          <span>
-            {object.name} / {building.name} / {label}
-          </span>
-        </div>
-        {floor.doors.length > 0 ? (
-          <div className="floor-plan">
-            <div className="plan-core">Лифтовой холл</div>
-            <div className="plan-corridor horizontal" />
-            <div className="plan-corridor vertical" />
-            {floor.doors.map((door) => (
-              <button
-                className={`door-marker ${door.type === "МОП" ? "common" : ""}`}
-                style={{ left: `${door.x}%`, top: `${door.y}%` }}
-                key={door.id}
-                onClick={() => onOpenDoor(door.id)}
-              >
-                <span>{door.number}</span>
-                <small>{door.doorStatus}</small>
-              </button>
-            ))}
-          </div>
-        ) : (
-          <div className="empty-plan">
-            Для уровня "{floor.label}" двери пока не заведены в мок-структуре.
-          </div>
-        )}
-        <button className="secondary-button" onClick={onBack}>
-          Назад к корпусу
-        </button>
-      </div>
-    </section>
+    <label className="select-field">
+      <span>{label}</span>
+      <select value={value} onChange={(event) => onChange(event.target.value)}>
+        {options.map((option) => (
+          <option key={option} value={option}>
+            {option}
+          </option>
+        ))}
+      </select>
+    </label>
   );
 }
 
-function DoorPage({ object, building, floor, door, onBack }) {
+function StatusLegend() {
   return (
-    <section className="door-layout">
-      <div className="panel">
-        <div className="panel-title">
-          <h2>{door.number}</h2>
-          <span>
-            {object.name} / {building.name} / Этаж {floor.number}
-          </span>
-        </div>
-        <div className="detail-grid">
-          <Detail label="Номер двери" value={door.number} />
-          <Detail label="Тип двери" value={door.type} />
-          <Detail label="Статус двери" value={door.doorStatus} />
-          <Detail label="Статус проема" value={door.openingStatus} />
-          <Detail label="Замечания" value={door.issue} />
-          <Detail label="Акт ответственного хранения" value={door.storageAct} />
-        </div>
-        <button className="secondary-button" onClick={onBack}>
-          Назад к плану этажа
-        </button>
-      </div>
-      <div className="panel door-preview">
-        <div className="door-slab" />
-        <Status label={door.doorStatus} />
-      </div>
-    </section>
+    <div className="status-legend">
+      {[
+        "не начато",
+        "доставлена",
+        "смонтирована",
+        "замечание",
+        "принято технадзором",
+        "передано по акту",
+        "требует корректировки",
+      ].map((status) => (
+        <StatusBadge key={status} value={status} />
+      ))}
+    </div>
   );
+}
+
+function StatusBadge({ value }) {
+  const tone = statusMeta[value]?.tone ?? "blue";
+  return <span className={`status-badge status-${tone}`}>{value}</span>;
 }
 
 function Metric({ label, value, tone = "neutral" }) {
@@ -539,10 +867,6 @@ function Detail({ label, value }) {
       <strong>{value}</strong>
     </div>
   );
-}
-
-function Status({ label, muted = false }) {
-  return <span className={muted ? "status muted" : "status"}>{label}</span>;
 }
 
 createRoot(document.getElementById("root")).render(<App />);
