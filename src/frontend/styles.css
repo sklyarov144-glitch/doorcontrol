@@ -108,8 +108,53 @@ p {
   font-weight: 750;
 }
 
+.login-building-preview {
+  position: relative;
+  width: min(100%, 360px);
+  height: 210px;
+  margin-top: 18px;
+  align-self: end;
+  border-radius: 22px;
+  overflow: hidden;
+  background:
+    radial-gradient(circle at 72% 24%, rgba(255, 255, 255, 0.22), transparent 26%),
+    linear-gradient(180deg, rgba(255, 255, 255, 0.12), rgba(255, 255, 255, 0.04));
+  box-shadow: inset 0 0 0 1px rgba(255, 255, 255, 0.16);
+}
+
+.login-building-preview span {
+  position: absolute;
+  bottom: 24px;
+  width: 92px;
+  border-radius: 10px 10px 3px 3px;
+  background:
+    repeating-linear-gradient(
+      180deg,
+      rgba(255, 255, 255, 0.86) 0,
+      rgba(255, 255, 255, 0.86) 7px,
+      transparent 7px,
+      transparent 17px
+    ),
+    rgba(14, 27, 48, 0.42);
+}
+
+.login-building-preview span:nth-child(1) {
+  left: 34px;
+  height: 122px;
+}
+
+.login-building-preview span:nth-child(2) {
+  left: 124px;
+  height: 164px;
+}
+
+.login-building-preview span:nth-child(3) {
+  left: 214px;
+  height: 142px;
+}
+
 .brand-subtitle {
-  max-width: 170px;
+  max-width: 220px;
   color: #94a7c0;
   font-size: 14px;
   margin-top: 6px;
@@ -122,38 +167,11 @@ p {
 }
 
 .company-mark {
-  position: relative;
-  width: 42px;
-  height: 54px;
+  width: 52px;
+  height: 52px;
+  object-fit: contain;
   flex: 0 0 auto;
-}
-
-.mark-corner {
-  position: absolute;
-  left: 2px;
-  top: 0;
-  width: 25px;
-  height: 19px;
-  border-top: 9px solid var(--brand-red);
-  border-left: 9px solid var(--brand-red);
-}
-
-.mark-block {
-  position: absolute;
-  left: 2px;
-  top: 17px;
-  width: 36px;
-  height: 36px;
-  background: var(--brand-red);
-}
-
-.mark-cut {
-  position: absolute;
-  right: 0;
-  top: 27px;
-  width: 24px;
-  height: 22px;
-  background: var(--brand-gray);
+  filter: drop-shadow(0 8px 18px rgba(0, 0, 0, 0.22));
 }
 
 .company-name {
@@ -166,8 +184,13 @@ p {
 .product-name {
   margin-top: 4px;
   color: #94a7c0;
-  font-size: 13px;
+  font-size: 12px;
   font-weight: 850;
+}
+
+.login-brand .company-mark {
+  width: 74px;
+  height: 74px;
 }
 
 .login-brand .company-name {

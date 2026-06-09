@@ -2,7 +2,7 @@ import React, { useMemo, useState } from "react";
 import { createRoot } from "react-dom/client";
 import "./styles.css";
 
-const STORAGE_KEY = "gross-montage.visual.mvp.v1";
+const STORAGE_KEY = "gross-lean-montage.visual.mvp.v1";
 
 const doorStatusOptions = [
   "не начато",
@@ -383,8 +383,13 @@ function LoginPage({ onLogin }) {
       <section className="login-panel">
         <div className="login-brand-zone">
           <BrandMark variant="login" />
-          <h1>ГРОСС Монтаж</h1>
+          <h1>ГРОСС Бережливый Монтаж</h1>
           <p>Цифровое управление монтажом</p>
+          <div className="login-building-preview" aria-hidden="true">
+            <span />
+            <span />
+            <span />
+          </div>
         </div>
         <form
           className="login-form"
@@ -450,14 +455,10 @@ function Sidebar({ setScreen, onLogout }) {
 function BrandMark({ variant = "default" }) {
   return (
     <div className={`brand-lockup ${variant === "login" ? "login-brand" : ""}`}>
-      <div className="company-mark" aria-hidden="true">
-        <span className="mark-corner" />
-        <span className="mark-block" />
-        <span className="mark-cut" />
-      </div>
+      <img className="company-mark" src="/assets/gross-logo.png" alt="" aria-hidden="true" />
       <div>
         <div className="company-name">ГРОСС</div>
-        <div className="product-name">Монтаж</div>
+        <div className="product-name">Бережливый Монтаж</div>
       </div>
     </div>
   );
