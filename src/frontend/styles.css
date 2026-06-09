@@ -1,4 +1,9 @@
 :root {
+  --brand-red: #b7353d;
+  --brand-red-dark: #962a31;
+  --brand-gray: #d1d5d8;
+  --navy: #0b1628;
+  --blue-accent: #0d4f8b;
   color: #172033;
   background: #eef3f8;
   font-family:
@@ -72,12 +77,6 @@ p {
   box-shadow: 0 26px 80px rgba(6, 18, 38, 0.26);
 }
 
-.brand {
-  color: #5fc8ff;
-  font-size: 24px;
-  font-weight: 900;
-}
-
 .brand-subtitle {
   max-width: 170px;
   color: #94a7c0;
@@ -85,8 +84,67 @@ p {
   margin-top: 6px;
 }
 
-.login-panel .brand {
-  color: #0d4f8b;
+.brand-lockup {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+}
+
+.company-mark {
+  position: relative;
+  width: 42px;
+  height: 54px;
+  flex: 0 0 auto;
+}
+
+.mark-corner {
+  position: absolute;
+  left: 2px;
+  top: 0;
+  width: 24px;
+  height: 18px;
+  border-top: 8px solid var(--brand-red);
+  border-left: 8px solid var(--brand-red);
+}
+
+.mark-block {
+  position: absolute;
+  left: 2px;
+  top: 17px;
+  width: 36px;
+  height: 36px;
+  background: var(--brand-red);
+}
+
+.mark-cut {
+  position: absolute;
+  right: 0;
+  top: 27px;
+  width: 24px;
+  height: 22px;
+  background: var(--brand-gray);
+}
+
+.company-name {
+  color: #ffffff;
+  font-size: 26px;
+  font-weight: 900;
+  line-height: 1;
+}
+
+.product-name {
+  margin-top: 4px;
+  color: #94a7c0;
+  font-size: 13px;
+  font-weight: 850;
+}
+
+.login-brand .company-name {
+  color: var(--brand-red);
+}
+
+.login-brand .product-name {
+  color: #66788f;
 }
 
 .login-form {
@@ -114,8 +172,8 @@ select {
 
 input:focus,
 select:focus {
-  border-color: #1677c8;
-  box-shadow: 0 0 0 4px rgba(22, 119, 200, 0.14);
+  border-color: var(--brand-red);
+  box-shadow: 0 0 0 4px rgba(183, 53, 61, 0.14);
   outline: 0;
 }
 
@@ -151,13 +209,13 @@ select:focus {
 .login-form button,
 .primary-button {
   color: #ffffff;
-  background: #0d4f8b;
-  box-shadow: 0 12px 24px rgba(13, 79, 139, 0.22);
+  background: var(--brand-red);
+  box-shadow: 0 12px 24px rgba(183, 53, 61, 0.22);
 }
 
 .secondary-button {
-  color: #0d4f8b;
-  background: #e7f2fb;
+  color: var(--brand-red-dark);
+  background: #fae9eb;
 }
 
 .secondary-button.slim {
@@ -177,8 +235,8 @@ select:focus {
   gap: 24px;
   padding: 28px 22px;
   background:
-    linear-gradient(180deg, rgba(18, 43, 78, 0.94), rgba(9, 20, 40, 0.98)),
-    #0b1628;
+    linear-gradient(180deg, rgba(22, 37, 64, 0.94), rgba(9, 20, 40, 0.98)),
+    var(--navy);
   box-shadow: 12px 0 34px rgba(10, 21, 38, 0.12);
 }
 
@@ -248,7 +306,7 @@ select:focus {
 .breadcrumbs button {
   border: 0;
   padding: 0;
-  color: #0d62a7;
+  color: var(--brand-red);
   background: transparent;
 }
 
@@ -320,7 +378,7 @@ select:focus {
 .building-card:hover,
 .floor-chip:hover,
 .door-marker:hover {
-  border-color: #1677c8;
+  border-color: var(--brand-red);
   box-shadow: 0 22px 48px rgba(20, 60, 106, 0.16);
   transform: translateY(-2px);
 }
@@ -330,7 +388,7 @@ select:focus {
   min-height: 210px;
   overflow: hidden;
   background:
-    linear-gradient(135deg, rgba(8, 28, 58, 0.92), rgba(13, 79, 139, 0.74)),
+    linear-gradient(135deg, rgba(8, 28, 58, 0.94), rgba(183, 53, 61, 0.72)),
     linear-gradient(90deg, rgba(255, 255, 255, 0.09) 1px, transparent 1px);
   background-size: auto, 34px 34px;
 }
@@ -416,7 +474,7 @@ select:focus {
 }
 
 .metric strong {
-  color: #0d4f8b;
+  color: var(--brand-red);
   font-size: 31px;
   line-height: 1;
 }
@@ -526,8 +584,8 @@ select:focus {
 
 .facade-floor.active,
 .facade-floor:hover {
-  border-color: #1677c8;
-  background: #e7f3ff;
+  border-color: var(--brand-red);
+  background: #fae9eb;
   transform: translateX(3px);
 }
 
@@ -549,9 +607,9 @@ select:focus {
 }
 
 .floor-chip.active {
-  border-color: #0d4f8b;
+  border-color: var(--brand-red);
   color: #ffffff;
-  background: #0d4f8b;
+  background: var(--brand-red);
 }
 
 .floor-plan {
@@ -633,7 +691,7 @@ select:focus {
 .plan-corridor {
   position: absolute;
   border-radius: 999px;
-  background: rgba(13, 79, 139, 0.13);
+  background: rgba(183, 53, 61, 0.12);
 }
 
 .plan-corridor.horizontal {
@@ -763,7 +821,7 @@ select:focus {
 }
 
 .history-item strong {
-  color: #0d4f8b;
+  color: var(--brand-red);
   font-size: 13px;
 }
 

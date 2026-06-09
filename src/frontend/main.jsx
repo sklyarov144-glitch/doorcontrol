@@ -382,7 +382,7 @@ function LoginPage({ onLogin }) {
     <main className="login-page">
       <section className="login-panel">
         <div>
-          <div className="brand">DoorControl</div>
+          <BrandMark variant="login" />
           <h1>Вход в систему</h1>
           <p>Визуальная закрытая часть для контроля дверей на объекте.</p>
         </div>
@@ -431,7 +431,7 @@ function Sidebar({ setScreen, onLogout }) {
   return (
     <aside className="sidebar">
       <div>
-        <div className="brand">DoorControl</div>
+        <BrandMark />
         <div className="brand-subtitle">Визуальное управление объектом</div>
         <nav className="nav">
           <button onClick={() => setScreen("objects")}>Мои объекты</button>
@@ -444,6 +444,22 @@ function Sidebar({ setScreen, onLogout }) {
         Выйти
       </button>
     </aside>
+  );
+}
+
+function BrandMark({ variant = "default" }) {
+  return (
+    <div className={`brand-lockup ${variant === "login" ? "login-brand" : ""}`}>
+      <div className="company-mark" aria-hidden="true">
+        <span className="mark-corner" />
+        <span className="mark-block" />
+        <span className="mark-cut" />
+      </div>
+      <div>
+        <div className="company-name">РОСС</div>
+        <div className="product-name">DoorControl</div>
+      </div>
+    </div>
   );
 }
 
