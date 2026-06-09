@@ -1,0 +1,33 @@
+# OS
+.DS_Store
+
+# Environment
+.env
+.env.*
+!.env.example
+
+# Dependencies
+node_modules/
+vendor/
+
+# Build output
+dist/
+build/
+.next/
+out/
+
+# Logs
+*.log
+npm-debug.log*
+yarn-debug.log*
+yarn-error.log*
+pnpm-debug.log*
+
+# Tests and coverage
+coverage/
+.pytest_cache/
+
+# IDE
+.idea/
+.vscode/
+
