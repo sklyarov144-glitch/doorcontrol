@@ -52,7 +52,6 @@ const baseDoors = [
     storageAct: "не передана",
     x: 17,
     y: 24,
-    roomClass: "room-left-top",
   },
   {
     id: "apt-1502",
@@ -64,7 +63,6 @@ const baseDoors = [
     storageAct: "не передана",
     x: 67,
     y: 24,
-    roomClass: "room-right-top",
   },
   {
     id: "apt-1503",
@@ -76,7 +74,6 @@ const baseDoors = [
     storageAct: "не передана",
     x: 18,
     y: 72,
-    roomClass: "room-left-bottom",
   },
   {
     id: "mop-15-01",
@@ -88,7 +85,6 @@ const baseDoors = [
     storageAct: "акт подготовлен",
     x: 46,
     y: 50,
-    roomClass: "room-core-left",
   },
   {
     id: "mop-15-02",
@@ -100,7 +96,6 @@ const baseDoors = [
     storageAct: "передано по акту",
     x: 73,
     y: 72,
-    roomClass: "room-right-bottom",
   },
 ];
 
@@ -345,13 +340,12 @@ function App() {
               <BuildingVisualization
                 building={selectedBuilding}
                 selectedFloorId={selectedFloor.id}
-                onSelectFloor={selectFloor}
-                onOpenFloor={() => setScreen("floor")}
+                onSelectFloor={goToFloor}
               />
               <FloorSelector
                 building={selectedBuilding}
                 selectedFloorId={selectedFloor.id}
-                onSelectFloor={selectFloor}
+                onSelectFloor={goToFloor}
               />
             </section>
           )}
@@ -614,13 +608,13 @@ function ObjectPage({ object, onOpenBuilding }) {
             onClick={() => onOpenBuilding(building.id)}
           >
             <div className="mini-building">
-              {Array.from({ length: 9 }, (_, index) => (
+              {Array.from({ length: 10 }, (_, index) => (
                 <span key={index} />
               ))}
             </div>
             <div>
               <strong>{building.name}</strong>
-              <p>{building.floors.filter((floor) => floor.type === "floor").length} этажей</p>
+              <p>{building.floors.filter((floor) => floor.type === "floor").length} этажей · 5 дверей на типовом этаже</p>
             </div>
             <StatusBadge value={`Готовность ${getBuildingReadiness(building)}%`} />
           </button>
@@ -630,7 +624,7 @@ function ObjectPage({ object, onOpenBuilding }) {
   );
 }
 
-function BuildingVisualization({ building, selectedFloorId, onSelectFloor, onOpenFloor }) {
+function BuildingVisualization({ building, selectedFloorId, onSelectFloor }) {
   const selectedNumber = selectedFloorId.startsWith("floor-")
     ? Number(selectedFloorId.replace("floor-", ""))
     : null;
@@ -650,7 +644,7 @@ function BuildingVisualization({ building, selectedFloorId, onSelectFloor, onOpe
       <div className="building-hero-copy">
         <StatusBadge value="В работе" />
         <h2>{building.name}</h2>
-        <p>Выберите этаж прямо на фасаде корпуса или в правом селекторе.</p>
+        <p>Нажмите на уровень корпуса, чтобы сразу открыть план этажа.</p>
       </div>
       <div className="building-visual">
         <div className="roof-line">Кровля</div>
@@ -677,10 +671,8 @@ function BuildingVisualization({ building, selectedFloorId, onSelectFloor, onOpe
         </button>
       </div>
       <div className="selected-floor-card">
-        <span>{selectedFloor?.type === "floor" ? `Этаж ${selectedFloor.number} выбран` : selectedFloor?.label}</span>
-        <button className="primary-button" onClick={onOpenFloor}>
-          Открыть план этажа
-        </button>
+        <span>{selectedFloor?.type === "floor" ? `Этаж ${selectedFloor.number}` : selectedFloor?.label}</span>
+        <p>Клик по этажу открывает план без промежуточного шага.</p>
       </div>
       <div className="building-metrics">
         <Metric label="Дверей на этаже" value={floorDoors.length} />
@@ -770,14 +762,46 @@ function FloorPlan({ object, building, floor, onOpenDoor, onBack }) {
             </div>
             <div className="floor-plan-layout">
               <div className="floor-plan">
-                <div className="room room-left-top">Квартира 1501</div>
-                <div className="room room-right-top">Квартира 1502</div>
-                <div className="room room-left-bottom">Квартира 1503</div>
-                <div className="room room-core-left">МОП</div>
-                <div className="room room-right-bottom">МОП</div>
-                <div className="plan-core">Лифтовой холл</div>
+                <div className="plan-frame" />
+                <div className="room apartment apartment-1501">
+                  <strong>1501</strong>
+                  <span>Квартира</span>
+                  <i className="furniture bed" />
+                  <i className="furniture sofa" />
+                  <i className="wet-zone" />
+                </div>
+                <div className="room apartment apartment-1502">
+                  <strong>1502</strong>
+                  <span>Квартира</span>
+                  <i className="furniture bed" />
+                  <i className="furniture table" />
+                  <i className="wet-zone" />
+                </div>
+                <div className="room apartment apartment-1503">
+                  <strong>1503</strong>
+                  <span>Квартира</span>
+                  <i className="furniture sofa" />
+                  <i className="furniture table" />
+                  <i className="wet-zone" />
+                </div>
+                <div className="room service-zone service-left">
+                  <strong>МОП</strong>
+                  <span>Техническая зона</span>
+                </div>
+                <div className="room service-zone service-right">
+                  <strong>МОП</strong>
+                  <span>Кладовая зона</span>
+                </div>
+                <div className="plan-core">
+                  <strong>Лифтовой холл</strong>
+                  <span>Лестница / лифты / инженерия</span>
+                  <i />
+                  <i />
+                </div>
                 <div className="plan-corridor horizontal" />
                 <div className="plan-corridor vertical" />
+                <div className="stair-zone stair-left">ЛК</div>
+                <div className="stair-zone stair-right">ЛК</div>
                 {visibleDoors.map((door) => (
                   <DoorMarker key={door.id} door={door} onOpen={() => onOpenDoor(door.id)} />
                 ))}
@@ -809,13 +833,15 @@ function DoorMarker({ door, onOpen }) {
       ? "orange"
       : statusMeta[door.doorStatus]?.tone ?? "gray";
 
+  const label = door.number.replace("Квартира ", "");
+
   return (
     <button
       className={`door-marker ${door.type === "МОП" ? "common" : ""} status-${tone}`}
       style={{ left: `${door.x}%`, top: `${door.y}%` }}
       onClick={onOpen}
     >
-      <span>{door.number}</span>
+      <span>{label}</span>
       <small>{door.doorStatus}</small>
     </button>
   );
