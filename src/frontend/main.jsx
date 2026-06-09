@@ -129,6 +129,7 @@ function createBuilding(id, name, readinessOffset = 0) {
                   id: `${id}-${floor.id}-${door.id}-init`,
                   text: "Создана мок-карточка двери",
                   date: "сегодня",
+                  user: "system",
                 },
               ],
             }))
@@ -274,6 +275,7 @@ function App() {
                         id: `${door.id}-${Date.now()}`,
                         text: changed.join("; "),
                         date: new Date().toLocaleString("ru-RU"),
+                        user: "admin",
                       },
                       ...door.history,
                     ]
@@ -301,10 +303,14 @@ function App() {
     setScreen("building");
   };
 
-  const goToFloor = (floorId) => {
+  const selectFloor = (floorId) => {
     const floor = selectedBuilding.floors.find((item) => item.id === floorId);
     setSelectedFloorId(floorId);
     setSelectedDoorId(floor?.doors[0]?.id ?? "");
+  };
+
+  const goToFloor = (floorId) => {
+    selectFloor(floorId);
     setScreen("floor");
   };
 
@@ -319,7 +325,7 @@ function App() {
 
   return (
     <div className="app-shell">
-      <Sidebar setScreen={setScreen} onLogout={() => setIsLoggedIn(false)} />
+      <Sidebar activeScreen={screen} setScreen={setScreen} onLogout={() => setIsLoggedIn(false)} />
       <main className="content">
         <Header
           screen={screen}
@@ -339,12 +345,13 @@ function App() {
               <BuildingVisualization
                 building={selectedBuilding}
                 selectedFloorId={selectedFloor.id}
-                onSelectFloor={goToFloor}
+                onSelectFloor={selectFloor}
+                onOpenFloor={() => setScreen("floor")}
               />
               <FloorSelector
                 building={selectedBuilding}
                 selectedFloorId={selectedFloor.id}
-                onSelectFloor={goToFloor}
+                onSelectFloor={selectFloor}
               />
             </section>
           )}
@@ -432,17 +439,29 @@ function LoginPage({ onLogin }) {
   );
 }
 
-function Sidebar({ setScreen, onLogout }) {
+function Sidebar({ activeScreen, setScreen, onLogout }) {
+  const items = [
+    ["objects", "Мои объекты"],
+    ["object", "Корпуса объекта"],
+    ["building", "Визуализация корпуса"],
+    ["floor", "План этажа"],
+  ];
+
   return (
     <aside className="sidebar">
       <div>
         <BrandMark />
         <div className="brand-subtitle">Цифровое управление монтажом</div>
         <nav className="nav">
-          <button onClick={() => setScreen("objects")}>Мои объекты</button>
-          <button onClick={() => setScreen("object")}>Корпуса объекта</button>
-          <button onClick={() => setScreen("building")}>Визуализация корпуса</button>
-          <button onClick={() => setScreen("floor")}>План этажа</button>
+          {items.map(([id, label]) => (
+            <button
+              className={activeScreen === id ? "active" : ""}
+              key={id}
+              onClick={() => setScreen(id)}
+            >
+              {label}
+            </button>
+          ))}
         </nav>
       </div>
       <button className="ghost-button" onClick={onLogout}>
@@ -544,17 +563,26 @@ function ObjectCard({ object, onOpen }) {
         <div className="object-tower tower-a" />
         <div className="object-tower tower-b" />
         <div className="object-ground" />
-      </div>
-      <div className="object-card-body">
-        <div className="object-card-main">
+        <div className="object-image-overlay">
+          <StatusBadge value={object.status} />
           <div>
             <strong>{object.name}</strong>
             <p>{object.address}</p>
           </div>
-          <StatusBadge value={object.status} />
+        </div>
+      </div>
+      <div className="object-card-body">
+        <div className="object-card-main">
+          <div>
+            <span className="metric-label">Готовность</span>
+            <strong className="readiness-value">{metrics.readiness}%</strong>
+          </div>
+          <span className="open-arrow">Перейти</span>
+        </div>
+        <div className="progress-bar">
+          <span style={{ width: `${metrics.readiness}%` }} />
         </div>
         <div className="metric-grid">
-          <Metric label="Готовность" value={`${metrics.readiness}%`} />
           <Metric label="Замечания" value={metrics.issues} tone="warning" />
           <Metric
             label="Проемы на корректировке"
@@ -602,19 +630,27 @@ function ObjectPage({ object, onOpenBuilding }) {
   );
 }
 
-function BuildingVisualization({ building, selectedFloorId, onSelectFloor }) {
+function BuildingVisualization({ building, selectedFloorId, onSelectFloor, onOpenFloor }) {
   const selectedNumber = selectedFloorId.startsWith("floor-")
     ? Number(selectedFloorId.replace("floor-", ""))
     : null;
+  const selectedFloor = building.floors.find((floor) => floor.id === selectedFloorId);
+  const floorDoors = selectedFloor?.doors ?? [];
+  const floorIssues = floorDoors.filter((door) => door.issue === "есть замечание").length;
+  const floorOpenings = floorDoors.filter((door) =>
+    ["требует корректировки", "передан на исправление"].includes(door.openingStatus)
+  ).length;
+  const readyDoors = floorDoors.filter((door) =>
+    ["смонтирована", "принято технадзором", "передано по акту"].includes(door.doorStatus)
+  ).length;
+  const floorReadiness = floorDoors.length ? Math.round((readyDoors / floorDoors.length) * 100) : 0;
 
   return (
-    <div className="panel building-visual-card">
-      <div className="panel-title">
-        <div>
-          <h2>{building.name}</h2>
-          <p>Фасад корпуса с горизонтальными уровнями</p>
-        </div>
-        <StatusBadge value={`Готовность ${getBuildingReadiness(building)}%`} />
+    <div className="building-hero">
+      <div className="building-hero-copy">
+        <StatusBadge value="В работе" />
+        <h2>{building.name}</h2>
+        <p>Выберите этаж прямо на фасаде корпуса или в правом селекторе.</p>
       </div>
       <div className="building-visual">
         <div className="roof-line">Кровля</div>
@@ -639,6 +675,18 @@ function BuildingVisualization({ building, selectedFloorId, onSelectFloor }) {
         <button className="parking-line" onClick={() => onSelectFloor("parking")}>
           Паркинг
         </button>
+      </div>
+      <div className="selected-floor-card">
+        <span>{selectedFloor?.type === "floor" ? `Этаж ${selectedFloor.number} выбран` : selectedFloor?.label}</span>
+        <button className="primary-button" onClick={onOpenFloor}>
+          Открыть план этажа
+        </button>
+      </div>
+      <div className="building-metrics">
+        <Metric label="Дверей на этаже" value={floorDoors.length} />
+        <Metric label="Замечаний" value={floorIssues} tone="warning" />
+        <Metric label="Проемов на корректировке" value={floorOpenings} tone="alert" />
+        <Metric label="Готовность" value={`${floorReadiness}%`} />
       </div>
     </div>
   );
@@ -683,7 +731,7 @@ function FloorPlan({ object, building, floor, onOpenDoor, onBack }) {
 
   return (
     <section className="floor-dashboard">
-      <div className="panel floor-plan-panel">
+      <div className="floor-plan-shell">
         <div className="panel-title">
           <div>
             <h2>План этажа сверху</h2>
@@ -720,20 +768,30 @@ function FloorPlan({ object, building, floor, onOpenDoor, onBack }) {
               </div>
               <span>{visibleDoors.length} из {floor.doors.length}</span>
             </div>
-            <div className="floor-plan">
-              <div className="room room-left-top">Квартира 1501</div>
-              <div className="room room-right-top">Квартира 1502</div>
-              <div className="room room-left-bottom">Квартира 1503</div>
-              <div className="room room-core-left">МОП</div>
-              <div className="room room-right-bottom">МОП</div>
-              <div className="plan-core">Лифтовой холл</div>
-              <div className="plan-corridor horizontal" />
-              <div className="plan-corridor vertical" />
-              {visibleDoors.map((door) => (
-                <DoorMarker key={door.id} door={door} onOpen={() => onOpenDoor(door.id)} />
-              ))}
+            <div className="floor-plan-layout">
+              <div className="floor-plan">
+                <div className="room room-left-top">Квартира 1501</div>
+                <div className="room room-right-top">Квартира 1502</div>
+                <div className="room room-left-bottom">Квартира 1503</div>
+                <div className="room room-core-left">МОП</div>
+                <div className="room room-right-bottom">МОП</div>
+                <div className="plan-core">Лифтовой холл</div>
+                <div className="plan-corridor horizontal" />
+                <div className="plan-corridor vertical" />
+                {visibleDoors.map((door) => (
+                  <DoorMarker key={door.id} door={door} onOpen={() => onOpenDoor(door.id)} />
+                ))}
+              </div>
+              <aside className="legend-panel">
+                <h3>Легенда статусов</h3>
+                <StatusLegend />
+                <div className="zoom-controls" aria-label="Масштаб">
+                  <button>−</button>
+                  <span>100%</span>
+                  <button>+</button>
+                </div>
+              </aside>
             </div>
-            <StatusLegend />
           </>
         ) : (
           <div className="empty-plan">
@@ -854,6 +912,7 @@ function DoorDetails({ object, building, floor, door, onSave, onBack }) {
           {door.history.map((item) => (
             <div className="history-item" key={item.id}>
               <strong>{item.date}</strong>
+              <small>{item.user}</small>
               <span>{item.text}</span>
             </div>
           ))}

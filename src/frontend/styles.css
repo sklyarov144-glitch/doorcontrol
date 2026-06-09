@@ -1,11 +1,11 @@
 :root {
-  --brand-red: #b7353d;
-  --brand-red-dark: #962a31;
+  --brand-red: #c9202f;
+  --brand-red-dark: #9f1b26;
   --brand-gray: #d1d5d8;
   --navy: #0b1628;
   --blue-accent: #0d4f8b;
   color: #172033;
-  background: #eef3f8;
+  background: #f3f6fa;
   font-family:
     Inter, ui-sans-serif, system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI",
     sans-serif;
@@ -20,7 +20,7 @@
 body {
   margin: 0;
   min-width: 320px;
-  background: #eef3f8;
+  background: #f3f6fa;
 }
 
 button,
@@ -289,40 +289,62 @@ select:focus {
   flex-direction: column;
   justify-content: space-between;
   gap: 24px;
-  padding: 28px 22px;
+  padding: 26px 22px;
   background:
-    linear-gradient(180deg, rgba(22, 37, 64, 0.94), rgba(9, 20, 40, 0.98)),
+    radial-gradient(circle at 30% 0%, rgba(201, 32, 47, 0.12), transparent 34%),
+    linear-gradient(180deg, rgba(11, 23, 42, 0.96), rgba(8, 17, 32, 0.98)),
     var(--navy);
   box-shadow: 12px 0 34px rgba(10, 21, 38, 0.12);
 }
 
 .nav {
   display: grid;
-  gap: 10px;
+  gap: 14px;
   margin-top: 34px;
 }
 
 .nav button,
 .ghost-button {
+  position: relative;
   border: 1px solid transparent;
   border-radius: 14px;
-  padding: 12px 13px;
+  padding: 13px 14px 13px 18px;
   color: #dbe8f7;
   background: transparent;
   text-align: left;
   font-weight: 800;
 }
 
+.nav button::before {
+  content: "";
+  position: absolute;
+  left: 0;
+  top: 12px;
+  bottom: 12px;
+  width: 3px;
+  border-radius: 999px;
+  background: transparent;
+}
+
 .nav button:hover,
+.nav button.active,
 .ghost-button:hover {
-  border-color: rgba(111, 193, 255, 0.22);
+  border-color: rgba(255, 255, 255, 0.12);
   background: rgba(255, 255, 255, 0.08);
+}
+
+.nav button.active::before {
+  background: var(--brand-red);
+  box-shadow: 0 0 18px rgba(201, 32, 47, 0.72);
 }
 
 .content {
   min-width: 0;
   padding: 30px;
   overflow-x: hidden;
+  background:
+    radial-gradient(circle at 75% 10%, rgba(13, 79, 139, 0.08), transparent 34%),
+    #f3f6fa;
 }
 
 .page-transition {
@@ -407,7 +429,7 @@ select:focus {
 .object-grid,
 .building-grid {
   display: grid;
-  grid-template-columns: repeat(auto-fit, minmax(320px, 1fr));
+  grid-template-columns: repeat(auto-fit, minmax(420px, 1fr));
   gap: 20px;
 }
 
@@ -425,6 +447,7 @@ select:focus {
 .object-card {
   overflow: hidden;
   display: grid;
+  grid-template-columns: minmax(360px, 0.9fr) minmax(0, 1.1fr);
   padding: 0;
   color: #172033;
   text-align: left;
@@ -479,19 +502,20 @@ select:focus {
 
 .object-image {
   position: relative;
-  min-height: 210px;
+  min-height: 340px;
   overflow: hidden;
   background:
-    linear-gradient(135deg, rgba(8, 28, 58, 0.94), rgba(183, 53, 61, 0.72)),
-    linear-gradient(90deg, rgba(255, 255, 255, 0.09) 1px, transparent 1px);
+    linear-gradient(180deg, rgba(8, 15, 29, 0.12), rgba(8, 15, 29, 0.76)),
+    linear-gradient(135deg, rgba(12, 31, 58, 0.92), rgba(86, 102, 124, 0.52)),
+    linear-gradient(90deg, rgba(255, 255, 255, 0.08) 1px, transparent 1px);
   background-size: auto, 34px 34px;
 }
 
 .object-tower {
   position: absolute;
   bottom: 24px;
-  width: 108px;
-  border-radius: 12px 12px 4px 4px;
+  width: 122px;
+  border-radius: 10px 10px 3px 3px;
   background:
     repeating-linear-gradient(
       180deg,
@@ -500,18 +524,18 @@ select:focus {
       transparent 8px,
       transparent 18px
     ),
-    rgba(224, 238, 250, 0.22);
+    rgba(33, 52, 75, 0.72);
   box-shadow: inset 0 0 0 1px rgba(255, 255, 255, 0.24);
 }
 
 .tower-a {
-  left: 34px;
-  height: 142px;
+  left: 46px;
+  height: 218px;
 }
 
 .tower-b {
-  left: 128px;
-  height: 176px;
+  left: 150px;
+  height: 258px;
 }
 
 .object-ground {
@@ -524,10 +548,28 @@ select:focus {
   background: rgba(255, 255, 255, 0.38);
 }
 
+.object-image-overlay {
+  position: absolute;
+  inset: auto 22px 22px 22px;
+  display: grid;
+  gap: 14px;
+  color: #ffffff;
+}
+
+.object-image-overlay strong {
+  color: #ffffff;
+  font-size: 28px;
+}
+
+.object-image-overlay p {
+  color: rgba(255, 255, 255, 0.78);
+}
+
 .object-card-body {
   display: grid;
   gap: 18px;
-  padding: 22px;
+  align-content: center;
+  padding: 30px;
 }
 
 .object-card-main {
@@ -535,6 +577,42 @@ select:focus {
   justify-content: space-between;
   align-items: flex-start;
   gap: 18px;
+}
+
+.metric-label {
+  color: #6b778c;
+  font-size: 13px;
+  font-weight: 900;
+}
+
+.readiness-value {
+  color: var(--brand-red);
+  font-size: 54px !important;
+  line-height: 1;
+}
+
+.open-arrow {
+  align-self: center;
+  border-radius: 999px;
+  padding: 12px 16px;
+  color: #ffffff;
+  background: var(--brand-red);
+  box-shadow: 0 14px 30px rgba(201, 32, 47, 0.2);
+  font-weight: 900;
+}
+
+.progress-bar {
+  height: 8px;
+  overflow: hidden;
+  border-radius: 999px;
+  background: #e3e9f1;
+}
+
+.progress-bar span {
+  display: block;
+  height: 100%;
+  border-radius: inherit;
+  background: linear-gradient(90deg, var(--brand-red), #e65461);
 }
 
 .object-card strong,
@@ -613,38 +691,88 @@ select:focus {
 
 .building-dashboard {
   display: grid;
-  grid-template-columns: minmax(0, 1fr) 230px;
+  grid-template-columns: minmax(0, 1fr) 220px;
   gap: 20px;
   align-items: start;
 }
 
-.building-visual-card,
+.building-hero,
 .floor-selector,
-.floor-plan-panel {
-  min-height: 640px;
+.floor-plan-shell {
+  min-height: 680px;
+}
+
+.building-hero {
+  position: relative;
+  overflow: hidden;
+  border-radius: 28px;
+  padding: 28px;
+  color: #ffffff;
+  background:
+    radial-gradient(circle at 72% 20%, rgba(201, 32, 47, 0.2), transparent 28%),
+    linear-gradient(135deg, rgba(11, 23, 42, 0.94), rgba(18, 38, 68, 0.82)),
+    #0b172a;
+  box-shadow: 0 28px 80px rgba(11, 23, 42, 0.28);
+}
+
+.building-hero::before {
+  content: "";
+  position: absolute;
+  inset: 0;
+  background:
+    linear-gradient(90deg, rgba(255,255,255,0.035) 1px, transparent 1px),
+    linear-gradient(rgba(255,255,255,0.03) 1px, transparent 1px);
+  background-size: 48px 48px;
+  pointer-events: none;
+}
+
+.building-hero-copy,
+.building-visual,
+.selected-floor-card,
+.building-metrics {
+  position: relative;
+  z-index: 1;
+}
+
+.building-hero-copy {
+  max-width: 520px;
+  margin-bottom: 20px;
+}
+
+.building-hero-copy h2 {
+  margin-top: 14px;
+  color: #ffffff;
+  font-size: 42px;
+}
+
+.building-hero-copy p {
+  color: rgba(255,255,255,0.72);
 }
 
 .building-visual {
-  min-height: 540px;
+  width: min(620px, 88%);
+  min-height: 560px;
+  margin: 0 auto;
   display: grid;
   grid-template-rows: 30px repeat(25, 1fr) 36px;
   gap: 4px;
   padding: 18px;
-  border: 1px solid #cad8e5;
-  border-radius: 20px;
+  border: 1px solid rgba(255,255,255,0.18);
+  border-radius: 22px 22px 10px 10px;
   background:
-    linear-gradient(180deg, rgba(255, 255, 255, 0.92), rgba(219, 230, 240, 0.9)),
-    #eaf1f7;
+    linear-gradient(180deg, rgba(255,255,255,0.18), rgba(255,255,255,0.08)),
+    rgba(255,255,255,0.06);
+  backdrop-filter: blur(8px);
 }
 
 .roof-line,
 .parking-line {
   display: grid;
   place-items: center;
-  border: 1px solid #c2d1df;
+  border: 1px solid rgba(255,255,255,0.16);
   border-radius: 12px;
-  color: #40526a;
-  background: #dbe6ef;
+  color: rgba(255,255,255,0.78);
+  background: rgba(255,255,255,0.1);
   font-size: 13px;
   font-weight: 850;
 }
@@ -658,11 +786,11 @@ select:focus {
   grid-template-columns: 42px repeat(4, 1fr);
   gap: 9px;
   align-items: center;
-  border: 1px solid #d8e3ed;
+  border: 1px solid rgba(255,255,255,0.13);
   border-radius: 10px;
   padding: 0 12px;
-  background: #ffffff;
-  color: #24324a;
+  background: rgba(255,255,255,0.13);
+  color: rgba(255,255,255,0.84);
 }
 
 .facade-floor span {
@@ -673,14 +801,55 @@ select:focus {
 .facade-floor i {
   height: 8px;
   border-radius: 999px;
-  background: #d9e5ef;
+  background: rgba(255,255,255,0.38);
 }
 
 .facade-floor.active,
 .facade-floor:hover {
   border-color: var(--brand-red);
-  background: #fae9eb;
+  background: rgba(201, 32, 47, 0.34);
+  box-shadow: 0 0 26px rgba(201, 32, 47, 0.42);
   transform: translateX(3px);
+}
+
+.selected-floor-card {
+  position: absolute;
+  right: 28px;
+  bottom: 128px;
+  display: grid;
+  gap: 12px;
+  min-width: 220px;
+  padding: 18px;
+  border: 1px solid rgba(255,255,255,0.18);
+  border-radius: 20px;
+  background: rgba(10, 20, 36, 0.58);
+  backdrop-filter: blur(16px);
+}
+
+.selected-floor-card span {
+  color: #ffffff;
+  font-size: 18px;
+  font-weight: 900;
+}
+
+.building-metrics {
+  display: grid;
+  grid-template-columns: repeat(4, minmax(0, 1fr));
+  gap: 12px;
+  margin-top: 20px;
+}
+
+.building-metrics .metric {
+  border-color: rgba(255,255,255,0.14);
+  background: rgba(255,255,255,0.08);
+}
+
+.building-metrics .metric span {
+  color: rgba(255,255,255,0.64);
+}
+
+.building-metrics .metric strong {
+  color: #ffffff;
 }
 
 .floor-list {
@@ -706,9 +875,23 @@ select:focus {
   background: var(--brand-red);
 }
 
+.floor-plan-shell {
+  padding: 24px;
+  border: 1px solid rgba(203, 216, 230, 0.9);
+  border-radius: 24px;
+  background: #ffffff;
+  box-shadow: 0 18px 48px rgba(20, 38, 62, 0.09);
+}
+
+.floor-plan-layout {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) 230px;
+  gap: 20px;
+}
+
 .floor-plan {
   position: relative;
-  min-height: 570px;
+  min-height: 680px;
   overflow: hidden;
   border: 1px solid #cad8e5;
   border-radius: 20px;
@@ -717,6 +900,46 @@ select:focus {
     linear-gradient(rgba(57, 78, 104, 0.08) 1px, transparent 1px),
     #f8fbfe;
   background-size: 38px 38px;
+}
+
+.legend-panel {
+  display: grid;
+  align-content: start;
+  gap: 18px;
+  border: 1px solid #dce6f0;
+  border-radius: 20px;
+  padding: 20px;
+  background: #fbfdff;
+}
+
+.legend-panel h3 {
+  margin: 0;
+  color: #172033;
+}
+
+.legend-panel .status-legend {
+  display: grid;
+  margin-top: 0;
+}
+
+.zoom-controls {
+  display: grid;
+  grid-template-columns: 42px 1fr 42px;
+  gap: 8px;
+  align-items: center;
+  margin-top: 12px;
+}
+
+.zoom-controls button,
+.zoom-controls span {
+  display: grid;
+  place-items: center;
+  min-height: 38px;
+  border: 1px solid #dce6f0;
+  border-radius: 12px;
+  background: #ffffff;
+  color: #40526a;
+  font-weight: 900;
 }
 
 .room {
@@ -919,6 +1142,11 @@ select:focus {
   font-size: 13px;
 }
 
+.history-item small {
+  color: #6b778c;
+  font-weight: 850;
+}
+
 .history-item span {
   color: #4f6077;
 }
@@ -972,7 +1200,8 @@ select:focus {
 @media (max-width: 1040px) {
   .app-shell,
   .building-dashboard,
-  .door-layout {
+  .door-layout,
+  .floor-plan-layout {
     grid-template-columns: 1fr;
   }
 
@@ -1021,5 +1250,23 @@ select:focus {
 
   .floor-plan {
     min-height: 760px;
+  }
+
+  .object-grid,
+  .building-grid {
+    grid-template-columns: 1fr;
+  }
+
+  .object-card {
+    grid-template-columns: 1fr;
+  }
+
+  .building-metrics {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+
+  .selected-floor-card {
+    position: static;
+    margin-top: 18px;
   }
 }
