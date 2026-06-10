@@ -1,5 +1,6 @@
 import React, { useMemo, useState } from "react";
 import { createRoot } from "react-dom/client";
+import workerMascot from "./assets/gross-worker-mascot.png";
 import "./styles.css";
 
 const STORAGE_KEY = "gross-lean-montage.visual.mvp.v2";
@@ -383,46 +384,7 @@ function LoginPage({ onLogin }) {
           <h1>ГРОСС Бережливый Монтаж</h1>
           <p>Цифровое управление монтажом</p>
           <div className="login-worker-preview" aria-hidden="true">
-            <svg viewBox="0 0 360 240" role="img">
-              <defs>
-                <linearGradient id="helmetGradient" x1="0" x2="1" y1="0" y2="1">
-                  <stop offset="0%" stopColor="#ffffff" />
-                  <stop offset="100%" stopColor="#dfe6ed" />
-                </linearGradient>
-                <linearGradient id="vestGradient" x1="0" x2="1" y1="0" y2="1">
-                  <stop offset="0%" stopColor="#172033" />
-                  <stop offset="100%" stopColor="#0b172a" />
-                </linearGradient>
-                <filter id="workerShadow" x="-20%" y="-20%" width="140%" height="150%">
-                  <feDropShadow dx="0" dy="16" stdDeviation="14" floodColor="#050b14" floodOpacity="0.24" />
-                </filter>
-              </defs>
-              <path className="worker-orbit" d="M62 181c28-72 78-111 151-116 47-3 83 8 108 33" />
-              <g filter="url(#workerShadow)">
-                <path className="worker-body-back" d="M111 214c5-47 32-76 68-76h8c37 0 65 29 70 76H111Z" />
-                <path className="worker-shirt" d="M125 214c5-39 27-62 58-62s54 23 59 62H125Z" />
-                <path className="worker-vest" d="M150 214l11-58h44l12 58h-67Z" />
-                <path className="worker-stripe left" d="M163 157l-11 57" />
-                <path className="worker-stripe right" d="M203 157l12 57" />
-                <circle className="worker-face" cx="183" cy="116" r="40" />
-                <path className="worker-ear left" d="M143 119c-9 0-14 7-12 15 2 9 11 13 18 8" />
-                <path className="worker-ear right" d="M223 119c9 0 14 7 12 15-2 9-11 13-18 8" />
-                <path className="worker-hair" d="M148 106c12-29 58-39 77-2-23-7-48-4-77 2Z" />
-                <path className="worker-helmet" d="M135 101c6-38 28-59 48-59s43 21 48 59H135Z" />
-                <path className="worker-helmet-band" d="M130 98h106c6 0 10 4 10 10v2H120v-2c0-6 4-10 10-10Z" />
-                <path className="worker-helmet-rib" d="M183 43v55" />
-                <path className="worker-helmet-rib side" d="M158 54c-8 13-12 27-13 43" />
-                <path className="worker-helmet-rib side" d="M208 54c8 13 12 27 13 43" />
-                <path className="worker-gross-mark" d="M176 65h22v8h-14v25h-8V65Zm8 25h15v8h-15v-8Z" />
-                <path className="worker-eye left" d="M166 119h1" />
-                <path className="worker-eye right" d="M199 119h1" />
-                <path className="worker-smile" d="M170 136c7 8 20 8 27 0" />
-                <rect className="worker-badge" x="166" y="172" width="35" height="24" rx="7" />
-                <path className="worker-badge-mark" d="M173 178h11v4h-7v10h-4v-14Zm4 10h8v4h-8v-4Z" />
-                <path className="worker-tablet" d="M234 147h55c9 0 16 7 16 16v34c0 9-7 16-16 16h-55c-9 0-16-7-16-16v-34c0-9 7-16 16-16Z" />
-                <path className="worker-tablet-line" d="M237 168h48M237 183h35" />
-              </g>
-            </svg>
+            <img src={workerMascot} alt="" />
           </div>
         </div>
         <form

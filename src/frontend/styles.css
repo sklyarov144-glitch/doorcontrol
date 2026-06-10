@@ -111,11 +111,11 @@ p {
 .login-worker-preview {
   position: relative;
   width: min(100%, 360px);
-  min-height: 240px;
+  min-height: 250px;
   margin-top: 18px;
   align-self: end;
   border-radius: 22px;
-  overflow: hidden;
+  overflow: visible;
   background:
     radial-gradient(circle at 72% 18%, rgba(255, 255, 255, 0.22), transparent 28%),
     linear-gradient(145deg, rgba(255, 255, 255, 0.14), rgba(255, 255, 255, 0.04));
@@ -124,93 +124,14 @@ p {
     0 24px 48px rgba(3, 9, 18, 0.16);
 }
 
-.login-worker-preview svg {
+.login-worker-preview img {
   display: block;
-  width: 100%;
-  height: auto;
-}
-
-.worker-orbit {
-  fill: none;
-  stroke: rgba(255, 255, 255, 0.2);
-  stroke-width: 1.5;
-}
-
-.worker-body-back {
-  fill: rgba(255, 255, 255, 0.22);
-}
-
-.worker-shirt {
-  fill: #f4f7fb;
-}
-
-.worker-vest {
-  fill: url("#vestGradient");
-}
-
-.worker-stripe {
-  fill: none;
-  stroke: var(--brand-red);
-  stroke-linecap: round;
-  stroke-width: 7;
-}
-
-.worker-face,
-.worker-ear {
-  fill: #f1c7a8;
-}
-
-.worker-hair {
-  fill: #273244;
-}
-
-.worker-helmet {
-  fill: url("#helmetGradient");
-}
-
-.worker-helmet-band {
-  fill: #ffffff;
-}
-
-.worker-helmet-rib {
-  fill: none;
-  stroke: #cfd8e2;
-  stroke-linecap: round;
-  stroke-width: 4;
-}
-
-.worker-gross-mark,
-.worker-badge-mark {
-  fill: var(--brand-red);
-}
-
-.worker-eye {
-  fill: none;
-  stroke: #172033;
-  stroke-linecap: round;
-  stroke-width: 6;
-}
-
-.worker-smile {
-  fill: none;
-  stroke: #8c4c37;
-  stroke-linecap: round;
-  stroke-width: 4;
-}
-
-.worker-badge {
-  fill: #ffffff;
-}
-
-.worker-tablet {
-  fill: rgba(255, 255, 255, 0.92);
-}
-
-.worker-tablet-line {
-  fill: none;
-  stroke: #c9202f;
-  stroke-linecap: round;
-  stroke-width: 5;
+  width: min(100%, 300px);
+  max-height: 250px;
+  object-fit: contain;
+  object-position: center bottom;
+  margin: 0 auto;
+  filter: drop-shadow(0 22px 28px rgba(3, 9, 18, 0.24));
 }
 
 .brand-subtitle {
