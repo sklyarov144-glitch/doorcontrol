@@ -108,49 +108,109 @@ p {
   font-weight: 750;
 }
 
-.login-building-preview {
+.login-worker-preview {
   position: relative;
   width: min(100%, 360px);
-  height: 210px;
+  min-height: 240px;
   margin-top: 18px;
   align-self: end;
   border-radius: 22px;
   overflow: hidden;
   background:
-    radial-gradient(circle at 72% 24%, rgba(255, 255, 255, 0.22), transparent 26%),
-    linear-gradient(180deg, rgba(255, 255, 255, 0.12), rgba(255, 255, 255, 0.04));
-  box-shadow: inset 0 0 0 1px rgba(255, 255, 255, 0.16);
+    radial-gradient(circle at 72% 18%, rgba(255, 255, 255, 0.22), transparent 28%),
+    linear-gradient(145deg, rgba(255, 255, 255, 0.14), rgba(255, 255, 255, 0.04));
+  box-shadow:
+    inset 0 0 0 1px rgba(255, 255, 255, 0.18),
+    0 24px 48px rgba(3, 9, 18, 0.16);
 }
 
-.login-building-preview span {
-  position: absolute;
-  bottom: 24px;
-  width: 92px;
-  border-radius: 10px 10px 3px 3px;
-  background:
-    repeating-linear-gradient(
-      180deg,
-      rgba(255, 255, 255, 0.86) 0,
-      rgba(255, 255, 255, 0.86) 7px,
-      transparent 7px,
-      transparent 17px
-    ),
-    rgba(14, 27, 48, 0.42);
+.login-worker-preview svg {
+  display: block;
+  width: 100%;
+  height: auto;
 }
 
-.login-building-preview span:nth-child(1) {
-  left: 34px;
-  height: 122px;
+.worker-orbit {
+  fill: none;
+  stroke: rgba(255, 255, 255, 0.2);
+  stroke-width: 1.5;
 }
 
-.login-building-preview span:nth-child(2) {
-  left: 124px;
-  height: 164px;
+.worker-body-back {
+  fill: rgba(255, 255, 255, 0.22);
 }
 
-.login-building-preview span:nth-child(3) {
-  left: 214px;
-  height: 142px;
+.worker-shirt {
+  fill: #f4f7fb;
+}
+
+.worker-vest {
+  fill: url("#vestGradient");
+}
+
+.worker-stripe {
+  fill: none;
+  stroke: var(--brand-red);
+  stroke-linecap: round;
+  stroke-width: 7;
+}
+
+.worker-face,
+.worker-ear {
+  fill: #f1c7a8;
+}
+
+.worker-hair {
+  fill: #273244;
+}
+
+.worker-helmet {
+  fill: url("#helmetGradient");
+}
+
+.worker-helmet-band {
+  fill: #ffffff;
+}
+
+.worker-helmet-rib {
+  fill: none;
+  stroke: #cfd8e2;
+  stroke-linecap: round;
+  stroke-width: 4;
+}
+
+.worker-gross-mark,
+.worker-badge-mark {
+  fill: var(--brand-red);
+}
+
+.worker-eye {
+  fill: none;
+  stroke: #172033;
+  stroke-linecap: round;
+  stroke-width: 6;
+}
+
+.worker-smile {
+  fill: none;
+  stroke: #8c4c37;
+  stroke-linecap: round;
+  stroke-width: 4;
+}
+
+.worker-badge {
+  fill: #ffffff;
+}
+
+.worker-tablet {
+  fill: rgba(255, 255, 255, 0.92);
+}
+
+.worker-tablet-line {
+  fill: none;
+  stroke: #c9202f;
+  stroke-linecap: round;
+  stroke-width: 5;
 }
 
 .brand-subtitle {
@@ -931,35 +991,6 @@ select:focus {
   width: 220px;
   height: 220px;
   background: radial-gradient(circle, rgba(201,32,47,0.08), transparent 68%);
-}
-
-.plan-tools {
-  display: flex;
-  flex-wrap: wrap;
-  align-items: center;
-  justify-content: flex-end;
-  gap: 12px;
-  color: #66788f;
-  font-weight: 850;
-}
-
-.zoom-controls {
-  display: inline-grid;
-  grid-template-columns: 42px 70px 42px;
-  gap: 8px;
-  align-items: center;
-}
-
-.zoom-controls button,
-.zoom-controls span {
-  display: grid;
-  place-items: center;
-  min-height: 38px;
-  border: 1px solid #dce6f0;
-  border-radius: 12px;
-  background: #ffffff;
-  color: #40526a;
-  font-weight: 900;
 }
 
 .room {
