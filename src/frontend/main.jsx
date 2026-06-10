@@ -2,7 +2,7 @@ import React, { useMemo, useState } from "react";
 import { createRoot } from "react-dom/client";
 import "./styles.css";
 
-const STORAGE_KEY = "gross-lean-montage.visual.mvp.v1";
+const STORAGE_KEY = "gross-lean-montage.visual.mvp.v2";
 
 const doorStatusOptions = [
   "не начато",
@@ -44,58 +44,58 @@ const statusMeta = {
 const baseDoors = [
   {
     id: "apt-1501",
-    number: "Квартира 1501",
+    number: "Квартира 1",
     type: "Квартирная",
     doorStatus: "смонтирована",
     openingStatus: "готов",
     issue: "нет",
     storageAct: "не передана",
-    x: 17,
-    y: 24,
+    x: 19,
+    y: 43,
   },
   {
     id: "apt-1502",
-    number: "Квартира 1502",
+    number: "Квартира 2",
     type: "Квартирная",
     doorStatus: "доставлена",
     openingStatus: "требует корректировки",
     issue: "есть замечание",
     storageAct: "не передана",
-    x: 67,
-    y: 24,
+    x: 51,
+    y: 43,
   },
   {
     id: "apt-1503",
-    number: "Квартира 1503",
+    number: "Квартира 3",
     type: "Квартирная",
     doorStatus: "замечание",
     openingStatus: "передан на исправление",
     issue: "есть замечание",
     storageAct: "не передана",
-    x: 18,
-    y: 72,
+    x: 82,
+    y: 43,
   },
   {
     id: "mop-15-01",
-    number: "МОП-15-01",
+    number: "1 МОП",
     type: "МОП",
     doorStatus: "принято технадзором",
     openingStatus: "исправлен",
     issue: "устранено",
     storageAct: "акт подготовлен",
-    x: 46,
-    y: 50,
+    x: 39,
+    y: 61,
   },
   {
     id: "mop-15-02",
-    number: "МОП-15-02",
+    number: "2 МОП",
     type: "МОП",
     doorStatus: "передано по акту",
     openingStatus: "готов",
     issue: "нет",
     storageAct: "передано по акту",
-    x: 73,
-    y: 72,
+    x: 69,
+    y: 61,
   },
 ];
 
@@ -205,7 +205,7 @@ function App() {
   const [selectedBuildingId, setSelectedBuildingId] = useState(
     objects[0].buildings[0].id
   );
-  const [selectedFloorId, setSelectedFloorId] = useState("floor-15");
+  const [selectedFloorId, setSelectedFloorId] = useState("");
   const [selectedDoorId, setSelectedDoorId] = useState("");
 
   const selectedObject = useMemo(
@@ -294,7 +294,8 @@ function App() {
 
   const goToBuilding = (buildingId) => {
     setSelectedBuildingId(buildingId);
-    setSelectedFloorId("floor-15");
+    setSelectedFloorId("");
+    setSelectedDoorId("");
     setScreen("building");
   };
 
@@ -339,12 +340,7 @@ function App() {
             <section className="building-dashboard">
               <BuildingVisualization
                 building={selectedBuilding}
-                selectedFloorId={selectedFloor.id}
-                onSelectFloor={goToFloor}
-              />
-              <FloorSelector
-                building={selectedBuilding}
-                selectedFloorId={selectedFloor.id}
+                selectedFloorId={selectedFloorId}
                 onSelectFloor={goToFloor}
               />
             </section>
@@ -629,22 +625,22 @@ function BuildingVisualization({ building, selectedFloorId, onSelectFloor }) {
     ? Number(selectedFloorId.replace("floor-", ""))
     : null;
   const selectedFloor = building.floors.find((floor) => floor.id === selectedFloorId);
-  const floorDoors = selectedFloor?.doors ?? [];
-  const floorIssues = floorDoors.filter((door) => door.issue === "есть замечание").length;
-  const floorOpenings = floorDoors.filter((door) =>
+  const typicalFloor = building.floors.find((floor) => floor.type === "floor");
+  const metricDoors = selectedFloor?.doors.length ? selectedFloor.doors : typicalFloor?.doors ?? [];
+  const floorIssues = metricDoors.filter((door) => door.issue === "есть замечание").length;
+  const floorOpenings = metricDoors.filter((door) =>
     ["требует корректировки", "передан на исправление"].includes(door.openingStatus)
   ).length;
-  const readyDoors = floorDoors.filter((door) =>
+  const readyDoors = metricDoors.filter((door) =>
     ["смонтирована", "принято технадзором", "передано по акту"].includes(door.doorStatus)
   ).length;
-  const floorReadiness = floorDoors.length ? Math.round((readyDoors / floorDoors.length) * 100) : 0;
+  const floorReadiness = metricDoors.length ? Math.round((readyDoors / metricDoors.length) * 100) : 0;
 
   return (
     <div className="building-hero">
       <div className="building-hero-copy">
         <StatusBadge value="В работе" />
         <h2>{building.name}</h2>
-        <p>Нажмите на уровень корпуса, чтобы сразу открыть план этажа.</p>
       </div>
       <div className="building-visual">
         <div className="roof-line">Кровля</div>
@@ -670,41 +666,13 @@ function BuildingVisualization({ building, selectedFloorId, onSelectFloor }) {
           Паркинг
         </button>
       </div>
-      <div className="selected-floor-card">
-        <span>{selectedFloor?.type === "floor" ? `Этаж ${selectedFloor.number}` : selectedFloor?.label}</span>
-        <p>Клик по этажу открывает план без промежуточного шага.</p>
-      </div>
       <div className="building-metrics">
-        <Metric label="Дверей на этаже" value={floorDoors.length} />
+        <Metric label="Дверей на типовом этаже" value={metricDoors.length} />
         <Metric label="Замечаний" value={floorIssues} tone="warning" />
         <Metric label="Проемов на корректировке" value={floorOpenings} tone="alert" />
         <Metric label="Готовность" value={`${floorReadiness}%`} />
       </div>
     </div>
-  );
-}
-
-function FloorSelector({ building, selectedFloorId, onSelectFloor }) {
-  return (
-    <aside className="panel floor-selector">
-      <div className="panel-title">
-        <div>
-          <h2>Этажи</h2>
-          <p>{building.name}</p>
-        </div>
-      </div>
-      <div className="floor-list">
-        {[...building.floors].reverse().map((floor) => (
-          <button
-            className={floor.id === selectedFloorId ? "floor-chip active" : "floor-chip"}
-            key={floor.id}
-            onClick={() => onSelectFloor(floor.id)}
-          >
-            {floor.label}
-          </button>
-        ))}
-      </div>
-    </aside>
   );
 }
 
@@ -758,39 +726,56 @@ function FloorPlan({ object, building, floor, onOpenDoor, onBack }) {
                   МОП
                 </button>
               </div>
-              <span>{visibleDoors.length} из {floor.doors.length}</span>
+              <div className="plan-tools">
+                <span>{visibleDoors.length} из {floor.doors.length}</span>
+                <div className="zoom-controls" aria-label="Масштаб">
+                  <button type="button">−</button>
+                  <span>100%</span>
+                  <button type="button">+</button>
+                </div>
+              </div>
             </div>
             <div className="floor-plan-layout">
               <div className="floor-plan">
                 <div className="plan-frame" />
+                <div className="render-light light-a" />
+                <div className="render-light light-b" />
                 <div className="room apartment apartment-1501">
-                  <strong>1501</strong>
+                  <strong>Квартира 1</strong>
                   <span>Квартира</span>
                   <i className="furniture bed" />
                   <i className="furniture sofa" />
                   <i className="wet-zone" />
                 </div>
                 <div className="room apartment apartment-1502">
-                  <strong>1502</strong>
+                  <strong>Квартира 2</strong>
                   <span>Квартира</span>
                   <i className="furniture bed" />
                   <i className="furniture table" />
                   <i className="wet-zone" />
                 </div>
                 <div className="room apartment apartment-1503">
-                  <strong>1503</strong>
+                  <strong>Квартира 3</strong>
                   <span>Квартира</span>
                   <i className="furniture sofa" />
                   <i className="furniture table" />
                   <i className="wet-zone" />
                 </div>
                 <div className="room service-zone service-left">
-                  <strong>МОП</strong>
+                  <strong>1 МОП</strong>
                   <span>Техническая зона</span>
                 </div>
                 <div className="room service-zone service-right">
-                  <strong>МОП</strong>
+                  <strong>2 МОП</strong>
                   <span>Кладовая зона</span>
+                </div>
+                <div className="room apartment apartment-shadow-left">
+                  <span>Жилая зона</span>
+                  <i className="furniture sofa" />
+                </div>
+                <div className="room apartment apartment-shadow-right">
+                  <span>Жилая зона</span>
+                  <i className="furniture table" />
                 </div>
                 <div className="plan-core">
                   <strong>Лифтовой холл</strong>
@@ -806,15 +791,6 @@ function FloorPlan({ object, building, floor, onOpenDoor, onBack }) {
                   <DoorMarker key={door.id} door={door} onOpen={() => onOpenDoor(door.id)} />
                 ))}
               </div>
-              <aside className="legend-panel">
-                <h3>Легенда статусов</h3>
-                <StatusLegend />
-                <div className="zoom-controls" aria-label="Масштаб">
-                  <button>−</button>
-                  <span>100%</span>
-                  <button>+</button>
-                </div>
-              </aside>
             </div>
           </>
         ) : (
@@ -842,7 +818,6 @@ function DoorMarker({ door, onOpen }) {
       onClick={onOpen}
     >
       <span>{label}</span>
-      <small>{door.doorStatus}</small>
     </button>
   );
 }
@@ -960,24 +935,6 @@ function SelectField({ label, value, options, onChange }) {
         ))}
       </select>
     </label>
-  );
-}
-
-function StatusLegend() {
-  return (
-    <div className="status-legend">
-      {[
-        "не начато",
-        "доставлена",
-        "смонтирована",
-        "замечание",
-        "принято технадзором",
-        "передано по акту",
-        "требует корректировки",
-      ].map((status) => (
-        <StatusBadge key={status} value={status} />
-      ))}
-    </div>
   );
 }
 
