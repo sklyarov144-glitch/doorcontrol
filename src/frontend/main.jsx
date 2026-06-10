@@ -4,7 +4,7 @@ import matveevskyParkImage from "./assets/matveevsky-park.png";
 import workerMascot from "./assets/gross-worker-mascot.png";
 import "./styles.css";
 
-const STORAGE_KEY = "gross-lean-montage.visual.mvp.v4";
+const STORAGE_KEY = "gross-lean-montage.visual.mvp.v5";
 
 const doorStatusOptions = [
   "не начато",
@@ -53,8 +53,8 @@ const baseDoors = [
     openingStatus: "готов",
     issue: "нет",
     storageAct: "не передана",
-    x: 23,
-    y: 43,
+    x: 18,
+    y: 39,
   },
   {
     id: "apt-1502",
@@ -65,8 +65,8 @@ const baseDoors = [
     openingStatus: "требует корректировки",
     issue: "есть замечание",
     storageAct: "не передана",
-    x: 77,
-    y: 43,
+    x: 48,
+    y: 39,
   },
   {
     id: "apt-1503",
@@ -77,8 +77,8 @@ const baseDoors = [
     openingStatus: "передан на исправление",
     issue: "есть замечание",
     storageAct: "не передана",
-    x: 23,
-    y: 58,
+    x: 78,
+    y: 39,
   },
   {
     id: "apt-1504",
@@ -89,8 +89,8 @@ const baseDoors = [
     openingStatus: "готов",
     issue: "нет",
     storageAct: "не передана",
-    x: 77,
-    y: 58,
+    x: 18,
+    y: 62,
   },
   {
     id: "apt-1505",
@@ -101,8 +101,8 @@ const baseDoors = [
     openingStatus: "готов",
     issue: "нет",
     storageAct: "не передана",
-    x: 39,
-    y: 70,
+    x: 48,
+    y: 62,
   },
   {
     id: "apt-1506",
@@ -113,8 +113,8 @@ const baseDoors = [
     openingStatus: "готов",
     issue: "нет",
     storageAct: "не передана",
-    x: 61,
-    y: 70,
+    x: 78,
+    y: 62,
   },
   {
     id: "mop-15-01",
@@ -125,8 +125,8 @@ const baseDoors = [
     openingStatus: "исправлен",
     issue: "устранено",
     storageAct: "акт подготовлен",
-    x: 44,
-    y: 49,
+    x: 34,
+    y: 48,
   },
   {
     id: "mop-15-02",
@@ -137,8 +137,8 @@ const baseDoors = [
     openingStatus: "готов",
     issue: "нет",
     storageAct: "передано по акту",
-    x: 56,
-    y: 66,
+    x: 38,
+    y: 56,
   },
 ];
 
@@ -766,6 +766,9 @@ function FloorPlan({ object, building, floor, onOpenDoor, onBack }) {
             <div className="floor-plan-layout">
               <div className="floor-plan">
                 <div className="plan-frame" />
+                <div className="main-corridor">
+                  <strong>Лестничный холл / коридор</strong>
+                </div>
                 <div className="room apartment apartment-1">
                   <strong>Квартира 1</strong>
                 </div>
@@ -787,6 +790,12 @@ function FloorPlan({ object, building, floor, onOpenDoor, onBack }) {
                 <div className="stair-zone">
                   <strong>Лестница</strong>
                 </div>
+                <div className="lift-zone">
+                  <span>Лифт</span>
+                  <span>Лифт</span>
+                </div>
+                <div className="mop-cell mop-cell-1" />
+                <div className="mop-cell mop-cell-2" />
                 <div className="plan-core">
                   <strong>Лестничный холл</strong>
                 </div>
@@ -813,10 +822,13 @@ function DoorMarker({ door, onOpen }) {
       : statusMeta[door.doorStatus]?.tone ?? "gray";
 
   const label = door.mark ?? door.number.replace("Квартира ", "");
+  const swingClass = ["Д-2", "Д-4", "Д-6", "1 МОП"].includes(label)
+    ? "swing-left"
+    : "swing-right";
 
   return (
     <button
-      className={`door-marker ${door.type === "МОП" ? "common" : ""} status-${tone}`}
+      className={`door-marker ${swingClass} ${door.type === "МОП" ? "common" : ""} status-${tone}`}
       style={{ left: `${door.x}%`, top: `${door.y}%` }}
       onClick={onOpen}
     >

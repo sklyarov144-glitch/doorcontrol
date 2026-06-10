@@ -1874,6 +1874,175 @@ select:focus {
   line-height: 1.05;
 }
 
+/* Long corridor mounting plan with a shifted stair and lift core. */
+.floor-plan {
+  min-height: 700px;
+  background: #eef3f8;
+}
+
+.plan-frame {
+  inset: 46px 34px;
+  border: 8px solid #2d3746;
+  border-radius: 12px;
+  background: #f8f3ea;
+}
+
+.main-corridor {
+  position: absolute;
+  z-index: 2;
+  left: 8%;
+  right: 8%;
+  top: 43%;
+  height: 15%;
+  display: grid;
+  place-items: center;
+  border: 3px solid #303b49;
+  border-radius: 8px;
+  color: #172033;
+  background: #f1f4f7;
+  text-align: center;
+  font-weight: 950;
+}
+
+.main-corridor strong {
+  max-width: 100%;
+  font-size: clamp(14px, 1.2vw, 18px);
+  line-height: 1.15;
+  overflow-wrap: anywhere;
+}
+
+.floor-plan .room {
+  border: 3px solid #303b49;
+  background: #fffaf2;
+}
+
+.apartment-1 { left: 8%; top: 10%; width: 18%; height: 30%; }
+.apartment-2 { left: 38%; top: 10%; width: 24%; height: 30%; }
+.apartment-3 { left: 64%; top: 10%; width: 28%; height: 30%; }
+.apartment-4 { left: 8%; top: 61%; width: 24%; height: 27%; }
+.apartment-5 { left: 34%; top: 61%; width: 28%; height: 27%; }
+.apartment-6 { left: 64%; top: 61%; width: 28%; height: 27%; }
+
+.floor-plan .stair-zone {
+  left: 22%;
+  top: 10%;
+  width: 8%;
+  height: 30%;
+}
+
+.lift-zone {
+  position: absolute;
+  z-index: 4;
+  left: 38%;
+  top: 59%;
+  width: 12%;
+  height: 14%;
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 8px;
+}
+
+.lift-zone span {
+  display: grid;
+  place-items: center;
+  border: 3px solid #303b49;
+  border-radius: 6px;
+  color: #172033;
+  background: #f4f6f8;
+  font-size: 12px;
+  font-weight: 950;
+}
+
+.floor-plan .plan-core {
+  left: 32%;
+  top: 43%;
+  width: 20%;
+  height: 15%;
+  z-index: 4;
+}
+
+.mop-cell {
+  position: absolute;
+  z-index: 3;
+  border: 3px solid #303b49;
+  border-radius: 6px;
+  background: #f4f6f8;
+}
+
+.mop-cell-1 {
+  left: 27%;
+  top: 43%;
+  width: 7%;
+  height: 7%;
+}
+
+.mop-cell-2 {
+  left: 34%;
+  top: 51%;
+  width: 7%;
+  height: 7%;
+}
+
+.floor-plan .door-marker {
+  position: absolute;
+  width: 58px;
+  min-height: 36px;
+  border-radius: 10px;
+  padding: 6px 8px;
+}
+
+.floor-plan .door-marker::before {
+  content: "";
+  position: absolute;
+  bottom: -22px;
+  width: 34px;
+  height: 34px;
+  border: 2px solid currentColor;
+  border-left-color: transparent;
+  border-bottom-color: transparent;
+  border-radius: 0 34px 0 0;
+  opacity: 0.9;
+  pointer-events: none;
+}
+
+.floor-plan .door-marker::after {
+  content: "";
+  position: absolute;
+  bottom: -3px;
+  width: 30px;
+  height: 2px;
+  border-radius: 999px;
+  background: currentColor;
+  pointer-events: none;
+}
+
+.floor-plan .door-marker.swing-right::before {
+  right: -10px;
+  transform: rotate(8deg);
+}
+
+.floor-plan .door-marker.swing-right::after {
+  right: -9px;
+  transform: rotate(46deg);
+  transform-origin: right center;
+}
+
+.floor-plan .door-marker.swing-left::before {
+  left: -10px;
+  transform: scaleX(-1) rotate(8deg);
+}
+
+.floor-plan .door-marker.swing-left::after {
+  left: -9px;
+  transform: rotate(-46deg);
+  transform-origin: left center;
+}
+
+.floor-plan .door-marker.common {
+  width: 72px;
+  min-height: 34px;
+}
+
 @media (max-width: 1040px) {
   .app-shell,
   .building-dashboard,
