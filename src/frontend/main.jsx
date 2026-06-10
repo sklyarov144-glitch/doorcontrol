@@ -4,7 +4,7 @@ import matveevskyParkImage from "./assets/matveevsky-park.png";
 import workerMascot from "./assets/gross-worker-mascot.png";
 import "./styles.css";
 
-const STORAGE_KEY = "gross-lean-montage.visual.mvp.v3";
+const STORAGE_KEY = "gross-lean-montage.visual.mvp.v4";
 
 const doorStatusOptions = [
   "не начато",
@@ -47,57 +47,98 @@ const baseDoors = [
   {
     id: "apt-1501",
     number: "Квартира 1",
+    mark: "Д-1",
     type: "Квартирная",
     doorStatus: "смонтирована",
     openingStatus: "готов",
     issue: "нет",
     storageAct: "не передана",
-    x: 19,
+    x: 23,
     y: 43,
   },
   {
     id: "apt-1502",
     number: "Квартира 2",
+    mark: "Д-2",
     type: "Квартирная",
     doorStatus: "доставлена",
     openingStatus: "требует корректировки",
     issue: "есть замечание",
     storageAct: "не передана",
-    x: 51,
+    x: 77,
     y: 43,
   },
   {
     id: "apt-1503",
     number: "Квартира 3",
+    mark: "Д-3",
     type: "Квартирная",
     doorStatus: "замечание",
     openingStatus: "передан на исправление",
     issue: "есть замечание",
     storageAct: "не передана",
-    x: 82,
-    y: 43,
+    x: 23,
+    y: 58,
+  },
+  {
+    id: "apt-1504",
+    number: "Квартира 4",
+    mark: "Д-4",
+    type: "Квартирная",
+    doorStatus: "не начато",
+    openingStatus: "готов",
+    issue: "нет",
+    storageAct: "не передана",
+    x: 77,
+    y: 58,
+  },
+  {
+    id: "apt-1505",
+    number: "Квартира 5",
+    mark: "Д-5",
+    type: "Квартирная",
+    doorStatus: "доставлена",
+    openingStatus: "готов",
+    issue: "нет",
+    storageAct: "не передана",
+    x: 39,
+    y: 70,
+  },
+  {
+    id: "apt-1506",
+    number: "Квартира 6",
+    mark: "Д-6",
+    type: "Квартирная",
+    doorStatus: "не начато",
+    openingStatus: "готов",
+    issue: "нет",
+    storageAct: "не передана",
+    x: 61,
+    y: 70,
   },
   {
     id: "mop-15-01",
     number: "1 МОП",
+    mark: "1 МОП",
     type: "МОП",
     doorStatus: "принято технадзором",
     openingStatus: "исправлен",
     issue: "устранено",
     storageAct: "акт подготовлен",
-    x: 39,
-    y: 61,
+    x: 44,
+    y: 49,
   },
   {
     id: "mop-15-02",
     number: "2 МОП",
+    mark: "2 МОП",
     type: "МОП",
     doorStatus: "передано по акту",
     openingStatus: "готов",
     issue: "нет",
     storageAct: "передано по акту",
-    x: 69,
-    y: 61,
+    x: 56,
+    y: 66,
   },
 ];
 
@@ -725,55 +766,30 @@ function FloorPlan({ object, building, floor, onOpenDoor, onBack }) {
             <div className="floor-plan-layout">
               <div className="floor-plan">
                 <div className="plan-frame" />
-                <div className="render-light light-a" />
-                <div className="render-light light-b" />
-                <div className="room apartment apartment-1501">
+                <div className="room apartment apartment-1">
                   <strong>Квартира 1</strong>
-                  <span>Квартира</span>
-                  <i className="furniture bed" />
-                  <i className="furniture sofa" />
-                  <i className="wet-zone" />
                 </div>
-                <div className="room apartment apartment-1502">
+                <div className="room apartment apartment-2">
                   <strong>Квартира 2</strong>
-                  <span>Квартира</span>
-                  <i className="furniture bed" />
-                  <i className="furniture table" />
-                  <i className="wet-zone" />
                 </div>
-                <div className="room apartment apartment-1503">
+                <div className="room apartment apartment-3">
                   <strong>Квартира 3</strong>
-                  <span>Квартира</span>
-                  <i className="furniture sofa" />
-                  <i className="furniture table" />
-                  <i className="wet-zone" />
                 </div>
-                <div className="room service-zone service-left">
-                  <strong>1 МОП</strong>
-                  <span>Техническая зона</span>
+                <div className="room apartment apartment-4">
+                  <strong>Квартира 4</strong>
                 </div>
-                <div className="room service-zone service-right">
-                  <strong>2 МОП</strong>
-                  <span>Кладовая зона</span>
+                <div className="room apartment apartment-5">
+                  <strong>Квартира 5</strong>
                 </div>
-                <div className="room apartment apartment-shadow-left">
-                  <span>Жилая зона</span>
-                  <i className="furniture sofa" />
+                <div className="room apartment apartment-6">
+                  <strong>Квартира 6</strong>
                 </div>
-                <div className="room apartment apartment-shadow-right">
-                  <span>Жилая зона</span>
-                  <i className="furniture table" />
+                <div className="stair-zone">
+                  <strong>Лестница</strong>
                 </div>
                 <div className="plan-core">
-                  <strong>Лифтовой холл</strong>
-                  <span>Лестница / лифты / инженерия</span>
-                  <i />
-                  <i />
+                  <strong>Лестничный холл</strong>
                 </div>
-                <div className="plan-corridor horizontal" />
-                <div className="plan-corridor vertical" />
-                <div className="stair-zone stair-left">ЛК</div>
-                <div className="stair-zone stair-right">ЛК</div>
                 {visibleDoors.map((door) => (
                   <DoorMarker key={door.id} door={door} onOpen={() => onOpenDoor(door.id)} />
                 ))}
@@ -796,7 +812,7 @@ function DoorMarker({ door, onOpen }) {
       ? "orange"
       : statusMeta[door.doorStatus]?.tone ?? "gray";
 
-  const label = door.number.replace("Квартира ", "");
+  const label = door.mark ?? door.number.replace("Квартира ", "");
 
   return (
     <button
@@ -853,6 +869,7 @@ function DoorDetails({ object, building, floor, door, onSave, onBack }) {
         </div>
         <div className="detail-grid">
           <Detail label="Номер двери" value={door.number} />
+          <Detail label="Марка двери" value={door.mark ?? door.number} />
           <Detail label="Тип двери" value={door.type} />
           <SelectField
             label="Статус двери"

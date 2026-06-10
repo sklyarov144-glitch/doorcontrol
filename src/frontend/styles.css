@@ -852,6 +852,563 @@ select:focus {
 
 .plan-frame {
   position: absolute;
+  inset: 42px;
+  border: 8px solid #2d3746;
+  border-radius: 14px;
+  background: #f7f3ed;
+  box-shadow: inset 0 0 0 1px rgba(255,255,255,0.8);
+  pointer-events: none;
+}
+
+.room {
+  position: absolute;
+  z-index: 2;
+  display: grid;
+  place-items: center;
+  border: 3px solid #303b49;
+  border-radius: 8px;
+  padding: 12px;
+  color: #172033;
+  background: #fffaf2;
+  font-weight: 950;
+  text-align: center;
+  box-shadow: inset 0 0 0 1px rgba(255,255,255,0.86);
+}
+
+.room strong {
+  max-width: 100%;
+  color: #172033;
+  font-size: clamp(14px, 1.35vw, 20px);
+  line-height: 1.15;
+  overflow-wrap: anywhere;
+}
+
+.apartment-1 {
+  left: 7%;
+  top: 8%;
+  width: 28%;
+  height: 30%;
+}
+
+.apartment-2 {
+  left: 65%;
+  top: 8%;
+  width: 28%;
+  height: 30%;
+}
+
+.apartment-3 {
+  left: 7%;
+  top: 43%;
+  width: 28%;
+  height: 23%;
+}
+
+.apartment-4 {
+  left: 65%;
+  top: 43%;
+  width: 28%;
+  height: 23%;
+}
+
+.apartment-5 {
+  left: 7%;
+  top: 70%;
+  width: 35%;
+  height: 20%;
+}
+
+.apartment-6 {
+  left: 58%;
+  top: 70%;
+  width: 35%;
+  height: 20%;
+}
+
+.stair-zone {
+  position: absolute;
+  z-index: 3;
+  left: 38%;
+  top: 8%;
+  width: 24%;
+  height: 30%;
+  display: grid;
+  place-items: center;
+  border: 3px solid #303b49;
+  border-radius: 8px;
+  color: #172033;
+  background:
+    repeating-linear-gradient(180deg, rgba(48, 59, 73, 0.18) 0 4px, transparent 4px 16px),
+    #f4f6f8;
+  font-weight: 950;
+  text-align: center;
+}
+
+.stair-zone strong {
+  padding: 6px 10px;
+  border-radius: 999px;
+  background: rgba(255,255,255,0.82);
+}
+
+.plan-core {
+  position: absolute;
+  z-index: 3;
+  left: 36%;
+  top: 42%;
+  width: 28%;
+  height: 24%;
+  display: grid;
+  place-items: center;
+  border: 3px solid #303b49;
+  border-radius: 8px;
+  padding: 14px;
+  color: #172033;
+  background: #f4f6f8;
+  font-weight: 950;
+  text-align: center;
+}
+
+.plan-core strong {
+  max-width: 100%;
+  font-size: clamp(14px, 1.3vw, 20px);
+  line-height: 1.15;
+  overflow-wrap: anywhere;
+}
+
+.door-marker {
+  transition:
+    border-color 180ms ease,
+    box-shadow 180ms ease,
+    transform 180ms ease,
+    background 180ms ease;
+}
+
+.object-card {
+  overflow: hidden;
+  display: grid;
+  grid-template-columns: minmax(360px, 0.9fr) minmax(0, 1.1fr);
+  padding: 0;
+  color: #172033;
+  text-align: left;
+}
+
+.object-card:hover,
+.building-card:hover,
+.door-marker:hover {
+  border-color: var(--brand-red);
+  box-shadow: 0 22px 48px rgba(20, 60, 106, 0.16);
+  transform: translateY(-2px);
+}
+
+.plan-toolbar {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  gap: 14px;
+  margin-bottom: 14px;
+}
+
+.plan-toolbar > span {
+  color: #66788f;
+  font-weight: 850;
+}
+
+.filter-tabs {
+  display: inline-flex;
+  flex-wrap: wrap;
+  gap: 8px;
+  padding: 6px;
+  border: 1px solid #dce6f0;
+  border-radius: 16px;
+  background: #f8fbfe;
+}
+
+.filter-tabs button {
+  border: 0;
+  border-radius: 12px;
+  padding: 9px 12px;
+  color: #40526a;
+  background: transparent;
+  font-weight: 850;
+}
+
+.filter-tabs button.active,
+.filter-tabs button:hover {
+  color: #ffffff;
+  background: var(--brand-red);
+}
+
+.object-image {
+  position: relative;
+  height: 300px;
+  overflow: hidden;
+  background:
+    radial-gradient(circle at 70% 18%, rgba(255, 255, 255, 0.2), transparent 28%),
+    linear-gradient(135deg, #111f35, #25364d);
+}
+
+.object-image::after {
+  content: "";
+  position: absolute;
+  inset: 0;
+  background:
+    linear-gradient(180deg, rgba(7, 12, 24, 0.08), rgba(7, 12, 24, 0.78)),
+    linear-gradient(90deg, rgba(7, 12, 24, 0.28), transparent 52%);
+  pointer-events: none;
+}
+
+.object-image img {
+  width: 100%;
+  height: 100%;
+  display: block;
+  box-sizing: border-box;
+  object-fit: contain;
+  object-position: center center;
+  padding: 14px;
+}
+
+.object-image-overlay {
+  position: absolute;
+  z-index: 1;
+  inset: auto 22px 22px 22px;
+  display: grid;
+  gap: 14px;
+  color: #ffffff;
+}
+
+.object-image-overlay strong {
+  color: #ffffff;
+  font-size: 28px;
+}
+
+.object-image-overlay p {
+  color: rgba(255, 255, 255, 0.78);
+}
+
+.object-card-body {
+  display: grid;
+  gap: 15px;
+  align-content: center;
+  padding: 26px;
+}
+
+.object-card-main {
+  display: flex;
+  justify-content: space-between;
+  align-items: flex-start;
+  gap: 18px;
+}
+
+.metric-label {
+  color: #6b778c;
+  font-size: 13px;
+  font-weight: 900;
+}
+
+.readiness-value {
+  color: var(--brand-red);
+  font-size: 48px !important;
+  line-height: 1;
+}
+
+.open-arrow {
+  align-self: center;
+  border-radius: 999px;
+  padding: 12px 16px;
+  color: #ffffff;
+  background: var(--brand-red);
+  box-shadow: 0 14px 30px rgba(201, 32, 47, 0.2);
+  font-weight: 900;
+}
+
+.progress-bar {
+  height: 8px;
+  overflow: hidden;
+  border-radius: 999px;
+  background: #e3e9f1;
+}
+
+.progress-bar span {
+  display: block;
+  height: 100%;
+  border-radius: inherit;
+  background: linear-gradient(90deg, var(--brand-red), #e65461);
+}
+
+.object-card strong,
+.building-card strong {
+  display: block;
+  margin-bottom: 5px;
+  font-size: 23px;
+}
+
+.metric-grid {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: 12px;
+}
+
+.metric {
+  min-height: 96px;
+  display: grid;
+  align-content: center;
+  gap: 6px;
+  padding: 15px;
+  border: 1px solid #dce6f0;
+  border-radius: 16px;
+  background: #f8fbfe;
+}
+
+.metric span {
+  color: #66788f;
+  font-size: 13px;
+  font-weight: 850;
+}
+
+.metric strong {
+  color: var(--brand-red);
+  font-size: 31px;
+  line-height: 1;
+}
+
+.metric.warning strong {
+  color: #b26a00;
+}
+
+.metric.alert strong {
+  color: #b53b31;
+}
+
+.building-card {
+  display: grid;
+  grid-template-columns: 136px minmax(0, 1fr);
+  gap: 18px;
+  align-items: center;
+  padding: 20px;
+  color: #172033;
+  text-align: left;
+}
+
+.building-card .status-badge {
+  grid-column: 1 / -1;
+}
+
+.mini-building {
+  position: relative;
+  height: 150px;
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 10px;
+  align-content: stretch;
+  padding: 18px;
+  border: 1px solid #cbd8e5;
+  border-radius: 18px;
+  background:
+    radial-gradient(circle at 75% 16%, rgba(255,255,255,0.86), transparent 28%),
+    linear-gradient(135deg, #f8fbff, #e3ebf4);
+  box-shadow:
+    inset 0 0 0 1px rgba(255,255,255,0.84),
+    0 16px 28px rgba(34, 54, 78, 0.08);
+}
+
+.mini-building span {
+  min-height: 18px;
+  border-radius: 6px;
+  background:
+    linear-gradient(135deg, rgba(255,255,255,0.96), rgba(207, 219, 231, 0.72));
+  box-shadow: inset 0 0 0 1px rgba(70, 91, 114, 0.08);
+}
+
+.mini-building::after {
+  content: "";
+  position: absolute;
+  left: 18px;
+  right: 18px;
+  top: 50%;
+  height: 3px;
+  border-radius: 999px;
+  background: var(--brand-red);
+  box-shadow: 0 0 18px rgba(201, 32, 47, 0.42);
+}
+
+.building-dashboard {
+  display: block;
+}
+
+.building-hero,
+.floor-plan-shell {
+  min-height: 680px;
+}
+
+.building-hero {
+  position: relative;
+  overflow: hidden;
+  border-radius: 28px;
+  padding: 28px;
+  color: #ffffff;
+  background:
+    radial-gradient(circle at 72% 18%, rgba(201, 32, 47, 0.13), transparent 30%),
+    radial-gradient(circle at 12% 80%, rgba(79, 115, 155, 0.18), transparent 34%),
+    linear-gradient(135deg, rgba(11, 23, 42, 0.98), rgba(18, 38, 68, 0.88)),
+    #0b172a;
+  box-shadow: 0 28px 80px rgba(11, 23, 42, 0.28);
+}
+
+.building-hero::before {
+  content: "";
+  position: absolute;
+  inset: 0;
+  background:
+    linear-gradient(120deg, transparent 0 58%, rgba(255, 255, 255, 0.055) 58.2% 58.6%, transparent 58.8%),
+    linear-gradient(90deg, rgba(255,255,255,0.028) 1px, transparent 1px),
+    linear-gradient(rgba(255,255,255,0.024) 1px, transparent 1px);
+  background-size: auto, 54px 54px, 54px 54px;
+  pointer-events: none;
+}
+
+.building-hero-copy,
+.building-visual,
+.building-metrics {
+  position: relative;
+  z-index: 1;
+}
+
+.building-hero-copy {
+  max-width: 520px;
+  margin-bottom: 8px;
+}
+
+.building-hero-copy h2 {
+  margin-top: 14px;
+  color: #ffffff;
+  font-size: 42px;
+}
+
+.building-visual {
+  width: min(680px, 88%);
+  min-height: 590px;
+  margin: 8px auto 0;
+  display: grid;
+  grid-template-rows: 32px repeat(25, 1fr) 36px;
+  gap: 3px;
+  padding: 20px 22px;
+  border: 1px solid rgba(255,255,255,0.16);
+  border-radius: 18px 18px 10px 10px;
+  background:
+    linear-gradient(180deg, rgba(255,255,255,0.13), rgba(255,255,255,0.045)),
+    rgba(6, 16, 31, 0.44);
+  backdrop-filter: blur(10px);
+  box-shadow:
+    inset 0 1px 0 rgba(255, 255, 255, 0.12),
+    0 32px 72px rgba(0, 0, 0, 0.22);
+}
+
+.roof-line,
+.parking-line {
+  display: grid;
+  place-items: center;
+  border: 1px solid rgba(255,255,255,0.16);
+  border-radius: 12px;
+  color: rgba(255,255,255,0.78);
+  background: rgba(255,255,255,0.1);
+  font-size: 13px;
+  font-weight: 850;
+}
+
+.parking-line {
+  width: 100%;
+}
+
+.facade-floor {
+  display: grid;
+  grid-template-columns: 38px repeat(4, 1fr);
+  gap: 7px;
+  align-items: center;
+  border: 1px solid rgba(255,255,255,0.13);
+  border-radius: 7px;
+  padding: 0 10px;
+  background:
+    linear-gradient(90deg, rgba(255, 255, 255, 0.11), rgba(255, 255, 255, 0.045)),
+    rgba(255,255,255,0.08);
+  color: rgba(255,255,255,0.84);
+}
+
+.facade-floor span {
+  font-size: 12px;
+  font-weight: 900;
+}
+
+.facade-floor i {
+  height: 9px;
+  border-radius: 2px;
+  background:
+    linear-gradient(180deg, rgba(255,255,255,0.5), rgba(255,255,255,0.22));
+}
+
+.facade-floor.active,
+.facade-floor:hover {
+  border-color: var(--brand-red);
+  background:
+    linear-gradient(90deg, rgba(201, 32, 47, 0.5), rgba(201, 32, 47, 0.12)),
+    rgba(255,255,255,0.1);
+  box-shadow:
+    0 0 0 1px rgba(201, 32, 47, 0.4),
+    0 0 28px rgba(201, 32, 47, 0.34);
+  transform: translateX(2px);
+}
+
+.building-metrics {
+  display: grid;
+  grid-template-columns: repeat(4, minmax(0, 1fr));
+  gap: 12px;
+  margin-top: 20px;
+}
+
+.building-metrics .metric {
+  border-color: rgba(255,255,255,0.14);
+  background: rgba(255,255,255,0.08);
+}
+
+.building-metrics .metric span {
+  color: rgba(255,255,255,0.64);
+}
+
+.building-metrics .metric strong {
+  color: #ffffff;
+}
+
+.floor-plan-shell {
+  padding: 26px;
+  border: 1px solid rgba(203, 216, 230, 0.9);
+  border-radius: 28px;
+  background: #ffffff;
+  box-shadow: 0 18px 48px rgba(20, 38, 62, 0.09);
+}
+
+.floor-plan-layout {
+  display: block;
+}
+
+.floor-plan {
+  position: relative;
+  min-height: 780px;
+  overflow: hidden;
+  border: 1px solid #cad8e5;
+  border-radius: 26px;
+  background:
+    radial-gradient(circle at 20% 16%, rgba(255,255,255,0.92), transparent 22%),
+    radial-gradient(circle at 75% 20%, rgba(190, 207, 224, 0.7), transparent 26%),
+    linear-gradient(145deg, rgba(255,255,255,0.92), rgba(231, 238, 246, 0.86)),
+    #edf2f7;
+  background-size: auto, 34px 34px, 34px 34px;
+  box-shadow:
+    inset 0 0 0 18px #f7fafc,
+    inset 0 0 0 21px #243345,
+    0 24px 58px rgba(20, 38, 62, 0.12);
+}
+
+.plan-frame {
+  position: absolute;
   inset: 48px;
   border: 10px solid #243345;
   border-radius: 18px;
@@ -859,30 +1416,6 @@ select:focus {
     linear-gradient(90deg, transparent 0 16%, rgba(35, 51, 69, 0.16) 16% 16.5%, transparent 16.5% 33%, rgba(35, 51, 69, 0.16) 33% 33.5%, transparent 33.5% 50%, rgba(35, 51, 69, 0.16) 50% 50.5%, transparent 50.5% 67%, rgba(35, 51, 69, 0.16) 67% 67.5%, transparent 67.5% 84%, rgba(35, 51, 69, 0.16) 84% 84.5%, transparent 84.5%),
     rgba(255, 255, 255, 0.22);
   pointer-events: none;
-}
-
-.render-light {
-  position: absolute;
-  z-index: 1;
-  border-radius: 50%;
-  pointer-events: none;
-  filter: blur(1px);
-}
-
-.light-a {
-  left: 12%;
-  top: 14%;
-  width: 180px;
-  height: 180px;
-  background: radial-gradient(circle, rgba(255,255,255,0.58), transparent 66%);
-}
-
-.light-b {
-  right: 15%;
-  bottom: 18%;
-  width: 220px;
-  height: 220px;
-  background: radial-gradient(circle, rgba(201,32,47,0.08), transparent 68%);
 }
 
 .room {
@@ -951,61 +1484,6 @@ select:focus {
   height: 28%;
 }
 
-.apartment-shadow-left {
-  left: 32%;
-  top: 67%;
-  width: 16%;
-  height: 18%;
-  opacity: 0.94;
-}
-
-.apartment-shadow-right {
-  left: 52%;
-  top: 67%;
-  width: 16%;
-  height: 18%;
-  opacity: 0.94;
-}
-
-.furniture,
-.wet-zone {
-  position: absolute;
-  display: block;
-  border-radius: 8px;
-  background: rgba(88, 108, 132, 0.12);
-  border: 1px solid rgba(88, 108, 132, 0.12);
-}
-
-.furniture.bed {
-  right: 16px;
-  top: 58px;
-  width: 84px;
-  height: 54px;
-}
-
-.furniture.sofa {
-  left: 20px;
-  bottom: 24px;
-  width: 86px;
-  height: 28px;
-}
-
-.furniture.table {
-  right: 22px;
-  bottom: 28px;
-  width: 52px;
-  height: 52px;
-  border-radius: 50%;
-}
-
-.wet-zone {
-  right: 16px;
-  bottom: 24px;
-  width: 62px;
-  height: 72px;
-  background: rgba(13, 79, 139, 0.08);
-}
-
 .plan-core {
   position: absolute;
   z-index: 3;
@@ -1043,32 +1521,6 @@ select:focus {
   border-radius: 10px;
   background: #eef3f8;
   box-shadow: inset 0 0 0 2px #c8d5e0;
-}
-
-.plan-corridor {
-  position: absolute;
-  z-index: 1;
-  border: 1px solid #d4dee8;
-  border-radius: 10px;
-  background:
-    linear-gradient(90deg, rgba(255,255,255,0.78), rgba(228, 235, 243, 0.86));
-  box-shadow:
-    inset 0 0 0 1px rgba(255,255,255,0.8),
-    inset 0 0 28px rgba(37, 51, 69, 0.05);
-}
-
-.plan-corridor.horizontal {
-  left: 7%;
-  right: 7%;
-  top: 43%;
-  height: 96px;
-}
-
-.plan-corridor.vertical {
-  top: 18%;
-  bottom: 18%;
-  left: 47%;
-  width: 82px;
 }
 
 .stair-zone {
@@ -1316,6 +1768,110 @@ select:focus {
 .status-orange {
   color: #995700;
   background: #fff0d7;
+}
+
+/* Final floor plan layer: clean ITR mounting scheme. */
+.floor-plan {
+  min-height: 760px;
+  background: #eef3f8;
+  box-shadow:
+    inset 0 0 0 18px #f7fafc,
+    inset 0 0 0 21px #2d3746,
+    0 24px 58px rgba(20, 38, 62, 0.12);
+}
+
+.plan-frame {
+  inset: 42px;
+  border: 8px solid #2d3746;
+  background: #f7f3ed;
+}
+
+.floor-plan .room {
+  display: grid;
+  place-items: center;
+  gap: 0;
+  border: 3px solid #303b49;
+  border-radius: 8px;
+  padding: 12px;
+  color: #172033;
+  background: #fffaf2;
+  text-align: center;
+  box-shadow: inset 0 0 0 1px rgba(255,255,255,0.86);
+}
+
+.floor-plan .room strong,
+.floor-plan .plan-core strong,
+.floor-plan .stair-zone strong {
+  max-width: 100%;
+  color: #172033;
+  font-size: clamp(14px, 1.35vw, 20px);
+  line-height: 1.15;
+  overflow-wrap: anywhere;
+}
+
+.apartment-1 { left: 7%; top: 8%; width: 28%; height: 30%; }
+.apartment-2 { left: 65%; top: 8%; width: 28%; height: 30%; }
+.apartment-3 { left: 7%; top: 43%; width: 28%; height: 23%; }
+.apartment-4 { left: 65%; top: 43%; width: 28%; height: 23%; }
+.apartment-5 { left: 7%; top: 70%; width: 35%; height: 20%; }
+.apartment-6 { left: 58%; top: 70%; width: 35%; height: 20%; }
+
+.floor-plan .stair-zone {
+  left: 38%;
+  top: 8%;
+  width: 24%;
+  height: 30%;
+  border: 3px solid #303b49;
+  border-radius: 8px;
+  color: #172033;
+  background:
+    repeating-linear-gradient(180deg, rgba(48, 59, 73, 0.18) 0 4px, transparent 4px 16px),
+    #f4f6f8;
+}
+
+.floor-plan .stair-zone strong {
+  padding: 6px 10px;
+  border-radius: 999px;
+  background: rgba(255,255,255,0.84);
+}
+
+.floor-plan .plan-core {
+  left: 36%;
+  top: 42%;
+  width: 28%;
+  height: 24%;
+  min-height: 0;
+  display: grid;
+  place-items: center;
+  border: 3px solid #303b49;
+  border-radius: 8px;
+  padding: 14px;
+  color: #172033;
+  background: #f4f6f8;
+  text-align: center;
+}
+
+.floor-plan .door-marker {
+  width: 58px;
+  min-height: 42px;
+  border-radius: 12px;
+  padding: 7px 9px;
+  box-shadow:
+    0 0 0 5px color-mix(in srgb, currentColor 12%, transparent),
+    0 10px 20px rgba(22, 34, 50, 0.16);
+}
+
+.floor-plan .door-marker.common {
+  width: 76px;
+  min-height: 38px;
+  border-radius: 999px;
+  outline: 2px dashed currentColor;
+  outline-offset: 3px;
+}
+
+.floor-plan .door-marker span {
+  font-size: 14px;
+  line-height: 1.05;
 }
 
 @media (max-width: 1040px) {
