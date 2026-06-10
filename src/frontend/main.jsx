@@ -1,9 +1,10 @@
 import React, { useMemo, useState } from "react";
 import { createRoot } from "react-dom/client";
+import matveevskyParkImage from "./assets/matveevsky-park.png";
 import workerMascot from "./assets/gross-worker-mascot.png";
 import "./styles.css";
 
-const STORAGE_KEY = "gross-lean-montage.visual.mvp.v2";
+const STORAGE_KEY = "gross-lean-montage.visual.mvp.v3";
 
 const doorStatusOptions = [
   "не начато",
@@ -139,8 +140,8 @@ function createInitialObjects() {
   return [
     {
       id: "object-north",
-      name: "ЖК Северный",
-      address: "Северный район, строительная площадка",
+      name: "ЖК Матвеевский парк",
+      address: "Очаково-Матвеевское, ближайшая станция метро «Аминьевская»",
       status: "В работе",
       buildings: [
         createBuilding("building-1", "Корпус 1", 0),
@@ -546,9 +547,7 @@ function ObjectCard({ object, onOpen }) {
       onClick={onOpen}
     >
       <div className="object-image">
-        <div className="object-tower tower-a" />
-        <div className="object-tower tower-b" />
-        <div className="object-ground" />
+        <img src={matveevskyParkImage} alt="" />
         <div className="object-image-overlay">
           <StatusBadge value={object.status} />
           <div>

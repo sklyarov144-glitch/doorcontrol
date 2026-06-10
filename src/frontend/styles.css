@@ -486,62 +486,33 @@ select:focus {
   min-height: 340px;
   overflow: hidden;
   background:
-    linear-gradient(180deg, rgba(8, 15, 29, 0.05), rgba(8, 15, 29, 0.8)),
-    radial-gradient(circle at 70% 20%, rgba(255,255,255,0.16), transparent 26%),
-    linear-gradient(135deg, rgba(12, 31, 58, 0.96), rgba(69, 86, 110, 0.62));
+    radial-gradient(circle at 70% 18%, rgba(255, 255, 255, 0.2), transparent 28%),
+    linear-gradient(135deg, #111f35, #25364d);
 }
 
-.object-image::before {
+.object-image::after {
   content: "";
   position: absolute;
-  inset: 34px 38px 54px;
-  border: 1px solid rgba(255, 255, 255, 0.24);
-  border-radius: 16px 16px 6px 6px;
+  inset: 0;
   background:
-    linear-gradient(90deg, rgba(255,255,255,0.18) 1px, transparent 1px),
-    linear-gradient(rgba(255,255,255,0.14) 1px, transparent 1px),
-    linear-gradient(135deg, rgba(255,255,255,0.12), rgba(255,255,255,0.035));
-  background-size: 42px 100%, 100% 24px, auto;
-  box-shadow:
-    inset 0 0 0 1px rgba(255,255,255,0.08),
-    0 28px 54px rgba(0,0,0,0.18);
+    linear-gradient(180deg, rgba(7, 12, 24, 0.08), rgba(7, 12, 24, 0.78)),
+    linear-gradient(90deg, rgba(7, 12, 24, 0.28), transparent 52%);
+  pointer-events: none;
 }
 
-.object-tower {
-  position: absolute;
-  bottom: 62px;
-  width: 104px;
-  border-radius: 4px;
-  background:
-    linear-gradient(90deg, rgba(255,255,255,0.18) 1px, transparent 1px),
-    linear-gradient(rgba(255,255,255,0.16) 1px, transparent 1px),
-    rgba(16, 34, 58, 0.7);
-  background-size: 26px 100%, 100% 22px, auto;
-  box-shadow: inset 0 0 0 1px rgba(255, 255, 255, 0.18);
-}
-
-.tower-a {
-  left: 46px;
-  height: 218px;
-}
-
-.tower-b {
-  left: 150px;
-  height: 258px;
-}
-
-.object-ground {
-  position: absolute;
-  left: 24px;
-  right: 24px;
-  bottom: 42px;
-  height: 2px;
-  border-radius: 999px;
-  background: linear-gradient(90deg, transparent, rgba(255, 255, 255, 0.52), transparent);
+.object-image img {
+  width: 100%;
+  height: 100%;
+  min-height: 340px;
+  display: block;
+  object-fit: contain;
+  object-position: center center;
+  padding: 14px;
 }
 
 .object-image-overlay {
   position: absolute;
+  z-index: 1;
   inset: auto 22px 22px 22px;
   display: grid;
   gap: 14px;
