@@ -483,7 +483,7 @@ select:focus {
 
 .object-image {
   position: relative;
-  min-height: 340px;
+  height: 300px;
   overflow: hidden;
   background:
     radial-gradient(circle at 70% 18%, rgba(255, 255, 255, 0.2), transparent 28%),
@@ -503,8 +503,8 @@ select:focus {
 .object-image img {
   width: 100%;
   height: 100%;
-  min-height: 340px;
   display: block;
+  box-sizing: border-box;
   object-fit: contain;
   object-position: center center;
   padding: 14px;
@@ -530,9 +530,9 @@ select:focus {
 
 .object-card-body {
   display: grid;
-  gap: 18px;
+  gap: 15px;
   align-content: center;
-  padding: 30px;
+  padding: 26px;
 }
 
 .object-card-main {
@@ -550,7 +550,7 @@ select:focus {
 
 .readiness-value {
   color: var(--brand-red);
-  font-size: 54px !important;
+  font-size: 48px !important;
   line-height: 1;
 }
 
