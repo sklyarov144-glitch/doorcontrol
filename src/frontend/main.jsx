@@ -4,7 +4,7 @@ import matveevskyParkImage from "./assets/matveevsky-park.png";
 import workerMascot from "./assets/gross-worker-mascot.png";
 import "./styles.css";
 
-const STORAGE_KEY = "gross-lean-montage.visual.mvp.v5";
+const STORAGE_KEY = "gross-lean-montage.visual.mvp.v7";
 
 const doorStatusOptions = [
   "не начато",
@@ -53,8 +53,9 @@ const baseDoors = [
     openingStatus: "готов",
     issue: "нет",
     storageAct: "не передана",
-    x: 18,
-    y: 39,
+    x: 22,
+    y: 41.4,
+    swing: "down-right",
   },
   {
     id: "apt-1502",
@@ -65,8 +66,9 @@ const baseDoors = [
     openingStatus: "требует корректировки",
     issue: "есть замечание",
     storageAct: "не передана",
-    x: 48,
-    y: 39,
+    x: 38,
+    y: 41.4,
+    swing: "down-right",
   },
   {
     id: "apt-1503",
@@ -77,8 +79,9 @@ const baseDoors = [
     openingStatus: "передан на исправление",
     issue: "есть замечание",
     storageAct: "не передана",
-    x: 78,
-    y: 39,
+    x: 74,
+    y: 41.4,
+    swing: "down-left",
   },
   {
     id: "apt-1504",
@@ -89,8 +92,9 @@ const baseDoors = [
     openingStatus: "готов",
     issue: "нет",
     storageAct: "не передана",
-    x: 18,
-    y: 62,
+    x: 22,
+    y: 59.4,
+    swing: "up-right",
   },
   {
     id: "apt-1505",
@@ -102,7 +106,8 @@ const baseDoors = [
     issue: "нет",
     storageAct: "не передана",
     x: 48,
-    y: 62,
+    y: 59.4,
+    swing: "up-left",
   },
   {
     id: "apt-1506",
@@ -113,8 +118,9 @@ const baseDoors = [
     openingStatus: "готов",
     issue: "нет",
     storageAct: "не передана",
-    x: 78,
-    y: 62,
+    x: 74,
+    y: 59.4,
+    swing: "up-left",
   },
   {
     id: "mop-15-01",
@@ -125,8 +131,9 @@ const baseDoors = [
     openingStatus: "исправлен",
     issue: "устранено",
     storageAct: "акт подготовлен",
-    x: 34,
-    y: 48,
+    x: 55,
+    y: 47.8,
+    swing: "down-right",
   },
   {
     id: "mop-15-02",
@@ -137,8 +144,9 @@ const baseDoors = [
     openingStatus: "готов",
     issue: "нет",
     storageAct: "передано по акту",
-    x: 38,
-    y: 56,
+    x: 61,
+    y: 53.4,
+    swing: "up-right",
   },
 ];
 
@@ -187,6 +195,9 @@ function createInitialObjects() {
       buildings: [
         createBuilding("building-1", "Корпус 1", 0),
         createBuilding("building-2", "Корпус 2", -18),
+        createBuilding("building-4-1", "Корпус 4.1", -8),
+        createBuilding("building-4-2", "Корпус 4.2", -12),
+        createBuilding("building-4-3", "Корпус 4.3", -5),
       ],
     },
   ];
@@ -627,7 +638,7 @@ function ObjectPage({ object, onOpenBuilding }) {
       <div className="view-heading">
         <div>
           <h2>{object.name}</h2>
-          <p>Корпуса объекта в текущей mock-структуре.</p>
+          <p>Выберите корпус, чтобы перейти к визуализации этажей.</p>
         </div>
         <StatusBadge value={object.status} />
       </div>
@@ -639,14 +650,14 @@ function ObjectPage({ object, onOpenBuilding }) {
             aria-label={`Открыть корпус ${building.name}`}
             onClick={() => onOpenBuilding(building.id)}
           >
-            <div className="mini-building">
-              {Array.from({ length: 10 }, (_, index) => (
-                <span key={index} />
-              ))}
+            <div className="mini-building" aria-hidden="true">
+              <span />
+              <span />
+              <span />
             </div>
             <div>
               <strong>{building.name}</strong>
-              <p>{building.floors.filter((floor) => floor.type === "floor").length} этажей · 5 дверей на типовом этаже</p>
+              <p>{building.floors.filter((floor) => floor.type === "floor").length} этажей</p>
             </div>
             <StatusBadge value={`Готовность ${getBuildingReadiness(building)}%`} />
           </button>
@@ -661,8 +672,7 @@ function BuildingVisualization({ building, selectedFloorId, onSelectFloor }) {
     ? Number(selectedFloorId.replace("floor-", ""))
     : null;
   const selectedFloor = building.floors.find((floor) => floor.id === selectedFloorId);
-  const typicalFloor = building.floors.find((floor) => floor.type === "floor");
-  const metricDoors = selectedFloor?.doors.length ? selectedFloor.doors : typicalFloor?.doors ?? [];
+  const metricDoors = selectedFloor?.doors ?? [];
   const floorIssues = metricDoors.filter((door) => door.issue === "есть замечание").length;
   const floorOpenings = metricDoors.filter((door) =>
     ["требует корректировки", "передан на исправление"].includes(door.openingStatus)
@@ -677,6 +687,7 @@ function BuildingVisualization({ building, selectedFloorId, onSelectFloor }) {
       <div className="building-hero-copy">
         <StatusBadge value="В работе" />
         <h2>{building.name}</h2>
+        <p>{building.floors.filter((floor) => floor.type === "floor").length} этажей</p>
       </div>
       <div className="building-visual">
         <div className="roof-line">Кровля</div>
@@ -703,7 +714,6 @@ function BuildingVisualization({ building, selectedFloorId, onSelectFloor }) {
         </button>
       </div>
       <div className="building-metrics">
-        <Metric label="Дверей на типовом этаже" value={metricDoors.length} />
         <Metric label="Замечаний" value={floorIssues} tone="warning" />
         <Metric label="Проемов на корректировке" value={floorOpenings} tone="alert" />
         <Metric label="Готовность" value={`${floorReadiness}%`} />
@@ -766,39 +776,45 @@ function FloorPlan({ object, building, floor, onOpenDoor, onBack }) {
             <div className="floor-plan-layout">
               <div className="floor-plan">
                 <div className="plan-frame" />
-                <div className="main-corridor">
-                  <strong>Лестничный холл / коридор</strong>
-                </div>
+                <div className="corridor-line corridor-line-top" />
+                <div className="corridor-line corridor-line-bottom" />
                 <div className="room apartment apartment-1">
                   <strong>Квартира 1</strong>
+                  <span className="wet-zone" />
+                  <span className="room-split horizontal" />
                 </div>
                 <div className="room apartment apartment-2">
                   <strong>Квартира 2</strong>
+                  <span className="wet-zone" />
+                  <span className="room-split vertical" />
                 </div>
                 <div className="room apartment apartment-3">
                   <strong>Квартира 3</strong>
+                  <span className="wet-zone" />
+                  <span className="room-split vertical" />
                 </div>
                 <div className="room apartment apartment-4">
                   <strong>Квартира 4</strong>
+                  <span className="wet-zone" />
+                  <span className="room-split horizontal" />
                 </div>
                 <div className="room apartment apartment-5">
                   <strong>Квартира 5</strong>
+                  <span className="wet-zone" />
+                  <span className="room-split vertical" />
                 </div>
                 <div className="room apartment apartment-6">
                   <strong>Квартира 6</strong>
+                  <span className="wet-zone" />
+                  <span className="room-split vertical" />
                 </div>
                 <div className="stair-zone">
                   <strong>Лестница</strong>
+                  <span className="stair-flight" />
+                  <span className="stair-flight reverse" />
                 </div>
-                <div className="lift-zone">
-                  <span>Лифт</span>
-                  <span>Лифт</span>
-                </div>
-                <div className="mop-cell mop-cell-1" />
-                <div className="mop-cell mop-cell-2" />
-                <div className="plan-core">
-                  <strong>Лестничный холл</strong>
-                </div>
+                <div className="stair-entry stair-entry-top" />
+                <div className="stair-entry stair-entry-bottom" />
                 {visibleDoors.map((door) => (
                   <DoorMarker key={door.id} door={door} onOpen={() => onOpenDoor(door.id)} />
                 ))}
@@ -822,16 +838,16 @@ function DoorMarker({ door, onOpen }) {
       : statusMeta[door.doorStatus]?.tone ?? "gray";
 
   const label = door.mark ?? door.number.replace("Квартира ", "");
-  const swingClass = ["Д-2", "Д-4", "Д-6", "1 МОП"].includes(label)
-    ? "swing-left"
-    : "swing-right";
+  const swingClass = door.swing ?? "down-right";
 
   return (
     <button
-      className={`door-marker ${swingClass} ${door.type === "МОП" ? "common" : ""} status-${tone}`}
+      className={`door-marker swing-${swingClass} ${door.type === "МОП" ? "common" : ""} status-${tone}`}
       style={{ left: `${door.x}%`, top: `${door.y}%` }}
       onClick={onOpen}
     >
+      <i className="door-leaf" />
+      <i className="door-arc" />
       <span>{label}</span>
     </button>
   );

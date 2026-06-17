@@ -2107,3 +2107,452 @@ select:focus {
   }
 
 }
+
+/* ITR refinement: corpus cards and architectural mounting plan. */
+.building-grid {
+  grid-template-columns: repeat(auto-fit, minmax(240px, 1fr));
+  align-items: stretch;
+}
+
+.building-card {
+  min-height: 168px;
+  grid-template-columns: auto minmax(0, 1fr);
+  align-items: center;
+  gap: 18px;
+  padding: 22px;
+}
+
+.building-card .status-badge {
+  grid-column: 1 / -1;
+  justify-self: start;
+}
+
+.mini-building {
+  position: relative;
+  width: 76px;
+  height: 96px;
+  overflow: hidden;
+  border-radius: 18px 18px 10px 10px;
+  background:
+    linear-gradient(180deg, rgba(255, 255, 255, 0.34), transparent 36%),
+    linear-gradient(135deg, #f9fbff 0%, #dfe7f0 48%, #b7c2ce 100%);
+  border: 1px solid rgba(139, 155, 176, 0.42);
+  box-shadow:
+    inset 0 0 0 1px rgba(255, 255, 255, 0.68),
+    0 18px 30px rgba(18, 32, 54, 0.16);
+}
+
+.mini-building::before {
+  content: "";
+  position: absolute;
+  inset: 14px 12px 18px;
+  background:
+    linear-gradient(90deg, rgba(11, 23, 42, 0.16) 1px, transparent 1px) 0 0 / 18px 100%,
+    linear-gradient(180deg, rgba(11, 23, 42, 0.18) 1px, transparent 1px) 0 0 / 100% 15px;
+  opacity: 0.74;
+}
+
+.mini-building::after {
+  content: "";
+  position: absolute;
+  left: 18px;
+  right: 18px;
+  bottom: 0;
+  height: 16px;
+  border-radius: 8px 8px 0 0;
+  background: #0b172a;
+  opacity: 0.8;
+}
+
+.mini-building span {
+  position: absolute;
+  display: block;
+  background: rgba(255, 255, 255, 0.55);
+}
+
+.mini-building span:nth-child(1) {
+  left: 0;
+  top: 16px;
+  width: 10px;
+  height: 80px;
+  border-radius: 0 8px 0 0;
+}
+
+.mini-building span:nth-child(2) {
+  right: 0;
+  top: 28px;
+  width: 10px;
+  height: 68px;
+  border-radius: 8px 0 0 0;
+}
+
+.mini-building span:nth-child(3) {
+  left: 14px;
+  right: 14px;
+  top: 0;
+  height: 12px;
+  border-radius: 9px 9px 0 0;
+}
+
+.building-hero-copy p {
+  margin-top: 10px;
+  color: rgba(255, 255, 255, 0.74);
+  font-weight: 800;
+}
+
+.building-metrics {
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+}
+
+.floor-plan {
+  min-height: 760px;
+  overflow: hidden;
+  border: 1px solid rgba(149, 163, 184, 0.36);
+  border-radius: 26px;
+  background:
+    linear-gradient(90deg, rgba(15, 23, 42, 0.035) 1px, transparent 1px) 0 0 / 34px 34px,
+    linear-gradient(180deg, rgba(15, 23, 42, 0.035) 1px, transparent 1px) 0 0 / 34px 34px,
+    #f8fafc;
+  box-shadow:
+    inset 0 0 0 18px #eef3f8,
+    0 24px 58px rgba(20, 38, 62, 0.12);
+}
+
+.plan-frame {
+  inset: 42px;
+  border: 4px solid #1f2937;
+  border-radius: 4px;
+  background:
+    linear-gradient(90deg, rgba(31, 41, 55, 0.08) 1px, transparent 1px) 0 0 / 96px 100%,
+    linear-gradient(180deg, rgba(31, 41, 55, 0.08) 1px, transparent 1px) 0 0 / 100% 76px,
+    #fbf8f1;
+}
+
+.plan-frame::before {
+  content: "";
+  position: absolute;
+  inset: 16px;
+  border: 7px solid #2f3a49;
+  border-radius: 6px;
+  pointer-events: none;
+}
+
+.corridor-line {
+  position: absolute;
+  z-index: 3;
+  left: 7.5%;
+  right: 7.5%;
+  border-left: 3px solid #303b49;
+  border-right: 3px solid #303b49;
+  background:
+    linear-gradient(90deg, rgba(48, 59, 73, 0.07) 1px, transparent 1px) 0 0 / 42px 100%,
+    #eef1f5;
+}
+
+.corridor-line-top {
+  top: 41%;
+  height: 8%;
+  border-top: 3px solid #303b49;
+}
+
+.corridor-line-bottom {
+  top: 49%;
+  height: 10%;
+  border-bottom: 3px solid #303b49;
+}
+
+.main-corridor {
+  display: none;
+}
+
+.floor-plan .room {
+  z-index: 4;
+  display: block;
+  border: 3px solid #303b49;
+  border-radius: 3px;
+  padding: 14px;
+  color: #172033;
+  background: rgba(255, 252, 246, 0.96);
+  text-align: center;
+  box-shadow:
+    inset 0 0 0 1px rgba(255, 255, 255, 0.8),
+    inset 0 -16px 28px rgba(95, 111, 129, 0.04);
+}
+
+.floor-plan .room strong,
+.floor-plan .plan-core strong,
+.floor-plan .stair-zone strong {
+  position: relative;
+  z-index: 2;
+  display: inline-block;
+  max-width: 100%;
+  padding: 2px 6px;
+  color: #172033;
+  background: rgba(255, 252, 246, 0.84);
+  font-size: clamp(13px, 1vw, 17px);
+  line-height: 1.1;
+  white-space: nowrap;
+}
+
+.apartment-1 { left: 7%; top: 8%; width: 22%; height: 32%; }
+.apartment-2 { left: 30%; top: 8%; width: 20%; height: 32%; }
+.apartment-3 { left: 68%; top: 8%; width: 24%; height: 32%; }
+.apartment-4 { left: 7%; top: 61%; width: 24%; height: 28%; }
+.apartment-5 { left: 32%; top: 61%; width: 25%; height: 28%; }
+.apartment-6 { left: 68%; top: 61%; width: 24%; height: 28%; }
+
+.wet-zone {
+  position: absolute;
+  width: 22%;
+  height: 34%;
+  border: 2px solid rgba(48, 59, 73, 0.42);
+  background:
+    repeating-linear-gradient(45deg, rgba(48, 59, 73, 0.06) 0 5px, transparent 5px 10px),
+    rgba(238, 241, 245, 0.58);
+}
+
+.apartment-1 .wet-zone,
+.apartment-4 .wet-zone {
+  right: 8px;
+  bottom: 8px;
+}
+
+.apartment-2 .wet-zone,
+.apartment-5 .wet-zone,
+.apartment-3 .wet-zone,
+.apartment-6 .wet-zone {
+  left: 8px;
+  bottom: 8px;
+}
+
+.room-split {
+  position: absolute;
+  display: block;
+  background: rgba(48, 59, 73, 0.5);
+}
+
+.room-split.vertical {
+  top: 28%;
+  bottom: 0;
+  left: 43%;
+  width: 2px;
+}
+
+.room-split.horizontal {
+  left: 0;
+  right: 0;
+  bottom: 34%;
+  height: 2px;
+}
+
+.floor-plan .stair-zone {
+  z-index: 6;
+  left: 54%;
+  top: 42%;
+  width: 16%;
+  height: 17%;
+  display: grid;
+  place-items: center;
+  border: 3px solid #303b49;
+  border-radius: 3px;
+  background:
+    repeating-linear-gradient(90deg, rgba(48, 59, 73, 0.28) 0 4px, transparent 4px 14px),
+    #f4f6f8;
+}
+
+.floor-plan .stair-zone::before {
+  content: "";
+  position: absolute;
+  left: 7%;
+  right: 7%;
+  top: 50%;
+  height: 2px;
+  background: rgba(48, 59, 73, 0.42);
+}
+
+.floor-plan .stair-zone strong {
+  font-size: 12px;
+  white-space: nowrap;
+}
+
+.stair-flight {
+  position: absolute;
+  top: 18%;
+  bottom: 18%;
+  left: 35%;
+  width: 1px;
+  background: #303b49;
+}
+
+.stair-flight.reverse {
+  left: 65%;
+}
+
+.floor-plan .plan-core {
+  display: none;
+}
+
+.lift-zone {
+  display: none;
+}
+
+.lift-zone span {
+  display: none;
+}
+
+.stair-entry {
+  position: absolute;
+  z-index: 8;
+  width: 44px;
+  height: 18px;
+  background: #eef1f5;
+  pointer-events: none;
+}
+
+.stair-entry-top {
+  left: 54%;
+  top: 41%;
+}
+
+.stair-entry-bottom {
+  left: 62%;
+  top: 57%;
+}
+
+.mop-cell {
+  display: none;
+}
+
+.floor-plan .door-marker {
+  --door-color: #94a3b8;
+  z-index: 12;
+  width: 48px;
+  min-height: 24px;
+  display: grid;
+  place-items: center;
+  border: 2px solid var(--door-color);
+  border-radius: 5px;
+  padding: 3px 6px;
+  color: var(--door-color);
+  background: rgba(255, 252, 246, 0.98);
+  box-shadow: 0 8px 16px rgba(15, 23, 42, 0.1);
+  transform: translate(-50%, -50%);
+}
+
+.floor-plan .door-marker.common {
+  width: 58px;
+  border-style: dashed;
+  border-radius: 6px;
+  outline: 0;
+}
+
+.floor-plan .door-marker span {
+  position: relative;
+  z-index: 3;
+  color: inherit;
+  font-size: 12px;
+  font-weight: 950;
+  line-height: 1;
+  white-space: nowrap;
+}
+
+.door-leaf,
+.door-arc {
+  position: absolute;
+  display: block;
+  pointer-events: none;
+}
+
+.door-leaf {
+  width: 28px;
+  height: 2px;
+  border-radius: 99px;
+  background: var(--door-color);
+}
+
+.door-arc {
+  width: 30px;
+  height: 30px;
+  border: 2px solid var(--door-color);
+  opacity: 0.82;
+}
+
+.swing-down-right .door-leaf {
+  left: 50%;
+  bottom: -17px;
+  transform: rotate(90deg);
+  transform-origin: left center;
+}
+
+.swing-down-right .door-arc {
+  left: 50%;
+  bottom: -32px;
+  border-left-color: transparent;
+  border-bottom-color: transparent;
+  border-radius: 0 28px 0 0;
+}
+
+.swing-down-left .door-leaf {
+  left: 50%;
+  bottom: -17px;
+  transform: rotate(90deg);
+  transform-origin: right center;
+}
+
+.swing-down-left .door-arc {
+  right: 50%;
+  bottom: -32px;
+  border-right-color: transparent;
+  border-bottom-color: transparent;
+  border-radius: 28px 0 0 0;
+}
+
+.swing-up-right .door-leaf {
+  left: 50%;
+  top: -17px;
+  transform: rotate(-90deg);
+  transform-origin: left center;
+}
+
+.swing-up-right .door-arc {
+  left: 50%;
+  top: -32px;
+  border-left-color: transparent;
+  border-top-color: transparent;
+  border-radius: 0 0 28px 0;
+}
+
+.swing-up-left .door-leaf {
+  left: 50%;
+  top: -17px;
+  transform: rotate(-90deg);
+  transform-origin: right center;
+}
+
+.swing-up-left .door-arc {
+  right: 50%;
+  top: -32px;
+  border-right-color: transparent;
+  border-top-color: transparent;
+  border-radius: 0 0 0 28px;
+}
+
+.floor-plan .status-gray { --door-color: #8895a7; }
+.floor-plan .status-blue { --door-color: #1f7ae0; }
+.floor-plan .status-green { --door-color: #2e9f68; }
+.floor-plan .status-red { --door-color: #c9202f; }
+.floor-plan .status-teal { --door-color: #16a6a6; }
+.floor-plan .status-purple { --door-color: #7957d5; }
+.floor-plan .status-orange { --door-color: #d9821f; }
+
+@media (max-width: 1180px) {
+  .floor-plan {
+    min-height: 620px;
+  }
+
+  .floor-plan .room strong,
+  .floor-plan .plan-core strong,
+  .floor-plan .stair-zone strong {
+    font-size: 12px;
+  }
+}
