@@ -163,6 +163,7 @@ function createBuilding(id, name, readinessOffset = 0) {
   return {
     id,
     name,
+    floorTemplate: null,
     floors: floorOptions.map((floor) => ({
       ...floor,
       doors:
@@ -254,6 +255,7 @@ function getBuildingReadiness(building) {
 function App() {
   const [objects, setObjects] = useState(loadObjects);
   const [isLoggedIn, setIsLoggedIn] = useState(false);
+  const [role, setRole] = useState("itr");
   const [screen, setScreen] = useState("objects");
   const [selectedObjectId, setSelectedObjectId] = useState(objects[0].id);
   const [selectedBuildingId, setSelectedBuildingId] = useState(
@@ -269,20 +271,20 @@ function App() {
   const selectedBuilding = useMemo(
     () =>
       selectedObject.buildings.find((building) => building.id === selectedBuildingId) ??
-      selectedObject.buildings[0],
+      selectedObject.buildings[0] ?? null,
     [selectedObject, selectedBuildingId]
   );
   const selectedFloor = useMemo(
     () =>
-      selectedBuilding.floors.find((floor) => floor.id === selectedFloorId) ??
-      selectedBuilding.floors.find((floor) => floor.id === "floor-15") ??
-      selectedBuilding.floors[0],
+      selectedBuilding?.floors.find((floor) => floor.id === selectedFloorId) ??
+      selectedBuilding?.floors.find((floor) => floor.id === "floor-15") ??
+      selectedBuilding?.floors[0] ?? null,
     [selectedBuilding, selectedFloorId]
   );
   const selectedDoor = useMemo(
     () =>
-      selectedFloor.doors.find((door) => door.id === selectedDoorId) ??
-      selectedFloor.doors[0],
+      selectedFloor?.doors.find((door) => door.id === selectedDoorId) ??
+      selectedFloor?.doors[0] ?? null,
     [selectedDoorId, selectedFloor]
   );
 
@@ -342,7 +344,7 @@ function App() {
   const goToObject = (objectId) => {
     const nextObject = objects.find((object) => object.id === objectId) ?? objects[0];
     setSelectedObjectId(nextObject.id);
-    setSelectedBuildingId(nextObject.buildings[0].id);
+    setSelectedBuildingId(nextObject.buildings[0]?.id ?? "");
     setScreen("object");
   };
 
@@ -354,7 +356,7 @@ function App() {
   };
 
   const selectFloor = (floorId) => {
-    const floor = selectedBuilding.floors.find((item) => item.id === floorId);
+    const floor = selectedBuilding?.floors.find((item) => item.id === floorId);
     setSelectedFloorId(floorId);
     setSelectedDoorId(floor?.doors[0]?.id ?? "");
   };
@@ -375,9 +377,14 @@ function App() {
 
   return (
     <div className="app-shell">
-      <Sidebar activeScreen={screen} setScreen={setScreen} onLogout={() => setIsLoggedIn(false)} />
+      <Sidebar role={role} activeScreen={screen} setScreen={setScreen} onLogout={() => setIsLoggedIn(false)} />
       <main className="content">
         <Header
+          role={role}
+          onRoleChange={(nextRole) => {
+            setRole(nextRole);
+            setScreen(nextRole === "admin" ? "admin" : "objects");
+          }}
           screen={screen}
           setScreen={setScreen}
           selectedObject={selectedObject}
@@ -386,11 +393,20 @@ function App() {
           selectedDoor={selectedDoor}
         />
         <div className="page-transition" key={screen}>
+          {screen === "admin" && (
+            <AdminPanel
+              objects={objects}
+              onChange={(nextObjects) => {
+                setObjects(nextObjects);
+                saveObjects(nextObjects);
+              }}
+            />
+          )}
           {screen === "objects" && <ObjectsPage objects={objects} onOpen={goToObject} />}
           {screen === "object" && (
             <ObjectPage object={selectedObject} onOpenBuilding={goToBuilding} />
           )}
-          {screen === "building" && (
+          {screen === "building" && selectedBuilding && (
             <section className="building-dashboard">
               <BuildingVisualization
                 building={selectedBuilding}
@@ -399,7 +415,7 @@ function App() {
               />
             </section>
           )}
-          {screen === "floor" && (
+          {screen === "floor" && selectedBuilding && selectedFloor && (
             <FloorPlan
               object={selectedObject}
               building={selectedBuilding}
@@ -481,10 +497,10 @@ function LoginPage({ onLogin }) {
   );
 }
 
-function Sidebar({ activeScreen, setScreen, onLogout }) {
-  const items = [
-    ["objects", "Мои объекты"],
-  ];
+function Sidebar({ role, activeScreen, setScreen, onLogout }) {
+  const items = role === "admin"
+    ? [["admin", "Админ-панель"]]
+    : [["objects", "Мои объекты"]];
 
   return (
     <aside className="sidebar">
@@ -522,19 +538,20 @@ function BrandMark({ variant = "default" }) {
   );
 }
 
-function Header({ screen, setScreen, selectedObject, selectedBuilding, selectedFloor, selectedDoor }) {
+function Header({ role, onRoleChange, screen, setScreen, selectedObject, selectedBuilding, selectedFloor, selectedDoor }) {
   const labels = {
     objects: "Мои объекты",
     object: "Корпуса объекта",
     building: "Визуализация корпуса",
     floor: "План этажа",
     door: "Карточка двери",
+    admin: "Админ-панель",
   };
 
   return (
     <header className="page-header">
       <div>
-        <div className="breadcrumbs">
+        {screen !== "admin" && <div className="breadcrumbs">
           <button onClick={() => setScreen("objects")}>Мои объекты</button>
           {screen !== "objects" && (
             <>
@@ -545,14 +562,14 @@ function Header({ screen, setScreen, selectedObject, selectedBuilding, selectedF
           {["building", "floor", "door"].includes(screen) && (
             <>
               <span>/</span>
-              <button onClick={() => setScreen("building")}>{selectedBuilding.name}</button>
+              <button onClick={() => setScreen("building")}>{selectedBuilding?.name}</button>
             </>
           )}
           {["floor", "door"].includes(screen) && (
             <>
               <span>/</span>
               <button onClick={() => setScreen("floor")}>
-                {selectedFloor.type === "floor" ? `Этаж ${selectedFloor.number}` : selectedFloor.label}
+                {selectedFloor?.type === "floor" ? `Этаж ${selectedFloor.number}` : selectedFloor?.label}
               </button>
             </>
           )}
@@ -562,10 +579,13 @@ function Header({ screen, setScreen, selectedObject, selectedBuilding, selectedF
               <span>{selectedDoor.number}</span>
             </>
           )}
-        </div>
+        </div>}
         <h1>{labels[screen]}</h1>
       </div>
-      <div className="user-chip">ИТР: admin</div>
+      <div className="role-switch" aria-label="Переключение роли">
+        <button className={role === "itr" ? "active" : ""} onClick={() => onRoleChange("itr")}>ИТР</button>
+        <button className={role === "admin" ? "active" : ""} onClick={() => onRoleChange("admin")}>Админ</button>
+      </div>
     </header>
   );
 }
@@ -662,6 +682,9 @@ function ObjectPage({ object, onOpenBuilding }) {
             <StatusBadge value={`Готовность ${getBuildingReadiness(building)}%`} />
           </button>
         ))}
+        {object.buildings.length === 0 && (
+          <div className="empty-plan">Корпуса ещё не добавлены администратором.</div>
+        )}
       </div>
     </section>
   );
@@ -774,7 +797,10 @@ function FloorPlan({ object, building, floor, onOpenDoor, onBack }) {
               </div>
             </div>
             <div className="floor-plan-layout">
-              <div className="floor-plan">
+              <div
+                className={`floor-plan ${building.floorTemplate?.image ? "has-plan-image" : ""}`}
+                style={building.floorTemplate?.image ? { backgroundImage: `url(${building.floorTemplate.image})` } : undefined}
+              >
                 <div className="plan-frame" />
                 <div className="corridor-line corridor-line-top" />
                 <div className="corridor-line corridor-line-bottom" />
@@ -967,6 +993,152 @@ function SelectField({ label, value, options, onChange }) {
         ))}
       </select>
     </label>
+  );
+}
+
+function createTemplateDoor(buildingId, index, type, x, y) {
+  const isMop = type === "МОП";
+  const number = index + 1;
+  const label = isMop ? `${number} МОП` : `Квартира ${number}`;
+  const mark = isMop ? `${number} МОП` : `Д-${number}`;
+  return {
+    id: `${buildingId}-${isMop ? "mop" : "apt"}-${number}`,
+    label,
+    number: label,
+    mark,
+    type,
+    status: "не начато",
+    doorStatus: "не начато",
+    openingStatus: "готов",
+    issueStatus: "нет",
+    issue: "нет",
+    custodyActStatus: "не передана",
+    storageAct: "не передана",
+    x,
+    y,
+    swing: y < 50 ? "down-right" : "up-left",
+    history: [{ id: `${buildingId}-${type}-${number}-init`, text: "Создано администратором", date: "сегодня", user: "admin" }],
+  };
+}
+
+function AdminPanel({ objects, onChange }) {
+  const [objectForm, setObjectForm] = useState({ name: "", address: "", metro: "" });
+  const [buildingForm, setBuildingForm] = useState({ number: "", floors: 25 });
+  const [templateForm, setTemplateForm] = useState({ apartments: 6, mop: 2 });
+  const [objectId, setObjectId] = useState(objects[0]?.id ?? "");
+  const selectedObject = objects.find((item) => item.id === objectId) ?? objects[0];
+  const [buildingId, setBuildingId] = useState(selectedObject?.buildings[0]?.id ?? "");
+  const selectedBuilding = selectedObject?.buildings.find((item) => item.id === buildingId) ?? selectedObject?.buildings[0];
+  const [draftDoors, setDraftDoors] = useState(selectedBuilding?.floorTemplate?.doors ?? []);
+  const [planImage, setPlanImage] = useState(selectedBuilding?.floorTemplate?.image ?? "");
+  const [editing, setEditing] = useState(false);
+  const [notice, setNotice] = useState("");
+
+  React.useEffect(() => {
+    setBuildingId(selectedObject?.buildings[0]?.id ?? "");
+  }, [objectId]);
+
+  React.useEffect(() => {
+    setDraftDoors(selectedBuilding?.floorTemplate?.doors ?? []);
+    setPlanImage(selectedBuilding?.floorTemplate?.image ?? "");
+  }, [selectedBuilding?.id]);
+
+  const createObject = (event) => {
+    event.preventDefault();
+    if (!objectForm.name.trim()) return;
+    const id = `object-${Date.now()}`;
+    const nextObject = {
+      id,
+      name: objectForm.name.trim(),
+      address: [objectForm.address.trim(), objectForm.metro.trim() && `метро «${objectForm.metro.trim()}»`].filter(Boolean).join(", "),
+      metro: objectForm.metro.trim(),
+      status: "В работе",
+      buildings: [],
+    };
+    onChange([...objects, nextObject]);
+    setObjectId(id);
+    setObjectForm({ name: "", address: "", metro: "" });
+    setNotice("Объект создан");
+  };
+
+  const addBuilding = (event) => {
+    event.preventDefault();
+    if (!selectedObject || !buildingForm.number.trim()) return;
+    const id = `building-${Date.now()}`;
+    const floorCount = Math.max(1, Number(buildingForm.floors) || 1);
+    const building = {
+      id,
+      name: `Корпус ${buildingForm.number.trim()}`,
+      readinessOffset: 0,
+      floorTemplate: null,
+      floors: Array.from({ length: floorCount }, (_, index) => ({ id: `floor-${index + 1}`, label: String(index + 1), number: index + 1, type: "floor", doors: [] })),
+    };
+    const next = objects.map((item) => item.id === selectedObject.id ? { ...item, buildings: [...item.buildings, building] } : item);
+    onChange(next);
+    setBuildingId(id);
+    setBuildingForm({ number: "", floors: floorCount });
+    setNotice("Корпус добавлен");
+  };
+
+  const generateTemplate = () => {
+    if (!selectedBuilding) return;
+    const apartments = Math.max(1, Number(templateForm.apartments) || 1);
+    const mop = Math.max(0, Number(templateForm.mop) || 0);
+    const doors = [];
+    for (let index = 0; index < apartments; index += 1) {
+      const top = index < Math.ceil(apartments / 2);
+      const rowIndex = top ? index : index - Math.ceil(apartments / 2);
+      const rowCount = top ? Math.ceil(apartments / 2) : Math.floor(apartments / 2);
+      doors.push(createTemplateDoor(selectedBuilding.id, index, "Квартирная", 14 + ((rowIndex + 0.5) * 72) / Math.max(1, rowCount), top ? 32 : 68));
+    }
+    for (let index = 0; index < mop; index += 1) {
+      doors.push(createTemplateDoor(selectedBuilding.id, index, "МОП", 48 + index * 7, 50));
+    }
+    setDraftDoors(doors);
+    setNotice("Двери сгенерированы. Их можно расставить на плане.");
+  };
+
+  const moveDoor = (event, doorId) => {
+    if (!editing) return;
+    event.preventDefault();
+    const rect = event.currentTarget.getBoundingClientRect();
+    const x = Math.max(2, Math.min(98, ((event.clientX - rect.left) / rect.width) * 100));
+    const y = Math.max(2, Math.min(98, ((event.clientY - rect.top) / rect.height) * 100));
+    setDraftDoors((current) => current.map((door) => door.id === doorId ? { ...door, x: Number(x.toFixed(2)), y: Number(y.toFixed(2)), swing: y < 50 ? "down-right" : "up-left" } : door));
+  };
+
+  const saveTemplate = () => {
+    if (!selectedObject || !selectedBuilding || draftDoors.length === 0) return;
+    const template = { apartments: Number(templateForm.apartments), mopDoors: Number(templateForm.mop), image: planImage, doors: draftDoors };
+    const next = objects.map((object) => object.id !== selectedObject.id ? object : {
+      ...object,
+      buildings: object.buildings.map((building) => building.id !== selectedBuilding.id ? building : {
+        ...building,
+        floorTemplate: template,
+        floors: building.floors.map((floor) => ({ ...floor, doors: draftDoors.map((door) => ({ ...door, id: `${building.id}-${floor.id}-${door.id}`, history: [...door.history] })) })),
+      }),
+    });
+    onChange(next);
+    setEditing(false);
+    setNotice("Шаблон сохранён и применён ко всем этажам корпуса");
+  };
+
+  return (
+    <section className="admin-panel">
+      <div className="admin-intro"><div><h2>Настройка объекта</h2><p>Создайте структуру и расставьте двери типового этажа.</p></div>{notice && <span>{notice}</span>}</div>
+      <div className="admin-steps">
+        <form className="admin-card" onSubmit={createObject}><b>01</b><h3>Создание объекта</h3><label>Название<input value={objectForm.name} onChange={(e) => setObjectForm({ ...objectForm, name: e.target.value })} /></label><label>Район / адрес<input value={objectForm.address} onChange={(e) => setObjectForm({ ...objectForm, address: e.target.value })} /></label><label>Метро<input value={objectForm.metro} onChange={(e) => setObjectForm({ ...objectForm, metro: e.target.value })} /></label><button className="primary-button">Создать объект</button></form>
+        <form className="admin-card" onSubmit={addBuilding}><b>02</b><h3>Добавление корпуса</h3><label>Объект<select value={selectedObject?.id ?? ""} onChange={(e) => setObjectId(e.target.value)}>{objects.map((item) => <option key={item.id} value={item.id}>{item.name}</option>)}</select></label><label>Номер корпуса<input value={buildingForm.number} placeholder="4.1" onChange={(e) => setBuildingForm({ ...buildingForm, number: e.target.value })} /></label><label>Количество этажей<input type="number" min="1" value={buildingForm.floors} onChange={(e) => setBuildingForm({ ...buildingForm, floors: e.target.value })} /></label><button className="primary-button">Добавить корпус</button></form>
+        <div className="admin-card"><b>03</b><h3>Типовой этаж</h3><label>Корпус<select value={selectedBuilding?.id ?? ""} onChange={(e) => setBuildingId(e.target.value)}>{selectedObject?.buildings.map((item) => <option key={item.id} value={item.id}>{item.name}</option>)}</select></label><label>Квартир на этаже<input type="number" min="1" value={templateForm.apartments} onChange={(e) => setTemplateForm({ ...templateForm, apartments: e.target.value })} /></label><label>МОП-дверей<input type="number" min="0" value={templateForm.mop} onChange={(e) => setTemplateForm({ ...templateForm, mop: e.target.value })} /></label><button className="primary-button" type="button" disabled={!selectedBuilding} onClick={generateTemplate}>Сгенерировать план</button></div>
+      </div>
+      <div className="admin-template-card">
+        <div className="admin-template-toolbar"><div><h3>Шаблон этажа</h3><p>{selectedBuilding?.name ?? "Сначала добавьте корпус"}</p></div><label className="file-button">Загрузить план<input type="file" accept="image/*" onChange={(event) => { const file = event.target.files?.[0]; if (!file) return; const reader = new FileReader(); reader.onload = () => setPlanImage(String(reader.result)); reader.readAsDataURL(file); }} /></label><button className="secondary-button" type="button" onClick={() => setEditing((value) => !value)}>{editing ? "Завершить расстановку" : "Редактировать расположение"}</button><button className="primary-button" type="button" onClick={saveTemplate}>Сохранить шаблон этажа</button></div>
+        <div className={`admin-plan ${planImage ? "has-image" : ""} ${editing ? "editing" : ""}`} style={planImage ? { backgroundImage: `url(${planImage})` } : undefined} onDragOver={(event) => editing && event.preventDefault()} onDrop={(event) => moveDoor(event, event.dataTransfer.getData("text/plain"))}>
+          {!planImage && <><div className="admin-plan-corridor" /><div className="admin-plan-stair">Лестница</div></>}
+          {draftDoors.map((door) => <button key={door.id} draggable={editing} onDragStart={(event) => event.dataTransfer.setData("text/plain", door.id)} className={`admin-door ${door.type === "МОП" ? "mop" : ""}`} style={{ left: `${door.x}%`, top: `${door.y}%` }} title={editing ? "Перетащите дверь" : door.label}>{door.mark}</button>)}
+        </div>
+      </div>
+    </section>
   );
 }
 
