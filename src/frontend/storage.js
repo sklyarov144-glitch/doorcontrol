@@ -32,6 +32,7 @@ export function createDoorMatrix(objects) {
                 object: object.name,
                 building: building.name,
                 floor: floor.number,
+                date: `2026-06-${String(10 + floor.number).padStart(2, "0")}`,
                 openingNumber: `${floor.number}-${String(index + 1).padStart(2, "0")}`,
                 apartment: door.number,
                 mark: door.mark,
@@ -51,6 +52,7 @@ export function createDoorMatrix(objects) {
                 acceptedTN: index === 0 ? "Да" : "Нет",
                 tnIssues: index === 2 ? "Да" : "Нет",
                 ptoDate: index === 0 ? "2026-06-18" : "",
+                hidden: false,
               });
             });
           });

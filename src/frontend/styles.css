@@ -3278,6 +3278,173 @@ select:focus {
   }
 }
 
+/* Configurable door matrix. */
+.matrix-toolbar {
+  display: grid;
+  gap: 12px;
+}
+
+.matrix-actions {
+  display: flex;
+  align-items: center;
+  justify-content: flex-end;
+  flex-wrap: wrap;
+  gap: 10px;
+}
+
+.matrix-toggle {
+  display: inline-flex;
+  grid-template-columns: auto 1fr;
+  align-items: center;
+  gap: 8px;
+  border: 1px solid #d7e0ea;
+  border-radius: 11px;
+  padding: 9px 12px;
+  color: #46566c;
+  background: #ffffff;
+  font-size: 13px;
+  font-weight: 800;
+}
+
+.matrix-toggle input,
+.column-settings input {
+  width: 18px;
+  height: 18px;
+  margin: 0;
+  padding: 0;
+  accent-color: var(--brand-red);
+}
+
+.column-settings {
+  display: grid;
+  gap: 14px;
+  border: 1px solid #dce4ed;
+  border-radius: 14px;
+  padding: 18px;
+  background: #ffffff;
+  box-shadow: 0 14px 34px rgba(20, 38, 62, 0.08);
+}
+
+.column-settings > div {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(180px, 1fr));
+  gap: 10px 16px;
+}
+
+.column-settings label {
+  display: flex;
+  grid-template-columns: auto 1fr;
+  align-items: center;
+  gap: 8px;
+  color: #46566c;
+  font-size: 13px;
+}
+
+.matrix-table .matrix-col-floor,
+.matrix-table .matrix-col-openingNumber,
+.matrix-table .matrix-col-mark {
+  position: sticky;
+  z-index: 3;
+  background: #ffffff;
+}
+
+.matrix-table th.matrix-col-floor,
+.matrix-table th.matrix-col-openingNumber,
+.matrix-table th.matrix-col-mark {
+  z-index: 8;
+  color: #ffffff;
+  background: #0b172a;
+}
+
+.matrix-table .matrix-col-floor {
+  left: 0;
+  min-width: 72px;
+}
+
+.matrix-table .matrix-col-openingNumber {
+  left: 72px;
+  min-width: 112px;
+}
+
+.matrix-table .matrix-col-mark {
+  left: 184px;
+  min-width: 112px;
+  box-shadow: 8px 0 12px rgba(11, 23, 42, 0.07);
+}
+
+.matrix-table tbody tr:nth-child(even) .matrix-col-floor,
+.matrix-table tbody tr:nth-child(even) .matrix-col-openingNumber,
+.matrix-table tbody tr:nth-child(even) .matrix-col-mark {
+  background: #f8fafc;
+}
+
+.matrix-table tr.is-hidden td {
+  opacity: 0.55;
+  background: #eef1f5;
+}
+
+.matrix-actions-column {
+  position: sticky;
+  z-index: 4;
+  right: 0;
+  min-width: 92px !important;
+  background: #ffffff !important;
+  box-shadow: -8px 0 12px rgba(11, 23, 42, 0.06);
+}
+
+th.matrix-actions-column {
+  z-index: 9;
+  color: #ffffff;
+  background: #0b172a !important;
+}
+
+.matrix-actions-column button {
+  width: 100%;
+  border: 0;
+  border-radius: 7px;
+  padding: 7px 9px;
+  color: #6b2430;
+  background: #fae9eb;
+  font-size: 12px;
+  font-weight: 850;
+}
+
+.matrix-fullscreen {
+  position: fixed;
+  z-index: 200;
+  inset: 0;
+  overflow: hidden;
+  grid-template-rows: auto auto minmax(0, 1fr);
+  gap: 10px;
+  padding: 14px;
+  background: #f3f6fa;
+}
+
+.matrix-fullscreen .matrix-filters {
+  padding: 10px;
+}
+
+.matrix-fullscreen .matrix-table-card {
+  max-height: none;
+  height: 100%;
+  border-radius: 10px;
+}
+
+.matrix-fullscreen .matrix-actions {
+  justify-content: space-between;
+}
+
+@media (max-width: 900px) {
+  .matrix-actions {
+    align-items: stretch;
+    flex-direction: column;
+  }
+
+  .matrix-actions > * {
+    width: 100%;
+  }
+}
+
 /* Role-based navigation. */
 .header-user-control {
   display: flex;
