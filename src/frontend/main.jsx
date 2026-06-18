@@ -5,6 +5,9 @@ import workerMascot from "./assets/gross-worker-mascot.png";
 import "./styles.css";
 
 const STORAGE_KEY = "gross-lean-montage.visual.mvp.v7";
+const USERS_STORAGE_KEY = "gross-lean-montage.users.v1";
+const CURRENT_USER_KEY = "gross-lean-montage.current-user.v1";
+const ADMIN_PASSWORD = "123456";
 
 const doorStatusOptions = [
   "не начато",
@@ -217,6 +220,28 @@ function saveObjects(objects) {
   localStorage.setItem(STORAGE_KEY, JSON.stringify(objects));
 }
 
+const mockUsers = [
+  { id: "creator-1", name: "Иван", role: "creator", position: "Создатель сайта", email: "ivan@gross.ru", phone: "+7 900 100-00-01", avatar: "", password: "123456" },
+  { id: "head-1", name: "Руководитель", role: "company_head", position: "Руководитель компании", email: "head@gross.ru", phone: "+7 900 100-00-02", avatar: "", password: "123456" },
+  { id: "director-1", name: "Директор строительства", role: "construction_director", position: "Директор по строительству", email: "director@gross.ru", phone: "+7 900 100-00-03", avatar: "", password: "123456" },
+  { id: "itr-1", name: "ИТР", role: "itr", position: "Инженер ИТР", email: "itr@gross.ru", phone: "+7 900 100-00-04", avatar: "", password: "123456" },
+];
+
+const roleLabels = {
+  creator: "Создатель сайта",
+  company_head: "Руководитель компании",
+  construction_director: "Директор по строительству",
+  itr: "ИТР",
+};
+
+function loadUsers() {
+  try {
+    return JSON.parse(localStorage.getItem(USERS_STORAGE_KEY)) ?? mockUsers;
+  } catch {
+    return mockUsers;
+  }
+}
+
 function getAllDoors(object) {
   return object.buildings.flatMap((building) =>
     building.floors.flatMap((floor) => floor.doors)
@@ -255,7 +280,11 @@ function getBuildingReadiness(building) {
 function App() {
   const [objects, setObjects] = useState(loadObjects);
   const [isLoggedIn, setIsLoggedIn] = useState(false);
-  const [role, setRole] = useState("itr");
+  const [adminUnlocked, setAdminUnlocked] = useState(false);
+  const [adminPasswordOpen, setAdminPasswordOpen] = useState(false);
+  const [users, setUsers] = useState(loadUsers);
+  const [currentUserId, setCurrentUserId] = useState(() => localStorage.getItem(CURRENT_USER_KEY) || "creator-1");
+  const user = users.find((item) => item.id === currentUserId) ?? users[0];
   const [screen, setScreen] = useState("objects");
   const [selectedObjectId, setSelectedObjectId] = useState(objects[0].id);
   const [selectedBuildingId, setSelectedBuildingId] = useState(
@@ -371,26 +400,41 @@ function App() {
     setScreen("door");
   };
 
+  const navigate = (nextScreen) => {
+    if (nextScreen === "admin" && user.role === "itr") {
+      setScreen("objects");
+      return;
+    }
+    if (nextScreen === "admin" && !adminUnlocked) {
+      setAdminPasswordOpen(true);
+      return;
+    }
+    setScreen(nextScreen);
+  };
+
   if (!isLoggedIn) {
-    return <LoginPage onLogin={() => setIsLoggedIn(true)} />;
+    return <LoginPage userPassword={user.password} onLogin={() => setIsLoggedIn(true)} />;
   }
 
   return (
     <div className="app-shell">
-      <Sidebar role={role} activeScreen={screen} setScreen={setScreen} onLogout={() => setIsLoggedIn(false)} />
+      <Sidebar role={user.role} activeScreen={screen} setScreen={navigate} onLogout={() => setIsLoggedIn(false)} />
       <main className="content">
         <Header
-          role={role}
-          onRoleChange={(nextRole) => {
-            setRole(nextRole);
-            setScreen(nextRole === "admin" ? "admin" : "objects");
-          }}
           screen={screen}
           setScreen={setScreen}
           selectedObject={selectedObject}
           selectedBuilding={selectedBuilding}
           selectedFloor={selectedFloor}
           selectedDoor={selectedDoor}
+          user={user}
+          users={users}
+          onUserChange={(userId) => {
+            setCurrentUserId(userId);
+            localStorage.setItem(CURRENT_USER_KEY, userId);
+            setAdminUnlocked(false);
+            setScreen("objects");
+          }}
         />
         <div className="page-transition" key={screen}>
           {screen === "admin" && (
@@ -402,6 +446,18 @@ function App() {
               }}
             />
           )}
+          {screen === "profile" && (
+            <ProfilePage
+              user={user}
+              onSave={(nextUser) => {
+                const nextUsers = users.map((item) => item.id === nextUser.id ? nextUser : item);
+                setUsers(nextUsers);
+                localStorage.setItem(USERS_STORAGE_KEY, JSON.stringify(nextUsers));
+              }}
+            />
+          )}
+          {screen === "company_dashboard" && <CompanyDashboard objects={objects} />}
+          {["companies", "users", "roles", "reports", "itr_team"].includes(screen) && <PlaceholderPage screen={screen} />}
           {screen === "objects" && <ObjectsPage objects={objects} onOpen={goToObject} />}
           {screen === "object" && (
             <ObjectPage object={selectedObject} onOpenBuilding={goToBuilding} />
@@ -436,11 +492,22 @@ function App() {
           )}
         </div>
       </main>
+      {adminPasswordOpen && (
+        <AdminPasswordGate
+          expectedPassword={user.password || ADMIN_PASSWORD}
+          onClose={() => setAdminPasswordOpen(false)}
+          onSuccess={() => {
+            setAdminUnlocked(true);
+            setAdminPasswordOpen(false);
+            setScreen("admin");
+          }}
+        />
+      )}
     </div>
   );
 }
 
-function LoginPage({ onLogin }) {
+function LoginPage({ onLogin, userPassword }) {
   const [login, setLogin] = useState("");
   const [password, setPassword] = useState("");
   const [error, setError] = useState("");
@@ -460,7 +527,7 @@ function LoginPage({ onLogin }) {
           className="login-form"
           onSubmit={(event) => {
             event.preventDefault();
-            if (login === "admin" && password === "123456") {
+            if (login === "admin" && password === (userPassword || ADMIN_PASSWORD)) {
               setError("");
               onLogin();
               return;
@@ -498,9 +565,13 @@ function LoginPage({ onLogin }) {
 }
 
 function Sidebar({ role, activeScreen, setScreen, onLogout }) {
-  const items = role === "admin"
-    ? [["admin", "Админ-панель"]]
-    : [["objects", "Мои объекты"]];
+  const menus = {
+    creator: [["companies", "Компании"], ["objects", "Объекты"], ["admin", "Админ-панель объекта"], ["users", "Пользователи"], ["roles", "Роли"], ["profile", "Личный кабинет"]],
+    company_head: [["company_dashboard", "Дашборд компании"], ["objects", "Объекты"], ["admin", "Админ-панель объекта"], ["users", "Пользователи"], ["reports", "Отчёты"], ["profile", "Личный кабинет"]],
+    construction_director: [["objects", "Мои объекты"], ["admin", "Админ-панель объекта"], ["itr_team", "ИТР"], ["reports", "Отчёты"], ["profile", "Личный кабинет"]],
+    itr: [["objects", "Мои объекты"], ["profile", "Личный кабинет"]],
+  };
+  const items = menus[role] ?? menus.itr;
 
   return (
     <aside className="sidebar">
@@ -538,7 +609,7 @@ function BrandMark({ variant = "default" }) {
   );
 }
 
-function Header({ role, onRoleChange, screen, setScreen, selectedObject, selectedBuilding, selectedFloor, selectedDoor }) {
+function Header({ screen, setScreen, selectedObject, selectedBuilding, selectedFloor, selectedDoor, user, users, onUserChange }) {
   const labels = {
     objects: "Мои объекты",
     object: "Корпуса объекта",
@@ -546,12 +617,19 @@ function Header({ role, onRoleChange, screen, setScreen, selectedObject, selecte
     floor: "План этажа",
     door: "Карточка двери",
     admin: "Админ-панель",
+    profile: "Личный кабинет",
+    companies: "Компании",
+    users: "Пользователи",
+    roles: "Роли и доступы",
+    reports: "Отчёты",
+    company_dashboard: "Дашборд компании",
+    itr_team: "Команда ИТР",
   };
 
   return (
     <header className="page-header">
       <div>
-        {screen !== "admin" && <div className="breadcrumbs">
+        {!(["admin", "profile", "companies", "users", "roles", "reports", "company_dashboard", "itr_team"].includes(screen)) && <div className="breadcrumbs">
           <button onClick={() => setScreen("objects")}>Мои объекты</button>
           {screen !== "objects" && (
             <>
@@ -582,9 +660,9 @@ function Header({ role, onRoleChange, screen, setScreen, selectedObject, selecte
         </div>}
         <h1>{labels[screen]}</h1>
       </div>
-      <div className="role-switch" aria-label="Переключение роли">
-        <button className={role === "itr" ? "active" : ""} onClick={() => onRoleChange("itr")}>ИТР</button>
-        <button className={role === "admin" ? "active" : ""} onClick={() => onRoleChange("admin")}>Админ</button>
+      <div className="header-user-control">
+        <div className="user-chip"><strong>{user.name}</strong><span>{roleLabels[user.role]}</span></div>
+        <select aria-label="Текущий пользователь" value={user.id} onChange={(event) => onUserChange(event.target.value)}>{users.map((item) => <option key={item.id} value={item.id}>{item.name} — {roleLabels[item.role]}</option>)}</select>
       </div>
     </header>
   );
@@ -798,10 +876,13 @@ function FloorPlan({ object, building, floor, onOpenDoor, onBack }) {
             </div>
             <div className="floor-plan-layout">
               <div
-                className={`floor-plan ${building.floorTemplate?.image ? "has-plan-image" : ""}`}
+                className={`floor-plan ${building.floorTemplate?.image ? "has-plan-image" : ""} ${building.floorTemplate?.rooms?.length ? "has-saved-template" : ""}`}
                 style={building.floorTemplate?.image ? { backgroundImage: `url(${building.floorTemplate.image})` } : undefined}
               >
                 <div className="plan-frame" />
+                {building.floorTemplate?.rooms?.length > 0 && (
+                  <SavedTemplateLayout template={building.floorTemplate} />
+                )}
                 <div className="corridor-line corridor-line-top" />
                 <div className="corridor-line corridor-line-bottom" />
                 <div className="room apartment apartment-1">
@@ -876,6 +957,19 @@ function DoorMarker({ door, onOpen }) {
       <i className="door-arc" />
       <span>{label}</span>
     </button>
+  );
+}
+
+function SavedTemplateLayout({ template }) {
+  return (
+    <div className="saved-template-layout">
+      {!template.image && <div className="saved-template-corridor" />}
+      {template.rooms.map((room) => (
+        <div className="saved-template-room" key={room.id} style={{ left: `${room.x}%`, top: `${room.y}%`, width: `${room.width}%`, height: `${room.height}%` }}>{room.label}</div>
+      ))}
+      <div className="saved-template-stair" style={{ left: `${template.stair.x}%`, top: `${template.stair.y}%`, width: `${template.stair.width}%`, height: `${template.stair.height}%` }}>Лестница</div>
+      <div className="saved-template-arrow" style={{ left: `${template.arrow.x}%`, top: `${template.arrow.y}%`, fontSize: `${template.arrow.size}px`, transform: `translate(-50%, -50%) rotate(${template.arrow.angle}deg)` }}>➜</div>
+    </div>
   );
 }
 
@@ -1021,6 +1115,23 @@ function createTemplateDoor(buildingId, index, type, x, y) {
   };
 }
 
+function createTemplateRooms(count) {
+  return Array.from({ length: count }, (_, index) => {
+    const topCount = Math.ceil(count / 2);
+    const top = index < topCount;
+    const rowIndex = top ? index : index - topCount;
+    const rowCount = top ? topCount : Math.max(1, count - topCount);
+    return {
+      id: `room-${index + 1}`,
+      label: `Квартира ${index + 1}`,
+      x: 8 + (rowIndex * 84) / rowCount,
+      y: top ? 8 : 66,
+      width: Math.min(24, 80 / rowCount),
+      height: 26,
+    };
+  });
+}
+
 function AdminPanel({ objects, onChange }) {
   const [objectForm, setObjectForm] = useState({ name: "", address: "", metro: "" });
   const [buildingForm, setBuildingForm] = useState({ number: "", floors: 25 });
@@ -1030,8 +1141,12 @@ function AdminPanel({ objects, onChange }) {
   const [buildingId, setBuildingId] = useState(selectedObject?.buildings[0]?.id ?? "");
   const selectedBuilding = selectedObject?.buildings.find((item) => item.id === buildingId) ?? selectedObject?.buildings[0];
   const [draftDoors, setDraftDoors] = useState(selectedBuilding?.floorTemplate?.doors ?? []);
+  const [draftRooms, setDraftRooms] = useState(selectedBuilding?.floorTemplate?.rooms ?? []);
+  const [stair, setStair] = useState(selectedBuilding?.floorTemplate?.stair ?? { x: 43, y: 39, width: 18, height: 22 });
+  const [arrow, setArrow] = useState(selectedBuilding?.floorTemplate?.arrow ?? { x: 51, y: 49, size: 46, angle: -90 });
   const [planImage, setPlanImage] = useState(selectedBuilding?.floorTemplate?.image ?? "");
   const [editing, setEditing] = useState(false);
+  const [selectedElement, setSelectedElement] = useState(null);
   const [notice, setNotice] = useState("");
 
   React.useEffect(() => {
@@ -1040,6 +1155,9 @@ function AdminPanel({ objects, onChange }) {
 
   React.useEffect(() => {
     setDraftDoors(selectedBuilding?.floorTemplate?.doors ?? []);
+    setDraftRooms(selectedBuilding?.floorTemplate?.rooms ?? []);
+    setStair(selectedBuilding?.floorTemplate?.stair ?? { x: 43, y: 39, width: 18, height: 22 });
+    setArrow(selectedBuilding?.floorTemplate?.arrow ?? { x: 51, y: 49, size: 46, angle: -90 });
     setPlanImage(selectedBuilding?.floorTemplate?.image ?? "");
   }, [selectedBuilding?.id]);
 
@@ -1085,6 +1203,7 @@ function AdminPanel({ objects, onChange }) {
     const apartments = Math.max(1, Number(templateForm.apartments) || 1);
     const mop = Math.max(0, Number(templateForm.mop) || 0);
     const doors = [];
+    const rooms = createTemplateRooms(apartments);
     for (let index = 0; index < apartments; index += 1) {
       const top = index < Math.ceil(apartments / 2);
       const rowIndex = top ? index : index - Math.ceil(apartments / 2);
@@ -1095,21 +1214,28 @@ function AdminPanel({ objects, onChange }) {
       doors.push(createTemplateDoor(selectedBuilding.id, index, "МОП", 48 + index * 7, 50));
     }
     setDraftDoors(doors);
-    setNotice("Двери сгенерированы. Их можно расставить на плане.");
+    setDraftRooms(rooms);
+    setStair({ x: 43, y: 39, width: 18, height: 22 });
+    setArrow({ x: 51, y: 49, size: 46, angle: -90 });
+    setNotice("Квартиры и двери сгенерированы. Элементы можно расставить на плане.");
   };
 
-  const moveDoor = (event, doorId) => {
+  const moveElement = (event, payload) => {
     if (!editing) return;
     event.preventDefault();
     const rect = event.currentTarget.getBoundingClientRect();
     const x = Math.max(2, Math.min(98, ((event.clientX - rect.left) / rect.width) * 100));
     const y = Math.max(2, Math.min(98, ((event.clientY - rect.top) / rect.height) * 100));
-    setDraftDoors((current) => current.map((door) => door.id === doorId ? { ...door, x: Number(x.toFixed(2)), y: Number(y.toFixed(2)), swing: y < 50 ? "down-right" : "up-left" } : door));
+    const [type, id] = payload.split(":");
+    if (type === "door") setDraftDoors((current) => current.map((door) => door.id === id ? { ...door, x: Number(x.toFixed(2)), y: Number(y.toFixed(2)), swing: y < 50 ? "down-right" : "up-left" } : door));
+    if (type === "room") setDraftRooms((current) => current.map((room) => room.id === id ? { ...room, x: Number(x.toFixed(2)), y: Number(y.toFixed(2)) } : room));
+    if (type === "stair") setStair((current) => ({ ...current, x: Number(x.toFixed(2)), y: Number(y.toFixed(2)) }));
+    if (type === "arrow") setArrow((current) => ({ ...current, x: Number(x.toFixed(2)), y: Number(y.toFixed(2)) }));
   };
 
   const saveTemplate = () => {
     if (!selectedObject || !selectedBuilding || draftDoors.length === 0) return;
-    const template = { apartments: Number(templateForm.apartments), mopDoors: Number(templateForm.mop), image: planImage, doors: draftDoors };
+    const template = { apartments: draftRooms.length, mopDoors: Number(templateForm.mop), image: planImage, rooms: draftRooms, stair, arrow, doors: draftDoors };
     const next = objects.map((object) => object.id !== selectedObject.id ? object : {
       ...object,
       buildings: object.buildings.map((building) => building.id !== selectedBuilding.id ? building : {
@@ -1133,13 +1259,83 @@ function AdminPanel({ objects, onChange }) {
       </div>
       <div className="admin-template-card">
         <div className="admin-template-toolbar"><div><h3>Шаблон этажа</h3><p>{selectedBuilding?.name ?? "Сначала добавьте корпус"}</p></div><label className="file-button">Загрузить план<input type="file" accept="image/*" onChange={(event) => { const file = event.target.files?.[0]; if (!file) return; const reader = new FileReader(); reader.onload = () => setPlanImage(String(reader.result)); reader.readAsDataURL(file); }} /></label><button className="secondary-button" type="button" onClick={() => setEditing((value) => !value)}>{editing ? "Завершить расстановку" : "Редактировать расположение"}</button><button className="primary-button" type="button" onClick={saveTemplate}>Сохранить шаблон этажа</button></div>
-        <div className={`admin-plan ${planImage ? "has-image" : ""} ${editing ? "editing" : ""}`} style={planImage ? { backgroundImage: `url(${planImage})` } : undefined} onDragOver={(event) => editing && event.preventDefault()} onDrop={(event) => moveDoor(event, event.dataTransfer.getData("text/plain"))}>
-          {!planImage && <><div className="admin-plan-corridor" /><div className="admin-plan-stair">Лестница</div></>}
-          {draftDoors.map((door) => <button key={door.id} draggable={editing} onDragStart={(event) => event.dataTransfer.setData("text/plain", door.id)} className={`admin-door ${door.type === "МОП" ? "mop" : ""}`} style={{ left: `${door.x}%`, top: `${door.y}%` }} title={editing ? "Перетащите дверь" : door.label}>{door.mark}</button>)}
+        <div className="template-editor-grid">
+          <div className={`admin-plan ${planImage ? "has-image" : ""} ${editing ? "editing" : ""}`} style={planImage ? { backgroundImage: `url(${planImage})` } : undefined} onDragOver={(event) => editing && event.preventDefault()} onDrop={(event) => moveElement(event, event.dataTransfer.getData("text/plain"))}>
+            {!planImage && <div className="admin-plan-corridor" />}
+            {draftRooms.map((room) => <button key={room.id} draggable={editing} onClick={() => setSelectedElement({ type: "room", id: room.id })} onDragStart={(event) => event.dataTransfer.setData("text/plain", `room:${room.id}`)} className="admin-room" style={{ left: `${room.x}%`, top: `${room.y}%`, width: `${room.width}%`, height: `${room.height}%` }}>{room.label}</button>)}
+            <button draggable={editing} onClick={() => setSelectedElement({ type: "stair" })} onDragStart={(event) => event.dataTransfer.setData("text/plain", "stair:main")} className="admin-plan-stair" style={{ left: `${stair.x}%`, top: `${stair.y}%`, width: `${stair.width}%`, height: `${stair.height}%` }}>Лестница</button>
+            <button draggable={editing} onClick={() => setSelectedElement({ type: "arrow" })} onDragStart={(event) => event.dataTransfer.setData("text/plain", "arrow:main")} className="admin-direction-arrow" style={{ left: `${arrow.x}%`, top: `${arrow.y}%`, fontSize: `${arrow.size}px`, transform: `translate(-50%, -50%) rotate(${arrow.angle}deg)` }}>➜</button>
+            {draftDoors.map((door) => <button key={door.id} draggable={editing} onClick={() => setSelectedElement({ type: "door", id: door.id })} onDragStart={(event) => event.dataTransfer.setData("text/plain", `door:${door.id}`)} className={`admin-door ${door.type === "МОП" ? "mop" : ""}`} style={{ left: `${door.x}%`, top: `${door.y}%` }} title={editing ? "Перетащите дверь" : door.label}>{door.mark}</button>)}
+          </div>
+          <TemplateInspector selected={selectedElement} rooms={draftRooms} setRooms={setDraftRooms} stair={stair} setStair={setStair} arrow={arrow} setArrow={setArrow} doors={draftDoors} setDoors={setDraftDoors} />
         </div>
       </div>
     </section>
   );
+}
+
+function TemplateInspector({ selected, rooms, setRooms, stair, setStair, arrow, setArrow, doors, setDoors }) {
+  if (!selected) return <aside className="template-inspector"><h3>Параметры элемента</h3><p>Выберите квартиру, дверь, лестницу или стрелку на плане.</p></aside>;
+  const room = selected.type === "room" ? rooms.find((item) => item.id === selected.id) : null;
+  const door = selected.type === "door" ? doors.find((item) => item.id === selected.id) : null;
+  const updateRoom = (values) => setRooms((current) => current.map((item) => item.id === selected.id ? { ...item, ...values } : item));
+  const updateDoorLabel = (value) => setDoors((current) => current.map((item) => item.id === selected.id ? { ...item, mark: value } : item));
+  return (
+    <aside className="template-inspector">
+      <h3>Параметры элемента</h3>
+      {room && <><label>Подпись<input value={room.label} onChange={(event) => updateRoom({ label: event.target.value })} /></label><RangeField label="Ширина" value={room.width} min={8} max={45} onChange={(value) => updateRoom({ width: value })} /><RangeField label="Высота" value={room.height} min={10} max={45} onChange={(value) => updateRoom({ height: value })} /></>}
+      {door && <label>Марка двери<input value={door.mark} onChange={(event) => updateDoorLabel(event.target.value)} /></label>}
+      {selected.type === "stair" && <><RangeField label="Ширина лестницы" value={stair.width} min={8} max={40} onChange={(value) => setStair({ ...stair, width: value })} /><RangeField label="Высота лестницы" value={stair.height} min={8} max={45} onChange={(value) => setStair({ ...stair, height: value })} /></>}
+      {selected.type === "arrow" && <><RangeField label="Размер стрелки" value={arrow.size} min={20} max={90} onChange={(value) => setArrow({ ...arrow, size: value })} /><RangeField label="Угол" value={arrow.angle} min={-180} max={180} onChange={(value) => setArrow({ ...arrow, angle: value })} /></>}
+    </aside>
+  );
+}
+
+function RangeField({ label, value, min, max, onChange }) {
+  return <label className="range-field"><span>{label}<b>{Math.round(value)}</b></span><input type="range" min={min} max={max} value={value} onChange={(event) => onChange(Number(event.target.value))} /></label>;
+}
+
+function AdminPasswordGate({ expectedPassword, onClose, onSuccess }) {
+  const [password, setPassword] = useState("");
+  const [error, setError] = useState("");
+  return <div className="modal-backdrop"><form className="admin-gate" onSubmit={(event) => { event.preventDefault(); if (password === expectedPassword) onSuccess(); else setError("Неверный пароль"); }}><div><h2>Доступ администратора</h2><p>Введите пароль пользователя для открытия настроек проекта.</p></div><label>Пароль<input autoFocus type="password" value={password} onChange={(event) => setPassword(event.target.value)} /></label>{error && <div className="form-error">{error}</div>}<div className="form-actions"><button className="secondary-button" type="button" onClick={onClose}>Отмена</button><button className="primary-button">Открыть админ-панель</button></div></form></div>;
+}
+
+function ProfilePage({ user, onSave }) {
+  const [form, setForm] = useState(user);
+  const [saved, setSaved] = useState(false);
+  const update = (field, value) => { setForm((current) => ({ ...current, [field]: value })); setSaved(false); };
+  return <section className="profile-panel"><div className="profile-card"><div className="profile-avatar"><div>{form.avatar ? <img src={form.avatar} alt="Аватар" /> : form.name.slice(0, 1)}</div><label>Загрузить аватар<input type="file" accept="image/*" onChange={(event) => { const file = event.target.files?.[0]; if (!file) return; const reader = new FileReader(); reader.onload = () => update("avatar", String(reader.result)); reader.readAsDataURL(file); }} /></label></div><form onSubmit={(event) => { event.preventDefault(); onSave(form); setSaved(true); }}><div className="profile-grid"><label>Имя<input value={form.name} onChange={(event) => update("name", event.target.value)} /></label><label>Должность<input value={form.position} onChange={(event) => update("position", event.target.value)} /></label><label>Роль<input value={roleLabels[form.role]} readOnly /></label><label>Email<input type="email" value={form.email} onChange={(event) => update("email", event.target.value)} /></label><label>Телефон<input value={form.phone} onChange={(event) => update("phone", event.target.value)} /></label><label className="profile-password">Новый пароль<input type="password" value={form.password} onChange={(event) => update("password", event.target.value)} /></label></div><button className="primary-button">Сохранить профиль</button>{saved && <div className="save-notice">Данные пользователя сохранены</div>}</form></div></section>;
+}
+
+function CompanyDashboard({ objects }) {
+  const doors = objects.flatMap((object) => getAllDoors(object));
+  const mounted = doors.filter((door) => ["смонтирована", "принято технадзором", "передано по акту"].includes(door.doorStatus)).length;
+  const transferred = doors.filter((door) => door.doorStatus === "передано по акту" || door.storageAct === "передано по акту").length;
+  const issues = doors.filter((door) => door.issue === "есть замечание").length;
+  const readiness = doors.length ? Math.round((mounted / doors.length) * 100) : 0;
+  const problematic = objects.filter((object) => getMetrics(object).issues > 0 || getMetrics(object).openingsOnCorrection > 0).length;
+  const cards = [
+    ["Объектов в работе", objects.filter((object) => object.status === "В работе").length],
+    ["Общая готовность", `${readiness}%`],
+    ["Замечаний", issues],
+    ["Дверей смонтировано", mounted],
+    ["Передано по актам", transferred],
+    ["Проблемные объекты", problematic],
+  ];
+  return <section className="company-dashboard"><div className="dashboard-summary"><div><h2>Монтаж по компании</h2><p>Сводные показатели на основе текущих объектов и статусов дверей.</p></div><StatusBadge value="В работе" /></div><div className="dashboard-metrics">{cards.map(([label, value]) => <div className="dashboard-metric" key={label}><span>{label}</span><strong>{value}</strong></div>)}</div><div className="dashboard-progress"><div><span>Общая готовность</span><strong>{readiness}%</strong></div><div className="progress-bar"><span style={{ width: `${readiness}%` }} /></div></div></section>;
+}
+
+function PlaceholderPage({ screen }) {
+  const content = {
+    companies: ["Компании", "Управление компаниями и их доступами появится на следующем этапе."],
+    users: ["Пользователи", "Здесь будет создание пользователей, назначения и управление доступом."],
+    roles: ["Роли и доступы", "Матрица прав и детальные разрешения будут добавлены позже."],
+    reports: ["Отчёты", "Сводные отчёты по монтажу, замечаниям и актам находятся в разработке."],
+    itr_team: ["Команда ИТР", "Назначение ИТР на объекты и контроль активности появятся в следующей версии."],
+  };
+  const [title, text] = content[screen] ?? ["Раздел", "Раздел находится в разработке."];
+  return <section className="placeholder-page"><div className="placeholder-mark">Г</div><div><span>Следующий этап MVP</span><h2>{title}</h2><p>{text}</p></div></section>;
 }
 
 function StatusBadge({ value }) {
