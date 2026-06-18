@@ -3227,6 +3227,57 @@ select:focus {
   }
 }
 
+/* Objects page: one full-width card per row. */
+.object-grid {
+  width: 100%;
+  display: grid;
+  grid-template-columns: minmax(0, 1fr);
+  gap: 24px;
+}
+
+.object-card {
+  width: 100%;
+  min-width: 0;
+  grid-template-columns: minmax(320px, 46%) minmax(0, 1fr);
+}
+
+.object-image,
+.object-card-body,
+.object-card-main,
+.metric-grid {
+  min-width: 0;
+}
+
+.object-image-overlay,
+.object-image-overlay div,
+.object-card-body {
+  overflow-wrap: anywhere;
+}
+
+.object-card-main {
+  flex-wrap: wrap;
+}
+
+.open-arrow {
+  flex: 0 0 auto;
+  max-width: 100%;
+  white-space: nowrap;
+}
+
+@media (max-width: 760px) {
+  .object-card {
+    grid-template-columns: minmax(0, 1fr);
+  }
+
+  .object-image {
+    height: 260px;
+  }
+
+  .object-card-body {
+    padding: 22px;
+  }
+}
+
 /* Role-based navigation. */
 .header-user-control {
   display: flex;
