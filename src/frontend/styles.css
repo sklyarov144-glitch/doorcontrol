@@ -3016,6 +3016,173 @@ select:focus {
   }
 }
 
+/* Spreadsheet interactions and floor groups. */
+.matrix-table th,
+.matrix-table td {
+  border-right: 1px solid #cfd8e3;
+  border-bottom: 1px solid #cfd8e3;
+}
+
+.matrix-table tbody tr:not(.floor-divider):hover td {
+  background: #eef5fb;
+}
+
+.matrix-table .matrix-col-floor,
+.matrix-table .matrix-col-mark,
+.matrix-table .matrix-col-apartment,
+.matrix-table .matrix-col-actualHeight,
+.matrix-table .matrix-col-actualWidth {
+  position: sticky;
+  z-index: 4;
+  background: #f9fbfd;
+  font-weight: 800;
+}
+
+.matrix-table th.matrix-col-floor,
+.matrix-table th.matrix-col-mark,
+.matrix-table th.matrix-col-apartment,
+.matrix-table th.matrix-col-actualHeight,
+.matrix-table th.matrix-col-actualWidth {
+  z-index: 10;
+  color: #ffffff;
+  background: #13233a;
+}
+
+.matrix-table .matrix-col-floor { left: 42px; min-width: 72px; }
+.matrix-table .matrix-col-mark { left: 114px; min-width: 112px; }
+.matrix-table .matrix-col-apartment { left: 226px; min-width: 142px; }
+.matrix-table .matrix-col-actualHeight { left: 368px; min-width: 112px; }
+.matrix-table .matrix-col-actualWidth { left: 480px; min-width: 112px; box-shadow: 8px 0 12px rgba(11, 23, 42, 0.08); }
+
+.matrix-table .matrix-col-openingNumber {
+  position: static;
+  min-width: 112px;
+  box-shadow: none;
+}
+
+.matrix-table th.matrix-col-openingNumber {
+  color: #ffffff;
+  background: #0b172a;
+}
+
+.matrix-select-column {
+  position: sticky;
+  z-index: 11;
+  left: 0;
+  width: 42px;
+  min-width: 42px !important;
+  text-align: center !important;
+  background: #ffffff !important;
+}
+
+th.matrix-select-column {
+  z-index: 12;
+  background: #0b172a !important;
+}
+
+.matrix-select-column input {
+  min-width: 0;
+  width: 17px;
+  height: 17px;
+  min-height: 0;
+  padding: 0;
+  accent-color: var(--brand-red);
+}
+
+.matrix-table td.is-selected {
+  background: #fff1f2 !important;
+}
+
+.matrix-table td.is-active {
+  z-index: 13;
+  box-shadow: inset 0 0 0 2px var(--brand-red);
+}
+
+.matrix-table td.is-active input,
+.matrix-table td.is-active select {
+  color: #172033;
+  background: #ffffff;
+}
+
+.floor-divider td {
+  position: sticky;
+  z-index: 2;
+  left: 0;
+  padding: 0;
+  color: #ffffff;
+  background: #26384f !important;
+}
+
+.floor-divider td > * {
+  margin: 0 12px 0 0;
+}
+
+.floor-divider button {
+  min-width: 130px;
+  border: 0;
+  padding: 10px 14px;
+  color: #ffffff;
+  background: var(--brand-red);
+  font-weight: 900;
+}
+
+.floor-divider span,
+.floor-divider strong {
+  display: inline-block;
+  padding: 8px 0;
+  font-size: 12px;
+}
+
+.floor-divider strong {
+  color: #ffffff;
+}
+
+.matrix-actions button:disabled {
+  cursor: not-allowed;
+  opacity: 0.45;
+}
+
+.secondary-button.danger {
+  color: #9e1f2b;
+  background: #feecee;
+}
+
+.column-settings-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 16px;
+}
+
+.column-settings-header button {
+  border: 0;
+  border-radius: 8px;
+  padding: 7px 10px;
+  color: var(--brand-red);
+  background: #fae9eb;
+  font-weight: 800;
+}
+
+.column-settings-options {
+  border-top: 1px solid #e1e7ee;
+  padding-top: 12px;
+}
+
+.matrix-page:not(.is-compact) .matrix-table input,
+.matrix-page:not(.is-compact) .matrix-table select {
+  min-height: 42px;
+  font-size: 13px;
+}
+
+.matrix-page:not(.is-compact) .matrix-table td {
+  padding: 7px;
+}
+
+.matrix-fullscreen .matrix-stats,
+.matrix-fullscreen + * {
+  display: none;
+}
+
 /* Door matrix and automatic reports. */
 .matrix-page,
 .reports-page {

@@ -288,8 +288,6 @@ function App() {
     return generated;
   });
   const [isLoggedIn, setIsLoggedIn] = useState(false);
-  const [adminUnlocked, setAdminUnlocked] = useState(false);
-  const [adminPasswordOpen, setAdminPasswordOpen] = useState(false);
   const [users, setUsers] = useState(loadUsers);
   const [currentUserId, setCurrentUserId] = useState(() => localStorage.getItem(CURRENT_USER_KEY) || "creator-1");
   const user = users.find((item) => item.id === currentUserId) ?? users[0];
@@ -416,6 +414,33 @@ function App() {
     }
   };
 
+  const replaceDoorMatrix = (nextRows) => {
+    setDoorMatrix(nextRows);
+    saveDoorMatrix(nextRows);
+    const byDoorId = new Map(nextRows.map((row) => [row.doorId, row]));
+    const nextObjects = objects.map((object) => ({
+      ...object,
+      buildings: object.buildings.map((building) => ({
+        ...building,
+        floors: building.floors.map((floor) => ({
+          ...floor,
+          doors: floor.doors.map((door) => {
+            const row = byDoorId.get(door.id);
+            if (!row) return door;
+            return {
+              ...door,
+              doorStatus: row.acceptedTN === "Да" ? "принято технадзором" : row.installed === "Да" ? "смонтирована" : door.doorStatus,
+              storageAct: row.custodyAct === "Да" ? "передано по акту" : door.storageAct,
+              issue: row.tnIssues === "Да" ? "есть замечание" : row.tnIssues === "Нет" ? "нет" : door.issue,
+            };
+          }),
+        })),
+      })),
+    }));
+    setObjects(nextObjects);
+    saveObjects(nextObjects);
+  };
+
   const goToObject = (objectId) => {
     const nextObject = objects.find((object) => object.id === objectId) ?? objects[0];
     setSelectedObjectId(nextObject.id);
@@ -451,10 +476,6 @@ function App() {
       setScreen("objects");
       return;
     }
-    if (nextScreen === "admin" && !adminUnlocked) {
-      setAdminPasswordOpen(true);
-      return;
-    }
     setScreen(nextScreen);
   };
 
@@ -478,7 +499,6 @@ function App() {
           onUserChange={(userId) => {
             setCurrentUserId(userId);
             localStorage.setItem(CURRENT_USER_KEY, userId);
-            setAdminUnlocked(false);
             setScreen("objects");
           }}
         />
@@ -502,7 +522,7 @@ function App() {
               }}
             />
           )}
-          {screen === "matrix" && <DoorMatrixPage rows={doorMatrix} role={user.role} onChange={updateMatrixCell} />}
+          {screen === "matrix" && <DoorMatrixPage rows={doorMatrix} role={user.role} onChange={updateMatrixCell} onRowsChange={replaceDoorMatrix} />}
           {screen === "reports" && <ReportsPage rows={doorMatrix} />}
           {screen === "company_dashboard" && <CompanyDashboard objects={objects} />}
           {["companies", "users", "roles", "itr_team"].includes(screen) && <PlaceholderPage screen={screen} />}
@@ -541,17 +561,6 @@ function App() {
           )}
         </div>
       </main>
-      {adminPasswordOpen && (
-        <AdminPasswordGate
-          expectedPassword={user.password || ADMIN_PASSWORD}
-          onClose={() => setAdminPasswordOpen(false)}
-          onSuccess={() => {
-            setAdminUnlocked(true);
-            setAdminPasswordOpen(false);
-            setScreen("admin");
-          }}
-        />
-      )}
     </div>
   );
 }
@@ -832,6 +841,10 @@ function BuildingVisualization({ building, selectedFloorId, onSelectFloor }) {
     ["смонтирована", "принято технадзором", "передано по акту"].includes(door.doorStatus)
   ).length;
   const floorReadiness = metricDoors.length ? Math.round((readyDoors / metricDoors.length) * 100) : 0;
+  const actualFloors = building.floors
+    .filter((floor) => floor.type === "floor")
+    .sort((a, b) => b.number - a.number);
+  const parking = building.floors.find((floor) => floor.id === "parking" || floor.type === "parking");
 
   return (
     <div className="building-hero">
@@ -842,15 +855,15 @@ function BuildingVisualization({ building, selectedFloorId, onSelectFloor }) {
       </div>
       <div className="building-visual">
         <div className="roof-line">Кровля</div>
-        {Array.from({ length: 25 }, (_, index) => {
-          const floorNumber = 25 - index;
+        {actualFloors.map((floor) => {
+          const floorNumber = floor.number;
           return (
             <button
               className={
                 floorNumber === selectedNumber ? "facade-floor active" : "facade-floor"
               }
-              key={floorNumber}
-              onClick={() => onSelectFloor(`floor-${floorNumber}`)}
+              key={floor.id}
+              onClick={() => onSelectFloor(floor.id)}
             >
               <span>{floorNumber}</span>
               <i />
@@ -860,9 +873,7 @@ function BuildingVisualization({ building, selectedFloorId, onSelectFloor }) {
             </button>
           );
         })}
-        <button className="parking-line" onClick={() => onSelectFloor("parking")}>
-          Паркинг
-        </button>
+        {parking && <button className="parking-line" onClick={() => onSelectFloor(parking.id)}>Паркинг</button>}
       </div>
       <div className="building-metrics">
         <Metric label="Замечаний" value={floorIssues} tone="warning" />
@@ -1363,12 +1374,6 @@ function RangeField({ label, value, min, max, onChange }) {
   return <label className="range-field"><span>{label}<b>{Math.round(value)}</b></span><input type="range" min={min} max={max} value={value} onChange={(event) => onChange(Number(event.target.value))} /></label>;
 }
 
-function AdminPasswordGate({ expectedPassword, onClose, onSuccess }) {
-  const [password, setPassword] = useState("");
-  const [error, setError] = useState("");
-  return <div className="modal-backdrop"><form className="admin-gate" onSubmit={(event) => { event.preventDefault(); if (password === expectedPassword) onSuccess(); else setError("Неверный пароль"); }}><div><h2>Доступ администратора</h2><p>Введите пароль пользователя для открытия настроек проекта.</p></div><label>Пароль<input autoFocus type="password" value={password} onChange={(event) => setPassword(event.target.value)} /></label>{error && <div className="form-error">{error}</div>}<div className="form-actions"><button className="secondary-button" type="button" onClick={onClose}>Отмена</button><button className="primary-button">Открыть админ-панель</button></div></form></div>;
-}
-
 function ProfilePage({ user, onSave }) {
   const [form, setForm] = useState(user);
   const [saved, setSaved] = useState(false);
@@ -1407,18 +1412,19 @@ function PlaceholderPage({ screen }) {
 }
 
 const matrixColumns = [
-  ["object", "Объект"], ["date", "Дата", "date"], ["building", "Корпус / секция"], ["floor", "Этаж"], ["openingNumber", "№ проёма"],
-  ["apartment", "Квартира"], ["mark", "Марка двери"], ["model", "Модель"], ["arOpening", "Проём АР"],
-  ["actualHeight", "Высота факт"], ["actualWidth", "Ширина факт"], ["note", "Примечание"], ["ordered", "Заказ", "status"],
+  ["floor", "Этаж"], ["mark", "Марка двери"], ["apartment", "Номер квартиры"], ["actualHeight", "Высота факт"], ["actualWidth", "Ширина факт"],
+  ["object", "Объект"], ["date", "Дата", "date"], ["building", "Корпус / секция"], ["openingNumber", "№ проёма"], ["model", "Модель"], ["arOpening", "Проём АР"],
+  ["note", "Примечание"], ["ordered", "Заказ", "status"],
   ["arrived", "Приход", "status"], ["lifted", "Подъём", "status"], ["distributed", "Разнос", "status"], ["installed", "Монтаж", "status"],
   ["installationTeam", "Бригада монтажа"], ["custodyAct", "Акт ОХ", "status"], ["keys", "Ключи", "status"],
   ["acceptedTN", "Принято ТН", "status"], ["tnIssues", "Замечания ТН", "status"], ["ptoDate", "Дата для ПТО", "date"],
 ];
 
-const mandatoryMatrixColumns = ["object", "apartment", "mark"];
+const mandatoryMatrixColumns = ["floor", "mark", "apartment", "actualHeight", "actualWidth"];
 const MATRIX_COLUMNS_KEY = "gross-lean-montage.matrix-columns.v1";
+const MATRIX_COMPACT_KEY = "gross-lean-montage.matrix-compact.v1";
 
-const itrEditableFields = ["arrived", "lifted", "distributed", "installed", "installationTeam", "custodyAct", "keys", "acceptedTN", "tnIssues", "ptoDate", "note"];
+const itrEditableFields = ["arrived", "lifted", "distributed", "installed", "custodyAct", "keys", "tnIssues"];
 
 function matrixMetrics(rows) {
   const yes = (field) => rows.filter((row) => row[field] === "Да").length;
@@ -1437,11 +1443,16 @@ function MatrixStats({ rows }) {
   return <div className="matrix-stats">{items.map(([label, value]) => <div key={label}><span>{label}</span><strong>{value}</strong></div>)}</div>;
 }
 
-function DoorMatrixPage({ rows, role, onChange }) {
+function DoorMatrixPage({ rows, role, onChange, onRowsChange }) {
   const [filters, setFilters] = useState({ object: "", building: "", floor: "", installed: "", custodyAct: "", acceptedTN: "", tnIssues: "", visibility: "visible" });
   const [showHidden, setShowHidden] = useState(false);
   const [settingsOpen, setSettingsOpen] = useState(false);
   const [fullscreen, setFullscreen] = useState(false);
+  const [compact, setCompact] = useState(() => localStorage.getItem(MATRIX_COMPACT_KEY) !== "false");
+  const [activeCell, setActiveCell] = useState(null);
+  const [rangeStart, setRangeStart] = useState(null);
+  const [selectedRows, setSelectedRows] = useState([]);
+  const [collapsedFloors, setCollapsedFloors] = useState([]);
   const [visibleColumns, setVisibleColumns] = useState(() => {
     try { return JSON.parse(localStorage.getItem(MATRIX_COLUMNS_KEY)) ?? matrixColumns.map(([field]) => field); }
     catch { return matrixColumns.map(([field]) => field); }
@@ -1454,17 +1465,85 @@ function DoorMatrixPage({ rows, role, onChange }) {
     return Object.entries(filters).every(([field, value]) => field === "visibility" || !value || String(row[field]) === value);
   });
   const canEdit = (field) => ["creator", "company_head", "construction_director"].includes(role) || (role === "itr" && itrEditableFields.includes(field));
+  const canManageRows = ["creator", "company_head", "construction_director"].includes(role);
   const shownColumns = matrixColumns.filter(([field]) => mandatoryMatrixColumns.includes(field) || visibleColumns.includes(field));
+  const cellPosition = (cell) => cell ? { row: filtered.findIndex((item) => item.id === cell.rowId), column: shownColumns.findIndex(([field]) => field === cell.field) } : null;
+  const selectionBounds = (() => {
+    const start = cellPosition(rangeStart ?? activeCell);
+    const end = cellPosition(activeCell);
+    if (!start || !end || start.row < 0 || end.row < 0 || start.column < 0 || end.column < 0) return null;
+    return { rowFrom: Math.min(start.row, end.row), rowTo: Math.max(start.row, end.row), columnFrom: Math.min(start.column, end.column), columnTo: Math.max(start.column, end.column) };
+  })();
+  const isSelectedCell = (rowIndex, columnIndex) => selectionBounds && rowIndex >= selectionBounds.rowFrom && rowIndex <= selectionBounds.rowTo && columnIndex >= selectionBounds.columnFrom && columnIndex <= selectionBounds.columnTo;
+  const selectionText = () => {
+    if (!selectionBounds) return "";
+    return filtered.slice(selectionBounds.rowFrom, selectionBounds.rowTo + 1).map((row) => shownColumns.slice(selectionBounds.columnFrom, selectionBounds.columnTo + 1).map(([field]) => row[field] ?? "").join("\t")).join("\n");
+  };
+  const pasteGrid = (text) => {
+    if (!activeCell || !text) return;
+    const start = cellPosition(activeCell);
+    if (!start || start.row < 0 || start.column < 0) return;
+    const grid = text.replace(/\r/g, "").split("\n").filter((line, index, list) => line.length > 0 || index < list.length - 1).map((line) => line.split("\t"));
+    const updates = new Map();
+    grid.forEach((values, rowOffset) => values.forEach((value, columnOffset) => {
+      const targetRow = filtered[start.row + rowOffset];
+      const column = shownColumns[start.column + columnOffset];
+      if (targetRow && column && canEdit(column[0])) updates.set(`${targetRow.id}:${column[0]}`, value);
+    }));
+    onRowsChange(rows.map((row) => {
+      const values = {};
+      shownColumns.forEach(([field]) => { const key = `${row.id}:${field}`; if (updates.has(key)) values[field] = updates.get(key); });
+      return { ...row, ...values };
+    }));
+  };
+  const fillDown = () => {
+    if (!activeCell || !canEdit(activeCell.field)) return;
+    const start = filtered.findIndex((row) => row.id === activeCell.rowId);
+    const source = filtered[start]?.[activeCell.field];
+    if (start < 0) return;
+    const targets = new Set(filtered.slice(start + 1).map((row) => row.id));
+    onRowsChange(rows.map((row) => targets.has(row.id) ? { ...row, [activeCell.field]: source } : row));
+  };
+  const duplicateRows = () => {
+    if (!canManageRows) return;
+    const selected = rows.filter((row) => selectedRows.includes(row.id));
+    if (!selected.length) return;
+    onRowsChange([...rows, ...selected.map((row, index) => ({ ...row, id: `matrix-copy-${Date.now()}-${index}`, doorId: `${row.doorId}-copy-${Date.now()}-${index}`, hidden: false }))]);
+  };
+  const deleteRows = () => {
+    if (!canManageRows) return;
+    if (!selectedRows.length) return;
+    onRowsChange(rows.filter((row) => !selectedRows.includes(row.id)));
+    setSelectedRows([]);
+  };
+  const copyRows = () => {
+    const selected = rows.filter((row) => selectedRows.includes(row.id));
+    if (!selected.length) return;
+    navigator.clipboard?.writeText(selected.map((row) => matrixColumns.map(([field]) => row[field] ?? "").join("\t")).join("\n"));
+  };
+  const pasteRows = async () => {
+    if (!canManageRows) return;
+    const text = await navigator.clipboard?.readText?.();
+    if (!text) return;
+    const next = text.replace(/\r/g, "").split("\n").filter(Boolean).map((line, rowIndex) => {
+      const values = line.split("\t");
+      const row = { id: `matrix-paste-${Date.now()}-${rowIndex}`, doorId: `door-paste-${Date.now()}-${rowIndex}`, hidden: false };
+      matrixColumns.forEach(([field], columnIndex) => { row[field] = values[columnIndex] ?? ""; });
+      return row;
+    });
+    onRowsChange([...rows, ...next]);
+  };
   const toggleColumn = (field) => {
     const next = visibleColumns.includes(field) ? visibleColumns.filter((item) => item !== field) : [...visibleColumns, field];
     setVisibleColumns(next);
     localStorage.setItem(MATRIX_COLUMNS_KEY, JSON.stringify(next));
   };
-  return <section className={`matrix-page ${fullscreen ? "matrix-fullscreen" : ""}`}>
+  const floorGroups = Object.entries(filtered.reduce((groups, row) => { const key = `${row.object}|${row.building}|${row.floor}`; groups[key] = [...(groups[key] ?? []), row]; return groups; }, {}));
+  return <section tabIndex="0" onCopy={(event) => { const text = selectionText(); if (text) { event.preventDefault(); event.clipboardData.setData("text/plain", text); } }} onPaste={(event) => { if (activeCell) { event.preventDefault(); pasteGrid(event.clipboardData.getData("text/plain")); } }} className={`matrix-page ${fullscreen ? "matrix-fullscreen" : ""} ${compact ? "is-compact" : ""}`}>
     {!fullscreen && <MatrixStats rows={filtered} />}
-    <div className="matrix-toolbar"><div className="matrix-filters">{[["object", "Объект"], ["building", "Корпус"], ["floor", "Этаж"], ["installed", "Монтаж"], ["custodyAct", "Акт ОХ"], ["acceptedTN", "Принято ТН"], ["tnIssues", "Есть замечания ТН"]].map(([field, label]) => <label key={field}>{label}<select value={filters[field]} onChange={(event) => setFilters({ ...filters, [field]: event.target.value })}><option value="">Все</option>{options(field).map((value) => <option key={value}>{value}</option>)}</select></label>)}<label>Строки<select value={filters.visibility} onChange={(event) => setFilters({ ...filters, visibility: event.target.value })}><option value="visible">Не скрытые</option><option value="hidden">Скрытые</option><option value="">Все</option></select></label></div><div className="matrix-actions"><label className="matrix-toggle"><input type="checkbox" checked={showHidden} onChange={(event) => { setShowHidden(event.target.checked); if (event.target.checked) setFilters({ ...filters, visibility: "" }); }} />Показать скрытые строки</label><button className="secondary-button" onClick={() => setSettingsOpen((value) => !value)}>Настроить таблицу</button><button className="primary-button" onClick={() => setFullscreen((value) => !value)}>{fullscreen ? "Выйти из полноэкранного режима" : "На весь экран"}</button></div></div>
-    {settingsOpen && <div className="column-settings"><strong>Отображаемые колонки</strong><div>{matrixColumns.filter(([field]) => !mandatoryMatrixColumns.includes(field)).map(([field, label]) => <label key={field}><input type="checkbox" checked={visibleColumns.includes(field)} onChange={() => toggleColumn(field)} />{label}</label>)}</div></div>}
-    <div className="matrix-table-card"><table className="matrix-table"><thead><tr>{shownColumns.map(([field, label]) => <th className={`matrix-col-${field}`} key={field}>{label}</th>)}<th className="matrix-actions-column">Действия</th></tr></thead><tbody>{filtered.map((row) => <tr className={row.hidden ? "is-hidden" : ""} key={row.id}>{shownColumns.map(([field, , type]) => <td className={`matrix-col-${field}`} key={field}>{type === "status" ? <select disabled={!canEdit(field)} value={row[field] ?? "Нет"} onChange={(event) => onChange(row.id, field, event.target.value)}><option>Да</option><option>Нет</option><option>Не требуется</option></select> : <input disabled={!canEdit(field)} type={type === "date" ? "date" : "text"} value={row[field] ?? ""} onChange={(event) => onChange(row.id, field, event.target.value)} />}</td>)}<td className="matrix-actions-column"><button title={row.hidden ? "Показать строку" : "Скрыть строку"} onClick={() => onChange(row.id, "hidden", !row.hidden)}>{row.hidden ? "Показать" : "Скрыть"}</button></td></tr>)}</tbody></table>{filtered.length === 0 && <div className="empty-plan">По выбранным фильтрам дверей нет.</div>}</div>
+    <div className="matrix-toolbar"><div className="matrix-filters">{[["object", "Объект"], ["building", "Корпус"], ["floor", "Этаж"], ["installed", "Монтаж"], ["custodyAct", "Акт ОХ"], ["acceptedTN", "Принято ТН"], ["tnIssues", "Есть замечания ТН"]].map(([field, label]) => <label key={field}>{label}<select value={filters[field]} onChange={(event) => setFilters({ ...filters, [field]: event.target.value })}><option value="">Все</option>{options(field).map((value) => <option key={value}>{value}</option>)}</select></label>)}<label>Строки<select value={filters.visibility} onChange={(event) => setFilters({ ...filters, visibility: event.target.value })}><option value="visible">Не скрытые</option><option value="hidden">Скрытые</option><option value="">Все</option></select></label></div><div className="matrix-actions"><button className="secondary-button" disabled={!activeCell || !canEdit(activeCell?.field)} onClick={fillDown}>Протянуть вниз</button><button className="secondary-button" disabled={!selectedRows.length} onClick={copyRows}>Копировать строки</button><button className="secondary-button" disabled={!canManageRows} onClick={pasteRows}>Вставить строки</button><button className="secondary-button" disabled={!canManageRows || !selectedRows.length} onClick={duplicateRows}>Дублировать</button><button className="secondary-button danger" disabled={!canManageRows || !selectedRows.length} onClick={deleteRows}>Удалить</button><button className="secondary-button" onClick={() => setSettingsOpen((value) => !value)}>Настроить таблицу</button><button className="primary-button" onClick={() => setFullscreen((value) => !value)}>{fullscreen ? "Выйти из полноэкранного режима" : "На весь экран"}</button></div></div>
+    {settingsOpen && <div className="column-settings"><div className="column-settings-header"><strong>Настройка таблицы</strong><button onClick={() => { const all = matrixColumns.map(([field]) => field); setVisibleColumns(all); localStorage.setItem(MATRIX_COLUMNS_KEY, JSON.stringify(all)); }}>Сбросить колонки</button></div><div>{matrixColumns.filter(([field]) => !mandatoryMatrixColumns.includes(field)).map(([field, label]) => <label key={field}><input type="checkbox" checked={visibleColumns.includes(field)} onChange={() => toggleColumn(field)} />{label}</label>)}</div><div className="column-settings-options"><label><input type="checkbox" checked={compact} onChange={(event) => { setCompact(event.target.checked); localStorage.setItem(MATRIX_COMPACT_KEY, String(event.target.checked)); }} />Компактный режим</label><label><input type="checkbox" checked={showHidden} onChange={(event) => { setShowHidden(event.target.checked); setFilters({ ...filters, visibility: event.target.checked ? "" : "visible" }); }} />Показывать скрытые строки</label></div></div>}
+    <div className="matrix-table-card"><table className="matrix-table"><thead><tr><th className="matrix-select-column"><input type="checkbox" checked={filtered.length > 0 && filtered.every((row) => selectedRows.includes(row.id))} onChange={(event) => setSelectedRows(event.target.checked ? filtered.map((row) => row.id) : [])} /></th>{shownColumns.map(([field, label]) => <th className={`matrix-col-${field}`} key={field}>{label}</th>)}<th className="matrix-actions-column">Действия</th></tr></thead><tbody>{floorGroups.map(([groupKey, groupRows]) => { const metrics = matrixMetrics(groupRows); const collapsed = collapsedFloors.includes(groupKey); return <React.Fragment key={groupKey}><tr className="floor-divider"><td colSpan={shownColumns.length + 2}><button onClick={() => setCollapsedFloors((current) => current.includes(groupKey) ? current.filter((key) => key !== groupKey) : [...current, groupKey])}>{collapsed ? "▸" : "▾"} {groupRows[0].floor} этаж</button><span>{groupRows[0].building}</span><span>Всего: {metrics.total}</span><span>Смонтировано: {metrics.installed}</span><span>Замечаний: {metrics.tnIssues}</span><strong>{metrics.readiness}%</strong></td></tr>{!collapsed && groupRows.map((row) => { const rowIndex = filtered.findIndex((item) => item.id === row.id); return <tr className={row.hidden ? "is-hidden" : ""} key={row.id}><td className="matrix-select-column"><input type="checkbox" checked={selectedRows.includes(row.id)} onChange={(event) => setSelectedRows((current) => event.target.checked ? [...current, row.id] : current.filter((id) => id !== row.id))} /></td>{shownColumns.map(([field, , type], columnIndex) => <td onMouseDown={(event) => { if (event.shiftKey && activeCell) setRangeStart(rangeStart ?? activeCell); else setRangeStart({ rowId: row.id, field }); setActiveCell({ rowId: row.id, field }); }} className={`matrix-col-${field} ${isSelectedCell(rowIndex, columnIndex) ? "is-selected" : ""} ${activeCell?.rowId === row.id && activeCell?.field === field ? "is-active" : ""}`} key={field}>{type === "status" ? <select disabled={!canEdit(field)} value={row[field] ?? "Нет"} onChange={(event) => onChange(row.id, field, event.target.value)}><option>Да</option><option>Нет</option><option>Не требуется</option></select> : <input disabled={!canEdit(field)} type={type === "date" ? "date" : "text"} value={row[field] ?? ""} onChange={(event) => onChange(row.id, field, event.target.value)} />}</td>)}<td className="matrix-actions-column"><button title={row.hidden ? "Показать строку" : "Скрыть строку"} onClick={() => onChange(row.id, "hidden", !row.hidden)}>{row.hidden ? "Показать" : "Скрыть"}</button></td></tr>; })}</React.Fragment>; })}</tbody></table>{filtered.length === 0 && <div className="empty-plan">По выбранным фильтрам дверей нет.</div>}</div>
   </section>;
 }
 
