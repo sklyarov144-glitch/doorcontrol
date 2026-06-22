@@ -12,6 +12,16 @@ export function saveDoorMatrix(rows) {
   localStorage.setItem(DOOR_MATRIX_KEY, JSON.stringify(rows));
 }
 
+export function normalizeDoorMatrix(rows) {
+  const counters = new Map();
+  return rows.map((row) => {
+    const key = `${row.objectId}|${row.buildingId}|${row.floorId ?? row.floor}`;
+    const next = (counters.get(key) ?? 0) + 1;
+    counters.set(key, next);
+    return { ...row, openingNumber: String(next) };
+  });
+}
+
 export function createDoorMatrix(objects) {
   const rows = [];
   objects.forEach((object) => {
@@ -33,7 +43,7 @@ export function createDoorMatrix(objects) {
                 building: building.name,
                 floor: floor.number,
                 date: `2026-06-${String(10 + floor.number).padStart(2, "0")}`,
-                openingNumber: `${floor.number}-${String(index + 1).padStart(2, "0")}`,
+                openingNumber: String(index + 1),
                 apartment: door.number,
                 mark: door.mark,
                 model: door.type === "МОП" ? "ГРОСС-МОП" : `ГРОСС-${101 + index}`,

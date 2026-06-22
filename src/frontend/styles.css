@@ -3028,8 +3028,8 @@ select:focus {
 }
 
 .matrix-table .matrix-col-floor,
+.matrix-table .matrix-col-openingNumber,
 .matrix-table .matrix-col-mark,
-.matrix-table .matrix-col-apartment,
 .matrix-table .matrix-col-actualHeight,
 .matrix-table .matrix-col-actualWidth {
   position: sticky;
@@ -3039,8 +3039,8 @@ select:focus {
 }
 
 .matrix-table th.matrix-col-floor,
+.matrix-table th.matrix-col-openingNumber,
 .matrix-table th.matrix-col-mark,
-.matrix-table th.matrix-col-apartment,
 .matrix-table th.matrix-col-actualHeight,
 .matrix-table th.matrix-col-actualWidth {
   z-index: 10;
@@ -3049,21 +3049,11 @@ select:focus {
 }
 
 .matrix-table .matrix-col-floor { left: 42px; min-width: 72px; }
-.matrix-table .matrix-col-mark { left: 114px; min-width: 112px; }
-.matrix-table .matrix-col-apartment { left: 226px; min-width: 142px; }
-.matrix-table .matrix-col-actualHeight { left: 368px; min-width: 112px; }
-.matrix-table .matrix-col-actualWidth { left: 480px; min-width: 112px; box-shadow: 8px 0 12px rgba(11, 23, 42, 0.08); }
+.matrix-table .matrix-col-openingNumber { left: 114px; min-width: 112px; }
+.matrix-table .matrix-col-mark { left: 226px; min-width: 112px; }
+.matrix-table .matrix-col-actualHeight { left: 338px; min-width: 112px; }
+.matrix-table .matrix-col-actualWidth { left: 450px; min-width: 112px; box-shadow: 8px 0 12px rgba(11, 23, 42, 0.08); }
 
-.matrix-table .matrix-col-openingNumber {
-  position: static;
-  min-width: 112px;
-  box-shadow: none;
-}
-
-.matrix-table th.matrix-col-openingNumber {
-  color: #ffffff;
-  background: #0b172a;
-}
 
 .matrix-select-column {
   position: sticky;
@@ -3181,6 +3171,106 @@ th.matrix-select-column {
 .matrix-fullscreen .matrix-stats,
 .matrix-fullscreen + * {
   display: none;
+}
+
+.matrix-selection {
+  display: grid;
+  gap: 22px;
+}
+
+.matrix-selection-heading {
+  display: grid;
+  justify-items: start;
+  gap: 6px;
+}
+
+.matrix-back,
+.matrix-context button {
+  border: 0;
+  border-radius: 9px;
+  padding: 8px 12px;
+  color: var(--brand-red);
+  background: #fae9eb;
+  font-weight: 850;
+}
+
+.matrix-selection-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(260px, 1fr));
+  gap: 18px;
+}
+
+.matrix-selection-grid > button {
+  min-height: 170px;
+  display: grid;
+  align-content: end;
+  justify-items: start;
+  gap: 7px;
+  border: 1px solid #dce4ed;
+  border-radius: 16px;
+  padding: 22px;
+  color: #172033;
+  background:
+    linear-gradient(145deg, rgba(11, 23, 42, 0.02), rgba(201, 32, 47, 0.07)),
+    #ffffff;
+  box-shadow: 0 16px 36px rgba(20, 38, 62, 0.08);
+  text-align: left;
+}
+
+.matrix-selection-grid > button:hover {
+  border-color: var(--brand-red);
+  transform: translateY(-2px);
+}
+
+.matrix-selection-grid span {
+  color: var(--brand-red);
+  font-size: 12px;
+  font-weight: 900;
+  text-transform: uppercase;
+}
+
+.matrix-selection-grid strong {
+  font-size: 23px;
+}
+
+.matrix-selection-grid small {
+  color: #6b778c;
+  font-weight: 750;
+}
+
+.matrix-context {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 16px;
+  border: 1px solid #dce4ed;
+  border-radius: 12px;
+  padding: 10px 14px;
+  background: #ffffff;
+}
+
+.matrix-context > div {
+  display: flex;
+  align-items: center;
+  gap: 14px;
+}
+
+.matrix-context span {
+  color: #172033;
+  font-size: 15px;
+  font-weight: 900;
+}
+
+.report-scope {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(160px, 1fr));
+  gap: 10px;
+}
+
+@media (max-width: 900px) {
+  .report-scope {
+    grid-template-columns: 1fr;
+  }
 }
 
 /* Door matrix and automatic reports. */

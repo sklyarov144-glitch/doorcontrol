@@ -2,7 +2,7 @@ import React, { useMemo, useState } from "react";
 import { createRoot } from "react-dom/client";
 import matveevskyParkImage from "./assets/matveevsky-park.png";
 import workerMascot from "./assets/gross-worker-mascot.png";
-import { createDoorMatrix, getDoorMatrix, saveDoorMatrix } from "./storage";
+import { createDoorMatrix, getDoorMatrix, normalizeDoorMatrix, saveDoorMatrix } from "./storage";
 import "./styles.css";
 
 const STORAGE_KEY = "gross-lean-montage.visual.mvp.v7";
@@ -282,10 +282,10 @@ function App() {
   const [objects, setObjects] = useState(loadObjects);
   const [doorMatrix, setDoorMatrix] = useState(() => {
     const saved = getDoorMatrix();
-    if (saved.length > 0) return saved;
-    const generated = createDoorMatrix(loadObjects());
-    saveDoorMatrix(generated);
-    return generated;
+    const source = saved.length > 0 ? saved : createDoorMatrix(loadObjects());
+    const normalized = normalizeDoorMatrix(source);
+    saveDoorMatrix(normalized);
+    return normalized;
   });
   const [isLoggedIn, setIsLoggedIn] = useState(false);
   const [users, setUsers] = useState(loadUsers);
@@ -522,7 +522,7 @@ function App() {
               }}
             />
           )}
-          {screen === "matrix" && <DoorMatrixPage rows={doorMatrix} role={user.role} onChange={updateMatrixCell} onRowsChange={replaceDoorMatrix} />}
+          {screen === "matrix" && <DoorMatrixPage objects={objects} rows={doorMatrix} role={user.role} onChange={updateMatrixCell} onRowsChange={replaceDoorMatrix} />}
           {screen === "reports" && <ReportsPage rows={doorMatrix} />}
           {screen === "company_dashboard" && <CompanyDashboard objects={objects} />}
           {["companies", "users", "roles", "itr_team"].includes(screen) && <PlaceholderPage screen={screen} />}
@@ -1412,15 +1412,15 @@ function PlaceholderPage({ screen }) {
 }
 
 const matrixColumns = [
-  ["floor", "Этаж"], ["mark", "Марка двери"], ["apartment", "Номер квартиры"], ["actualHeight", "Высота факт"], ["actualWidth", "Ширина факт"],
-  ["object", "Объект"], ["date", "Дата", "date"], ["building", "Корпус / секция"], ["openingNumber", "№ проёма"], ["model", "Модель"], ["arOpening", "Проём АР"],
+  ["floor", "Этаж"], ["openingNumber", "№ проёма"], ["mark", "Марка двери"], ["actualHeight", "Высота факт"], ["actualWidth", "Ширина факт"],
+  ["date", "Дата", "date"], ["model", "Модель"], ["arOpening", "Проём АР"],
   ["note", "Примечание"], ["ordered", "Заказ", "status"],
   ["arrived", "Приход", "status"], ["lifted", "Подъём", "status"], ["distributed", "Разнос", "status"], ["installed", "Монтаж", "status"],
   ["installationTeam", "Бригада монтажа"], ["custodyAct", "Акт ОХ", "status"], ["keys", "Ключи", "status"],
   ["acceptedTN", "Принято ТН", "status"], ["tnIssues", "Замечания ТН", "status"], ["ptoDate", "Дата для ПТО", "date"],
 ];
 
-const mandatoryMatrixColumns = ["floor", "mark", "apartment", "actualHeight", "actualWidth"];
+const mandatoryMatrixColumns = ["floor", "openingNumber", "mark", "actualHeight", "actualWidth"];
 const MATRIX_COLUMNS_KEY = "gross-lean-montage.matrix-columns.v1";
 const MATRIX_COMPACT_KEY = "gross-lean-montage.matrix-compact.v1";
 
@@ -1443,9 +1443,10 @@ function MatrixStats({ rows }) {
   return <div className="matrix-stats">{items.map(([label, value]) => <div key={label}><span>{label}</span><strong>{value}</strong></div>)}</div>;
 }
 
-function DoorMatrixPage({ rows, role, onChange, onRowsChange }) {
-  const [filters, setFilters] = useState({ object: "", building: "", floor: "", installed: "", custodyAct: "", acceptedTN: "", tnIssues: "", visibility: "visible" });
-  const [showHidden, setShowHidden] = useState(false);
+function DoorMatrixPage({ objects, rows, role, onChange, onRowsChange }) {
+  const [selectedObjectId, setSelectedObjectId] = useState("");
+  const [selectedBuildingId, setSelectedBuildingId] = useState("");
+  const [filters, setFilters] = useState({ floor: "", installed: "", custodyAct: "", acceptedTN: "", tnIssues: "" });
   const [settingsOpen, setSettingsOpen] = useState(false);
   const [fullscreen, setFullscreen] = useState(false);
   const [compact, setCompact] = useState(() => localStorage.getItem(MATRIX_COMPACT_KEY) !== "false");
@@ -1457,13 +1458,11 @@ function DoorMatrixPage({ rows, role, onChange, onRowsChange }) {
     try { return JSON.parse(localStorage.getItem(MATRIX_COLUMNS_KEY)) ?? matrixColumns.map(([field]) => field); }
     catch { return matrixColumns.map(([field]) => field); }
   });
-  const options = (field) => [...new Set(rows.map((row) => String(row[field])).filter(Boolean))];
-  const filtered = rows.filter((row) => {
-    if (!showHidden && row.hidden && filters.visibility !== "hidden") return false;
-    if (filters.visibility === "visible" && row.hidden) return false;
-    if (filters.visibility === "hidden" && !row.hidden) return false;
-    return Object.entries(filters).every(([field, value]) => field === "visibility" || !value || String(row[field]) === value);
-  });
+  const objectChoices = objects.map((object) => ({ id: object.id, name: object.name }));
+  const buildingChoices = (objects.find((object) => object.id === selectedObjectId)?.buildings ?? []).map((building) => ({ id: building.id, name: building.name }));
+  const scopedRows = rows.filter((row) => row.objectId === selectedObjectId && row.buildingId === selectedBuildingId);
+  const options = (field) => [...new Set(scopedRows.map((row) => String(row[field])).filter(Boolean))];
+  const filtered = scopedRows.filter((row) => Object.entries(filters).every(([field, value]) => !value || String(row[field]) === value));
   const canEdit = (field) => ["creator", "company_head", "construction_director"].includes(role) || (role === "itr" && itrEditableFields.includes(field));
   const canManageRows = ["creator", "company_head", "construction_director"].includes(role);
   const shownColumns = matrixColumns.filter(([field]) => mandatoryMatrixColumns.includes(field) || visibleColumns.includes(field));
@@ -1539,18 +1538,32 @@ function DoorMatrixPage({ rows, role, onChange, onRowsChange }) {
     localStorage.setItem(MATRIX_COLUMNS_KEY, JSON.stringify(next));
   };
   const floorGroups = Object.entries(filtered.reduce((groups, row) => { const key = `${row.object}|${row.building}|${row.floor}`; groups[key] = [...(groups[key] ?? []), row]; return groups; }, {}));
+  const selectedObject = objectChoices.find((item) => item.id === selectedObjectId);
+  const selectedBuilding = buildingChoices.find((item) => item.id === selectedBuildingId);
+  if (!selectedObjectId) {
+    return <section className="matrix-selection"><div className="matrix-selection-heading"><h2>Выберите объект</h2><p>Шахматки хранятся отдельно для каждого корпуса.</p></div><div className="matrix-selection-grid">{objectChoices.map((object) => <button key={object.id} onClick={() => { setSelectedObjectId(object.id); setSelectedBuildingId(""); }}><span>Объект</span><strong>{object.name}</strong><small>{rows.filter((row) => row.objectId === object.id).length} дверей</small></button>)}</div></section>;
+  }
+  if (!selectedBuildingId) {
+    return <section className="matrix-selection"><div className="matrix-selection-heading"><button className="matrix-back" onClick={() => setSelectedObjectId("")}>← К объектам</button><h2>Выберите корпус</h2><p>{selectedObject?.name}</p></div><div className="matrix-selection-grid">{buildingChoices.map((building) => <button key={building.id} onClick={() => setSelectedBuildingId(building.id)}><span>Корпус</span><strong>{building.name}</strong><small>{rows.filter((row) => row.buildingId === building.id).length} дверей</small></button>)}</div></section>;
+  }
   return <section tabIndex="0" onCopy={(event) => { const text = selectionText(); if (text) { event.preventDefault(); event.clipboardData.setData("text/plain", text); } }} onPaste={(event) => { if (activeCell) { event.preventDefault(); pasteGrid(event.clipboardData.getData("text/plain")); } }} className={`matrix-page ${fullscreen ? "matrix-fullscreen" : ""} ${compact ? "is-compact" : ""}`}>
+    <div className="matrix-context"><div><button onClick={() => setSelectedBuildingId("")}>← К корпусам</button><span>Шахматка / {selectedObject?.name} / {selectedBuilding?.name}</span></div></div>
     {!fullscreen && <MatrixStats rows={filtered} />}
-    <div className="matrix-toolbar"><div className="matrix-filters">{[["object", "Объект"], ["building", "Корпус"], ["floor", "Этаж"], ["installed", "Монтаж"], ["custodyAct", "Акт ОХ"], ["acceptedTN", "Принято ТН"], ["tnIssues", "Есть замечания ТН"]].map(([field, label]) => <label key={field}>{label}<select value={filters[field]} onChange={(event) => setFilters({ ...filters, [field]: event.target.value })}><option value="">Все</option>{options(field).map((value) => <option key={value}>{value}</option>)}</select></label>)}<label>Строки<select value={filters.visibility} onChange={(event) => setFilters({ ...filters, visibility: event.target.value })}><option value="visible">Не скрытые</option><option value="hidden">Скрытые</option><option value="">Все</option></select></label></div><div className="matrix-actions"><button className="secondary-button" disabled={!activeCell || !canEdit(activeCell?.field)} onClick={fillDown}>Протянуть вниз</button><button className="secondary-button" disabled={!selectedRows.length} onClick={copyRows}>Копировать строки</button><button className="secondary-button" disabled={!canManageRows} onClick={pasteRows}>Вставить строки</button><button className="secondary-button" disabled={!canManageRows || !selectedRows.length} onClick={duplicateRows}>Дублировать</button><button className="secondary-button danger" disabled={!canManageRows || !selectedRows.length} onClick={deleteRows}>Удалить</button><button className="secondary-button" onClick={() => setSettingsOpen((value) => !value)}>Настроить таблицу</button><button className="primary-button" onClick={() => setFullscreen((value) => !value)}>{fullscreen ? "Выйти из полноэкранного режима" : "На весь экран"}</button></div></div>
-    {settingsOpen && <div className="column-settings"><div className="column-settings-header"><strong>Настройка таблицы</strong><button onClick={() => { const all = matrixColumns.map(([field]) => field); setVisibleColumns(all); localStorage.setItem(MATRIX_COLUMNS_KEY, JSON.stringify(all)); }}>Сбросить колонки</button></div><div>{matrixColumns.filter(([field]) => !mandatoryMatrixColumns.includes(field)).map(([field, label]) => <label key={field}><input type="checkbox" checked={visibleColumns.includes(field)} onChange={() => toggleColumn(field)} />{label}</label>)}</div><div className="column-settings-options"><label><input type="checkbox" checked={compact} onChange={(event) => { setCompact(event.target.checked); localStorage.setItem(MATRIX_COMPACT_KEY, String(event.target.checked)); }} />Компактный режим</label><label><input type="checkbox" checked={showHidden} onChange={(event) => { setShowHidden(event.target.checked); setFilters({ ...filters, visibility: event.target.checked ? "" : "visible" }); }} />Показывать скрытые строки</label></div></div>}
-    <div className="matrix-table-card"><table className="matrix-table"><thead><tr><th className="matrix-select-column"><input type="checkbox" checked={filtered.length > 0 && filtered.every((row) => selectedRows.includes(row.id))} onChange={(event) => setSelectedRows(event.target.checked ? filtered.map((row) => row.id) : [])} /></th>{shownColumns.map(([field, label]) => <th className={`matrix-col-${field}`} key={field}>{label}</th>)}<th className="matrix-actions-column">Действия</th></tr></thead><tbody>{floorGroups.map(([groupKey, groupRows]) => { const metrics = matrixMetrics(groupRows); const collapsed = collapsedFloors.includes(groupKey); return <React.Fragment key={groupKey}><tr className="floor-divider"><td colSpan={shownColumns.length + 2}><button onClick={() => setCollapsedFloors((current) => current.includes(groupKey) ? current.filter((key) => key !== groupKey) : [...current, groupKey])}>{collapsed ? "▸" : "▾"} {groupRows[0].floor} этаж</button><span>{groupRows[0].building}</span><span>Всего: {metrics.total}</span><span>Смонтировано: {metrics.installed}</span><span>Замечаний: {metrics.tnIssues}</span><strong>{metrics.readiness}%</strong></td></tr>{!collapsed && groupRows.map((row) => { const rowIndex = filtered.findIndex((item) => item.id === row.id); return <tr className={row.hidden ? "is-hidden" : ""} key={row.id}><td className="matrix-select-column"><input type="checkbox" checked={selectedRows.includes(row.id)} onChange={(event) => setSelectedRows((current) => event.target.checked ? [...current, row.id] : current.filter((id) => id !== row.id))} /></td>{shownColumns.map(([field, , type], columnIndex) => <td onMouseDown={(event) => { if (event.shiftKey && activeCell) setRangeStart(rangeStart ?? activeCell); else setRangeStart({ rowId: row.id, field }); setActiveCell({ rowId: row.id, field }); }} className={`matrix-col-${field} ${isSelectedCell(rowIndex, columnIndex) ? "is-selected" : ""} ${activeCell?.rowId === row.id && activeCell?.field === field ? "is-active" : ""}`} key={field}>{type === "status" ? <select disabled={!canEdit(field)} value={row[field] ?? "Нет"} onChange={(event) => onChange(row.id, field, event.target.value)}><option>Да</option><option>Нет</option><option>Не требуется</option></select> : <input disabled={!canEdit(field)} type={type === "date" ? "date" : "text"} value={row[field] ?? ""} onChange={(event) => onChange(row.id, field, event.target.value)} />}</td>)}<td className="matrix-actions-column"><button title={row.hidden ? "Показать строку" : "Скрыть строку"} onClick={() => onChange(row.id, "hidden", !row.hidden)}>{row.hidden ? "Показать" : "Скрыть"}</button></td></tr>; })}</React.Fragment>; })}</tbody></table>{filtered.length === 0 && <div className="empty-plan">По выбранным фильтрам дверей нет.</div>}</div>
+    <div className="matrix-toolbar"><div className="matrix-filters">{[["floor", "Этаж"], ["installed", "Монтаж"], ["custodyAct", "Акт ОХ"], ["acceptedTN", "Принято ТН"], ["tnIssues", "Замечания ТН"]].map(([field, label]) => <label key={field}>{label}<select value={filters[field]} onChange={(event) => setFilters({ ...filters, [field]: event.target.value })}><option value="">Все</option>{options(field).map((value) => <option key={value}>{value}</option>)}</select></label>)}</div><div className="matrix-actions"><button className="secondary-button" disabled={!activeCell || !canEdit(activeCell?.field)} onClick={fillDown}>Протянуть вниз</button><button className="secondary-button" disabled={!selectedRows.length} onClick={copyRows}>Копировать строку</button><button className="secondary-button" disabled={!canManageRows} onClick={pasteRows}>Вставить строки</button><button className="secondary-button" disabled={!canManageRows || !selectedRows.length} onClick={duplicateRows}>Дублировать</button><button className="secondary-button danger" disabled={!canManageRows || !selectedRows.length} onClick={deleteRows}>Удалить</button><button className="secondary-button" onClick={() => setSettingsOpen((value) => !value)}>Настроить столбцы</button><button className="primary-button" onClick={() => setFullscreen((value) => !value)}>{fullscreen ? "Выйти из полноэкранного режима" : "На весь экран"}</button></div></div>
+    {settingsOpen && <div className="column-settings"><div className="column-settings-header"><strong>Настройка столбцов</strong><button onClick={() => { const all = matrixColumns.map(([field]) => field); setVisibleColumns(all); localStorage.setItem(MATRIX_COLUMNS_KEY, JSON.stringify(all)); }}>Сбросить столбцы</button></div><div>{matrixColumns.filter(([field]) => !mandatoryMatrixColumns.includes(field)).map(([field, label]) => <label key={field}><input type="checkbox" checked={visibleColumns.includes(field)} onChange={() => toggleColumn(field)} />{label}</label>)}</div><div className="column-settings-options"><label><input type="checkbox" checked={compact} onChange={(event) => { setCompact(event.target.checked); localStorage.setItem(MATRIX_COMPACT_KEY, String(event.target.checked)); }} />Компактный режим</label></div></div>}
+    <div className="matrix-table-card"><table className="matrix-table"><thead><tr><th className="matrix-select-column"><input type="checkbox" checked={filtered.length > 0 && filtered.every((row) => selectedRows.includes(row.id))} onChange={(event) => setSelectedRows(event.target.checked ? filtered.map((row) => row.id) : [])} /></th>{shownColumns.map(([field, label]) => <th className={`matrix-col-${field}`} key={field}>{label}</th>)}<th className="matrix-actions-column">Действия</th></tr></thead><tbody>{floorGroups.map(([groupKey, groupRows]) => { const metrics = matrixMetrics(groupRows); const collapsed = collapsedFloors.includes(groupKey); return <React.Fragment key={groupKey}><tr className="floor-divider"><td colSpan={shownColumns.length + 2}><button onClick={() => setCollapsedFloors((current) => current.includes(groupKey) ? current.filter((key) => key !== groupKey) : [...current, groupKey])}>{collapsed ? "▸" : "▾"} {groupRows[0].floor} этаж</button><span>{groupRows[0].building}</span><span>Всего: {metrics.total}</span><span>Смонтировано: {metrics.installed}</span><span>Замечаний: {metrics.tnIssues}</span><strong>{metrics.readiness}%</strong></td></tr>{!collapsed && groupRows.map((row) => { const rowIndex = filtered.findIndex((item) => item.id === row.id); return <tr key={row.id}><td className="matrix-select-column"><input type="checkbox" checked={selectedRows.includes(row.id)} onChange={(event) => setSelectedRows((current) => event.target.checked ? [...current, row.id] : current.filter((id) => id !== row.id))} /></td>{shownColumns.map(([field, , type], columnIndex) => <td onMouseDown={(event) => { if (event.shiftKey && activeCell) setRangeStart(rangeStart ?? activeCell); else setRangeStart({ rowId: row.id, field }); setActiveCell({ rowId: row.id, field }); }} className={`matrix-col-${field} ${isSelectedCell(rowIndex, columnIndex) ? "is-selected" : ""} ${activeCell?.rowId === row.id && activeCell?.field === field ? "is-active" : ""}`} key={field}>{type === "status" ? <select disabled={!canEdit(field)} value={row[field] ?? "Нет"} onChange={(event) => onChange(row.id, field, event.target.value)}><option>Да</option><option>Нет</option><option>Не требуется</option></select> : <input disabled={!canEdit(field)} type={type === "date" ? "date" : "text"} value={row[field] ?? ""} onChange={(event) => onChange(row.id, field, event.target.value)} />}</td>)}<td className="matrix-actions-column"><button onClick={() => navigator.clipboard?.writeText(matrixColumns.map(([field]) => row[field] ?? "").join("\t"))}>Копировать</button></td></tr>; })}</React.Fragment>; })}</tbody></table>{filtered.length === 0 && <div className="empty-plan">По выбранным фильтрам дверей нет.</div>}</div>
   </section>;
 }
 
 function ReportsPage({ rows }) {
   const [groupBy, setGroupBy] = useState("object");
-  const grouped = Object.entries(rows.reduce((result, row) => { const key = String(row[groupBy]); result[key] = [...(result[key] ?? []), row]; return result; }, {}));
-  return <section className="reports-page"><div className="report-toolbar"><div><h2>Автоматический отчёт</h2><p>Показатели автоматически рассчитываются из шахматки.</p></div><label>Группировка<select value={groupBy} onChange={(event) => setGroupBy(event.target.value)}><option value="object">По объекту</option><option value="building">По корпусу</option><option value="floor">По этажу</option></select></label></div><MatrixStats rows={rows} /><div className="report-groups">{grouped.map(([name, groupRows]) => { const metrics = matrixMetrics(groupRows); return <div className="report-group" key={name}><div><strong>{name}</strong><span>{metrics.total} дверей</span></div><div className="progress-bar"><span style={{ width: `${metrics.readiness}%` }} /></div><b>{metrics.readiness}%</b><span>Смонтировано: {metrics.installed}</span><span>Замечаний: {metrics.tnIssues}</span></div>; })}</div></section>;
+  const [objectId, setObjectId] = useState("");
+  const [buildingId, setBuildingId] = useState("");
+  const objects = [...new Map(rows.map((row) => [row.objectId, row.object])).entries()];
+  const buildings = [...new Map(rows.filter((row) => !objectId || row.objectId === objectId).map((row) => [row.buildingId, row.building])).entries()];
+  const scopedRows = rows.filter((row) => (!objectId || row.objectId === objectId) && (!buildingId || row.buildingId === buildingId));
+  const grouped = Object.entries(scopedRows.reduce((result, row) => { const key = String(row[groupBy]); result[key] = [...(result[key] ?? []), row]; return result; }, {}));
+  return <section className="reports-page"><div className="report-toolbar"><div><h2>Автоматический отчёт</h2><p>Показатели автоматически рассчитываются из шахматок корпусов.</p></div><div className="report-scope"><label>Объект<select value={objectId} onChange={(event) => { setObjectId(event.target.value); setBuildingId(""); }}><option value="">Все объекты</option>{objects.map(([id, name]) => <option key={id} value={id}>{name}</option>)}</select></label><label>Корпус<select value={buildingId} onChange={(event) => setBuildingId(event.target.value)}><option value="">Все корпуса</option>{buildings.map(([id, name]) => <option key={id} value={id}>{name}</option>)}</select></label><label>Группировка<select value={groupBy} onChange={(event) => setGroupBy(event.target.value)}><option value="object">По объекту</option><option value="building">По корпусу</option><option value="floor">По этажу</option></select></label></div></div><MatrixStats rows={scopedRows} /><div className="report-groups">{grouped.map(([name, groupRows]) => { const metrics = matrixMetrics(groupRows); return <div className="report-group" key={name}><div><strong>{name}</strong><span>{metrics.total} дверей</span></div><div className="progress-bar"><span style={{ width: `${metrics.readiness}%` }} /></div><b>{metrics.readiness}%</b><span>Смонтировано: {metrics.installed}</span><span>Замечаний: {metrics.tnIssues}</span></div>; })}</div></section>;
 }
 
 function StatusBadge({ value }) {
