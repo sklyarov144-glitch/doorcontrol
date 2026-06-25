@@ -2544,6 +2544,9 @@ select:focus {
 .floor-plan .status-teal { --door-color: #16a6a6; }
 .floor-plan .status-purple { --door-color: #7957d5; }
 .floor-plan .status-orange { --door-color: #d9821f; }
+.floor-plan .status-cyan { --door-color: #22a7d8; }
+.floor-plan .status-darkgreen { --door-color: #0f6b4b; }
+.floor-plan .status-graphite { --door-color: #2d3646; }
 
 @media (max-width: 1180px) {
   .floor-plan {

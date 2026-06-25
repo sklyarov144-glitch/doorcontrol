@@ -2,7 +2,7 @@ import React, { useMemo, useState } from "react";
 import { createRoot } from "react-dom/client";
 import matveevskyParkImage from "./assets/matveevsky-park.png";
 import workerMascot from "./assets/gross-worker-mascot.png";
-import { createDoorMatrix, getDoorMatrix, normalizeDoorMatrix, saveDoorMatrix } from "./storage";
+import { createDoorMatrix, getDoorMatrix, mergeDoorMatrixWithObjects, normalizeDoorMatrix, saveDoorMatrix } from "./storage";
 import "./styles.css";
 
 const STORAGE_KEY = "gross-lean-montage.visual.mvp.v7";
@@ -28,6 +28,7 @@ const openingStatusOptions = [
 
 const issueOptions = ["нет", "есть замечание", "устранено"];
 const storageActOptions = ["не передана", "акт подготовлен", "передано по акту"];
+const matrixStatusOptions = ["Да", "Нет", "Не требуется"];
 
 const statusMeta = {
   "не начато": { tone: "gray", label: "не начато" },
@@ -278,11 +279,59 @@ function getBuildingReadiness(building) {
   return doors.length ? Math.round((ready / doors.length) * 100) : 0;
 }
 
+function matrixPatchFromDoor(values) {
+  const patch = {};
+  if ("doorStatus" in values) {
+    patch.installed = ["смонтирована", "принято технадзором", "передано по акту"].includes(values.doorStatus) ? "Да" : "Нет";
+    patch.acceptedTN = values.doorStatus === "принято технадзором" ? "Да" : undefined;
+  }
+  if ("storageAct" in values) {
+    patch.custodyAct = values.storageAct === "передано по акту" ? "Да" : values.storageAct === "акт подготовлен" ? "Не требуется" : "Нет";
+  }
+  if ("issue" in values) {
+    patch.tnIssues = values.issue === "есть замечание" ? "Да" : "Нет";
+  }
+  if ("installed" in values) patch.installed = values.installed;
+  if ("custodyAct" in values) patch.custodyAct = values.custodyAct;
+  if ("acceptedTN" in values) patch.acceptedTN = values.acceptedTN;
+  if ("tnIssues" in values) patch.tnIssues = values.tnIssues;
+  return Object.fromEntries(Object.entries(patch).filter(([, value]) => value !== undefined));
+}
+
+function doorPatchFromMatrix(row, field, value) {
+  const nextRow = { ...row, [field]: value };
+  const next = {};
+  if (field === "mark") next.mark = value;
+  if (nextRow.tnIssues === "Да") next.issue = "есть замечание";
+  if (nextRow.tnIssues === "Нет") next.issue = "нет";
+  if (nextRow.custodyAct === "Да") next.storageAct = "передано по акту";
+  if (nextRow.custodyAct === "Не требуется") next.storageAct = "акт подготовлен";
+  if (nextRow.custodyAct === "Нет") next.storageAct = "не передана";
+  if (nextRow.acceptedTN === "Да") next.doorStatus = "принято технадзором";
+  else if (nextRow.installed === "Да") next.doorStatus = "смонтирована";
+  else if (nextRow.ordered === "Да") next.doorStatus = "доставлена";
+  else if (["installed", "acceptedTN", "ordered"].includes(field)) next.doorStatus = "не начато";
+  return next;
+}
+
+function getDoorPlanTone(door, matrixRow) {
+  if (matrixRow?.tnIssues === "Да" || door.issue === "есть замечание") return "red";
+  if (matrixRow?.custodyAct === "Да" || door.storageAct === "передано по акту") return "graphite";
+  if (matrixRow?.acceptedTN === "Да" || door.doorStatus === "принято технадзором") return "darkgreen";
+  if (matrixRow?.installed === "Да" || door.doorStatus === "смонтирована") return "green";
+  if (matrixRow?.lifted === "Да") return "purple";
+  if (matrixRow?.arrived === "Да") return "cyan";
+  if (matrixRow?.ordered === "Да" || door.doorStatus === "доставлена") return "blue";
+  if (door.openingStatus === "требует корректировки") return "orange";
+  return statusMeta[door.doorStatus]?.tone ?? "gray";
+}
+
 function App() {
   const [objects, setObjects] = useState(loadObjects);
   const [doorMatrix, setDoorMatrix] = useState(() => {
     const saved = getDoorMatrix();
-    const source = saved.length > 0 ? saved : createDoorMatrix(loadObjects());
+    const currentObjects = loadObjects();
+    const source = saved.length > 0 ? mergeDoorMatrixWithObjects(saved, currentObjects) : createDoorMatrix(currentObjects);
     const normalized = normalizeDoorMatrix(source);
     saveDoorMatrix(normalized);
     return normalized;
@@ -324,6 +373,12 @@ function App() {
   );
 
   const updateDoor = (doorId, values) => {
+    const effectiveValues = {
+      ...values,
+      doorStatus: values.acceptedTN === "Да" ? "принято технадзором" : values.installed === "Да" && values.doorStatus === "не начато" ? "смонтирована" : values.doorStatus,
+      issue: values.tnIssues === "Да" ? "есть замечание" : values.issue,
+      storageAct: values.custodyAct === "Да" ? "передано по акту" : values.storageAct,
+    };
     const nextObjects = objects.map((object) => ({
       ...object,
       buildings: object.buildings.map((building) => ({
@@ -336,24 +391,24 @@ function App() {
             }
 
             const changed = [];
-            if (door.doorStatus !== values.doorStatus) {
-              changed.push(`Статус двери: ${door.doorStatus} -> ${values.doorStatus}`);
+            if (door.doorStatus !== effectiveValues.doorStatus) {
+              changed.push(`Статус двери: ${door.doorStatus} -> ${effectiveValues.doorStatus}`);
             }
-            if (door.openingStatus !== values.openingStatus) {
+            if (door.openingStatus !== effectiveValues.openingStatus) {
               changed.push(
-                `Статус проема: ${door.openingStatus} -> ${values.openingStatus}`
+                `Статус проема: ${door.openingStatus} -> ${effectiveValues.openingStatus}`
               );
             }
-            if (door.issue !== values.issue) {
-              changed.push(`Замечания: ${door.issue} -> ${values.issue}`);
+            if (door.issue !== effectiveValues.issue) {
+              changed.push(`Замечания: ${door.issue} -> ${effectiveValues.issue}`);
             }
-            if (door.storageAct !== values.storageAct) {
-              changed.push(`Акт: ${door.storageAct} -> ${values.storageAct}`);
+            if (door.storageAct !== effectiveValues.storageAct) {
+              changed.push(`Акт: ${door.storageAct} -> ${effectiveValues.storageAct}`);
             }
 
             return {
               ...door,
-              ...values,
+              ...effectiveValues,
               history:
                 changed.length > 0
                   ? [
@@ -374,12 +429,7 @@ function App() {
 
     setObjects(nextObjects);
     saveObjects(nextObjects);
-    const nextMatrix = doorMatrix.map((row) => row.doorId !== doorId ? row : {
-      ...row,
-      installed: ["смонтирована", "принято технадзором", "передано по акту"].includes(values.doorStatus) ? "Да" : row.installed,
-      custodyAct: values.storageAct === "передано по акту" ? "Да" : row.custodyAct,
-      tnIssues: values.issue === "есть замечание" ? "Да" : values.issue === "устранено" ? "Нет" : row.tnIssues,
-    });
+    const nextMatrix = normalizeDoorMatrix(doorMatrix.map((row) => row.doorId !== doorId ? row : { ...row, ...matrixPatchFromDoor(effectiveValues) }));
     setDoorMatrix(nextMatrix);
     saveDoorMatrix(nextMatrix);
   };
@@ -387,11 +437,11 @@ function App() {
   const updateMatrixCell = (rowId, field, value) => {
     const row = doorMatrix.find((item) => item.id === rowId);
     if (!row) return;
-    const nextMatrix = doorMatrix.map((item) => item.id === rowId ? { ...item, [field]: value } : item);
+    const nextMatrix = normalizeDoorMatrix(doorMatrix.map((item) => item.id === rowId ? { ...item, [field]: value } : item));
     setDoorMatrix(nextMatrix);
     saveDoorMatrix(nextMatrix);
 
-    if (["installed", "custodyAct", "tnIssues", "acceptedTN"].includes(field)) {
+    if (["mark", "installed", "custodyAct", "tnIssues", "acceptedTN"].includes(field)) {
       const nextObjects = objects.map((object) => ({
         ...object,
         buildings: object.buildings.map((building) => ({
@@ -400,11 +450,7 @@ function App() {
             ...floor,
             doors: floor.doors.map((door) => {
               if (door.id !== row.doorId) return door;
-              if (field === "installed") return { ...door, doorStatus: value === "Да" ? "смонтирована" : "не начато", status: value === "Да" ? "смонтирована" : "не начато" };
-              if (field === "custodyAct") return { ...door, storageAct: value === "Да" ? "передано по акту" : "не передана", custodyActStatus: value === "Да" ? "передано по акту" : "не передана" };
-              if (field === "acceptedTN" && value === "Да") return { ...door, doorStatus: "принято технадзором", status: "принято технадзором" };
-              if (field === "tnIssues") return { ...door, issue: value === "Да" ? "есть замечание" : "нет", issueStatus: value === "Да" ? "есть замечание" : "нет" };
-              return door;
+              return { ...door, ...doorPatchFromMatrix(row, field, value) };
             }),
           })),
         })),
@@ -415,9 +461,10 @@ function App() {
   };
 
   const replaceDoorMatrix = (nextRows) => {
-    setDoorMatrix(nextRows);
-    saveDoorMatrix(nextRows);
-    const byDoorId = new Map(nextRows.map((row) => [row.doorId, row]));
+    const normalizedRows = normalizeDoorMatrix(nextRows);
+    setDoorMatrix(normalizedRows);
+    saveDoorMatrix(normalizedRows);
+    const byDoorId = new Map(normalizedRows.map((row) => [row.doorId, row]));
     const nextObjects = objects.map((object) => ({
       ...object,
       buildings: object.buildings.map((building) => ({
@@ -429,8 +476,9 @@ function App() {
             if (!row) return door;
             return {
               ...door,
-              doorStatus: row.acceptedTN === "Да" ? "принято технадзором" : row.installed === "Да" ? "смонтирована" : door.doorStatus,
-              storageAct: row.custodyAct === "Да" ? "передано по акту" : door.storageAct,
+              mark: row.mark || door.mark,
+              doorStatus: row.acceptedTN === "Да" ? "принято технадзором" : row.installed === "Да" ? "смонтирована" : row.installed === "Нет" ? "не начато" : door.doorStatus,
+              storageAct: row.custodyAct === "Да" ? "передано по акту" : row.custodyAct === "Нет" ? "не передана" : door.storageAct,
               issue: row.tnIssues === "Да" ? "есть замечание" : row.tnIssues === "Нет" ? "нет" : door.issue,
             };
           }),
@@ -544,6 +592,7 @@ function App() {
               object={selectedObject}
               building={selectedBuilding}
               floor={selectedFloor}
+              matrixRows={doorMatrix}
               onOpenDoor={goToDoor}
               onBack={() => setScreen("building")}
             />
@@ -884,9 +933,10 @@ function BuildingVisualization({ building, selectedFloorId, onSelectFloor }) {
   );
 }
 
-function FloorPlan({ object, building, floor, onOpenDoor, onBack }) {
+function FloorPlan({ object, building, floor, matrixRows, onOpenDoor, onBack }) {
   const label = floor.type === "floor" ? `Этаж ${floor.number}` : floor.label;
   const [doorFilter, setDoorFilter] = useState("all");
+  const matrixByDoorId = useMemo(() => new Map(matrixRows.map((row) => [row.doorId, row])), [matrixRows]);
   const visibleDoors = floor.doors.filter((door) => {
     if (doorFilter === "apartments") {
       return door.type === "Квартирная";
@@ -984,7 +1034,7 @@ function FloorPlan({ object, building, floor, onOpenDoor, onBack }) {
                 <div className="stair-entry stair-entry-top" />
                 <div className="stair-entry stair-entry-bottom" />
                 {visibleDoors.map((door) => (
-                  <DoorMarker key={door.id} door={door} onOpen={() => onOpenDoor(door.id)} />
+                  <DoorMarker key={door.id} door={door} matrixRow={matrixByDoorId.get(door.id)} onOpen={() => onOpenDoor(door.id)} />
                 ))}
               </div>
             </div>
@@ -999,13 +1049,9 @@ function FloorPlan({ object, building, floor, onOpenDoor, onBack }) {
   );
 }
 
-function DoorMarker({ door, onOpen }) {
-  const tone =
-    door.openingStatus === "требует корректировки"
-      ? "orange"
-      : statusMeta[door.doorStatus]?.tone ?? "gray";
-
-  const label = door.mark ?? door.number.replace("Квартира ", "");
+function DoorMarker({ door, matrixRow, onOpen }) {
+  const tone = getDoorPlanTone(door, matrixRow);
+  const label = matrixRow?.mark ?? door.mark ?? door.number.replace("Квартира ", "");
   const swingClass = door.swing ?? "down-right";
 
   return (
@@ -1040,6 +1086,10 @@ function DoorDetails({ object, building, floor, door, matrixRow, onSave, onBack 
     openingStatus: door.openingStatus,
     issue: door.issue,
     storageAct: door.storageAct,
+    installed: matrixRow?.installed ?? "Нет",
+    custodyAct: matrixRow?.custodyAct ?? "Нет",
+    acceptedTN: matrixRow?.acceptedTN ?? "Нет",
+    tnIssues: matrixRow?.tnIssues ?? "Нет",
   });
   const [saved, setSaved] = useState(false);
 
@@ -1049,9 +1099,13 @@ function DoorDetails({ object, building, floor, door, matrixRow, onSave, onBack 
       openingStatus: door.openingStatus,
       issue: door.issue,
       storageAct: door.storageAct,
+      installed: matrixRow?.installed ?? "Нет",
+      custodyAct: matrixRow?.custodyAct ?? "Нет",
+      acceptedTN: matrixRow?.acceptedTN ?? "Нет",
+      tnIssues: matrixRow?.tnIssues ?? "Нет",
     });
     setSaved(false);
-  }, [door.id]);
+  }, [door.id, matrixRow?.installed, matrixRow?.custodyAct, matrixRow?.acceptedTN, matrixRow?.tnIssues]);
 
   const handleChange = (field, value) => {
     setForm((current) => ({ ...current, [field]: value }));
@@ -1078,7 +1132,7 @@ function DoorDetails({ object, building, floor, door, matrixRow, onSave, onBack 
         </div>
         <div className="detail-grid">
           <Detail label="Номер двери" value={door.number} />
-          <Detail label="Марка двери" value={door.mark ?? door.number} />
+          <Detail label="Марка двери" value={matrixRow?.mark ?? door.mark ?? door.number} />
           <Detail label="Тип двери" value={door.type} />
           <SelectField
             label="Статус двери"
@@ -1104,6 +1158,30 @@ function DoorDetails({ object, building, floor, door, matrixRow, onSave, onBack 
             options={storageActOptions}
             onChange={(value) => handleChange("storageAct", value)}
           />
+          <SelectField
+            label="Монтаж"
+            value={form.installed}
+            options={matrixStatusOptions}
+            onChange={(value) => handleChange("installed", value)}
+          />
+          <SelectField
+            label="Акт ОХ"
+            value={form.custodyAct}
+            options={matrixStatusOptions}
+            onChange={(value) => handleChange("custodyAct", value)}
+          />
+          <SelectField
+            label="Принято ТН"
+            value={form.acceptedTN}
+            options={matrixStatusOptions}
+            onChange={(value) => handleChange("acceptedTN", value)}
+          />
+          <SelectField
+            label="Замечания ТН"
+            value={form.tnIssues}
+            options={matrixStatusOptions}
+            onChange={(value) => handleChange("tnIssues", value)}
+          />
         </div>
         <div className="form-actions">
           <button className="secondary-button" type="button" onClick={onBack}>
@@ -1117,7 +1195,9 @@ function DoorDetails({ object, building, floor, door, matrixRow, onSave, onBack 
         <div className="matrix-door-data">
           <div className="panel-title"><div><h2>Данные из шахматки</h2><p>Производство, логистика и приёмка двери</p></div></div>
           {matrixRow ? <div className="matrix-door-grid">
+            <Detail label="Этаж" value={matrixRow.floor} />
             <Detail label="№ проёма" value={matrixRow.openingNumber} />
+            <Detail label="Марка двери" value={matrixRow.mark} />
             <Detail label="Модель" value={matrixRow.model} />
             <Detail label="Проём АР" value={matrixRow.arOpening} />
             <Detail label="Высота факт" value={matrixRow.actualHeight} />
@@ -1128,8 +1208,10 @@ function DoorDetails({ object, building, floor, door, matrixRow, onSave, onBack 
             <Detail label="Разнос" value={matrixRow.distributed} />
             <Detail label="Монтаж" value={matrixRow.installed} />
             <Detail label="Акт ОХ" value={matrixRow.custodyAct} />
+            <Detail label="Ключи" value={matrixRow.keys} />
             <Detail label="Принято ТН" value={matrixRow.acceptedTN} />
             <Detail label="Замечания ТН" value={matrixRow.tnIssues} />
+            <Detail label="Дата для ПТО" value={matrixRow.ptoDate || "—"} />
           </div> : <p>Для этой двери строка шахматки пока не создана.</p>}
         </div>
       </form>

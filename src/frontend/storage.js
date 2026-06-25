@@ -16,6 +16,10 @@ export function normalizeDoorMatrix(rows) {
   const counters = new Map();
   return rows.map((row) => {
     const key = `${row.objectId}|${row.buildingId}|${row.floorId ?? row.floor}`;
+    const isCommonDoor = row.doorType === "МОП" || String(row.mark ?? "").includes("МОП");
+    if (isCommonDoor) {
+      return { ...row, openingNumber: row.openingNumber || row.mark || "МОП" };
+    }
     const next = (counters.get(key) ?? 0) + 1;
     counters.set(key, next);
     return { ...row, openingNumber: String(next) };
@@ -26,16 +30,17 @@ export function createDoorMatrix(objects) {
   const rows = [];
   objects.forEach((object) => {
     object.buildings
-      .filter((building) => ["Корпус 4.1", "Корпус 4.2", "Корпус 4.3"].includes(building.name))
       .forEach((building) => {
         building.floors
-          .filter((floor) => floor.type === "floor" && floor.number <= 3)
+          .filter((floor) => floor.type === "floor")
           .forEach((floor) => {
-            floor.doors.slice(0, 6).forEach((door, index) => {
+            floor.doors.forEach((door, index) => {
               const offset = building.name.endsWith(".1") ? 0 : building.name.endsWith(".2") ? 1 : 2;
+              const isCommonDoor = door.type === "МОП";
               rows.push({
-                id: `matrix-${building.id}-${floor.id}-${door.id}`,
+                id: `matrix-${door.id}`,
                 doorId: door.id,
+                doorType: door.type,
                 objectId: object.id,
                 buildingId: building.id,
                 floorId: floor.id,
@@ -43,7 +48,7 @@ export function createDoorMatrix(objects) {
                 building: building.name,
                 floor: floor.number,
                 date: `2026-06-${String(10 + floor.number).padStart(2, "0")}`,
-                openingNumber: String(index + 1),
+                openingNumber: isCommonDoor ? door.mark : String(index + 1),
                 apartment: door.number,
                 mark: door.mark,
                 model: door.type === "МОП" ? "ГРОСС-МОП" : `ГРОСС-${101 + index}`,
@@ -69,4 +74,10 @@ export function createDoorMatrix(objects) {
       });
   });
   return rows;
+}
+
+export function mergeDoorMatrixWithObjects(rows, objects) {
+  const existing = new Map(rows.map((row) => [row.doorId, row]));
+  const generated = createDoorMatrix(objects);
+  return generated.map((row) => ({ ...row, ...(existing.get(row.doorId) ?? {}) }));
 }
