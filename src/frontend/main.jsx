@@ -570,8 +570,8 @@ function App() {
               }}
             />
           )}
-          {screen === "matrix" && <DoorMatrixPage objects={objects} rows={doorMatrix} role={user.role} onChange={updateMatrixCell} onRowsChange={replaceDoorMatrix} />}
-          {screen === "reports" && <ReportsPage rows={doorMatrix} />}
+          {screen === "documents" && <DocumentsPage />}
+          {screen === "reports" && <ReportsPage objects={objects} />}
           {screen === "company_dashboard" && <CompanyDashboard objects={objects} />}
           {["companies", "users", "roles", "itr_team"].includes(screen) && <PlaceholderPage screen={screen} />}
           {screen === "objects" && <ObjectsPage objects={objects} onOpen={goToObject} />}
@@ -592,7 +592,6 @@ function App() {
               object={selectedObject}
               building={selectedBuilding}
               floor={selectedFloor}
-              matrixRows={doorMatrix}
               onOpenDoor={goToDoor}
               onBack={() => setScreen("building")}
             />
@@ -603,7 +602,6 @@ function App() {
               building={selectedBuilding}
               floor={selectedFloor}
               door={selectedDoor}
-              matrixRow={doorMatrix.find((row) => row.doorId === selectedDoor.id)}
               onSave={updateDoor}
               onBack={() => setScreen("floor")}
             />
@@ -673,10 +671,10 @@ function LoginPage({ onLogin, userPassword }) {
 
 function Sidebar({ role, activeScreen, setScreen, onLogout }) {
   const menus = {
-    creator: [["companies", "Компании"], ["objects", "Объекты"], ["matrix", "Шахматка"], ["reports", "Отчёты"], ["admin", "Админ-панель объекта"], ["users", "Пользователи"], ["roles", "Роли"], ["profile", "Личный кабинет"]],
-    company_head: [["company_dashboard", "Дашборд компании"], ["objects", "Объекты"], ["matrix", "Шахматка"], ["admin", "Админ-панель объекта"], ["users", "Пользователи"], ["reports", "Отчёты"], ["profile", "Личный кабинет"]],
-    construction_director: [["objects", "Мои объекты"], ["matrix", "Шахматка"], ["admin", "Админ-панель объекта"], ["itr_team", "ИТР"], ["reports", "Отчёты"], ["profile", "Личный кабинет"]],
-    itr: [["objects", "Мои объекты"], ["matrix", "Шахматка"], ["reports", "Отчёты"], ["profile", "Личный кабинет"]],
+    creator: [["objects", "Мои объекты"], ["company_dashboard", "Дашборд"], ["documents", "Документы"], ["reports", "Отчёты"], ["users", "Пользователи"], ["admin", "Админ-панель"], ["profile", "Личный кабинет"]],
+    company_head: [["objects", "Мои объекты"], ["company_dashboard", "Дашборд"], ["documents", "Документы"], ["reports", "Отчёты"], ["users", "Пользователи"], ["admin", "Админ-панель"], ["profile", "Личный кабинет"]],
+    construction_director: [["objects", "Мои объекты"], ["company_dashboard", "Дашборд"], ["documents", "Документы"], ["reports", "Отчёты"], ["admin", "Админ-панель"], ["profile", "Личный кабинет"]],
+    itr: [["objects", "Мои объекты"], ["documents", "Документы"], ["reports", "Отчёты"], ["profile", "Личный кабинет"]],
   };
   const items = menus[role] ?? menus.itr;
 
@@ -729,15 +727,15 @@ function Header({ screen, setScreen, selectedObject, selectedBuilding, selectedF
     users: "Пользователи",
     roles: "Роли и доступы",
     reports: "Отчёты",
+    documents: "Документы",
     company_dashboard: "Дашборд компании",
     itr_team: "Команда ИТР",
-    matrix: "Шахматка дверей",
   };
 
   return (
     <header className="page-header">
       <div>
-        {!(["admin", "profile", "companies", "users", "roles", "reports", "matrix", "company_dashboard", "itr_team"].includes(screen)) && <div className="breadcrumbs">
+        {!(["admin", "profile", "companies", "users", "roles", "reports", "documents", "company_dashboard", "itr_team"].includes(screen)) && <div className="breadcrumbs">
           <button onClick={() => setScreen("objects")}>Мои объекты</button>
           {screen !== "objects" && (
             <>
@@ -933,10 +931,9 @@ function BuildingVisualization({ building, selectedFloorId, onSelectFloor }) {
   );
 }
 
-function FloorPlan({ object, building, floor, matrixRows, onOpenDoor, onBack }) {
+function FloorPlan({ object, building, floor, onOpenDoor, onBack }) {
   const label = floor.type === "floor" ? `Этаж ${floor.number}` : floor.label;
   const [doorFilter, setDoorFilter] = useState("all");
-  const matrixByDoorId = useMemo(() => new Map(matrixRows.map((row) => [row.doorId, row])), [matrixRows]);
   const visibleDoors = floor.doors.filter((door) => {
     if (doorFilter === "apartments") {
       return door.type === "Квартирная";
@@ -1034,7 +1031,7 @@ function FloorPlan({ object, building, floor, matrixRows, onOpenDoor, onBack }) 
                 <div className="stair-entry stair-entry-top" />
                 <div className="stair-entry stair-entry-bottom" />
                 {visibleDoors.map((door) => (
-                  <DoorMarker key={door.id} door={door} matrixRow={matrixByDoorId.get(door.id)} onOpen={() => onOpenDoor(door.id)} />
+                  <DoorMarker key={door.id} door={door} onOpen={() => onOpenDoor(door.id)} />
                 ))}
               </div>
             </div>
@@ -1049,9 +1046,12 @@ function FloorPlan({ object, building, floor, matrixRows, onOpenDoor, onBack }) 
   );
 }
 
-function DoorMarker({ door, matrixRow, onOpen }) {
-  const tone = getDoorPlanTone(door, matrixRow);
-  const label = matrixRow?.mark ?? door.mark ?? door.number.replace("Квартира ", "");
+function DoorMarker({ door, onOpen }) {
+  const tone =
+    door.openingStatus === "требует корректировки"
+      ? "orange"
+      : statusMeta[door.doorStatus]?.tone ?? "gray";
+  const label = door.mark ?? door.number.replace("Квартира ", "");
   const swingClass = door.swing ?? "down-right";
 
   return (
@@ -1080,16 +1080,12 @@ function SavedTemplateLayout({ template }) {
   );
 }
 
-function DoorDetails({ object, building, floor, door, matrixRow, onSave, onBack }) {
+function DoorDetails({ object, building, floor, door, onSave, onBack }) {
   const [form, setForm] = useState({
     doorStatus: door.doorStatus,
     openingStatus: door.openingStatus,
     issue: door.issue,
     storageAct: door.storageAct,
-    installed: matrixRow?.installed ?? "Нет",
-    custodyAct: matrixRow?.custodyAct ?? "Нет",
-    acceptedTN: matrixRow?.acceptedTN ?? "Нет",
-    tnIssues: matrixRow?.tnIssues ?? "Нет",
   });
   const [saved, setSaved] = useState(false);
 
@@ -1099,13 +1095,9 @@ function DoorDetails({ object, building, floor, door, matrixRow, onSave, onBack 
       openingStatus: door.openingStatus,
       issue: door.issue,
       storageAct: door.storageAct,
-      installed: matrixRow?.installed ?? "Нет",
-      custodyAct: matrixRow?.custodyAct ?? "Нет",
-      acceptedTN: matrixRow?.acceptedTN ?? "Нет",
-      tnIssues: matrixRow?.tnIssues ?? "Нет",
     });
     setSaved(false);
-  }, [door.id, matrixRow?.installed, matrixRow?.custodyAct, matrixRow?.acceptedTN, matrixRow?.tnIssues]);
+  }, [door.id]);
 
   const handleChange = (field, value) => {
     setForm((current) => ({ ...current, [field]: value }));
@@ -1132,7 +1124,7 @@ function DoorDetails({ object, building, floor, door, matrixRow, onSave, onBack 
         </div>
         <div className="detail-grid">
           <Detail label="Номер двери" value={door.number} />
-          <Detail label="Марка двери" value={matrixRow?.mark ?? door.mark ?? door.number} />
+          <Detail label="Марка двери" value={door.mark ?? door.number} />
           <Detail label="Тип двери" value={door.type} />
           <SelectField
             label="Статус двери"
@@ -1158,30 +1150,6 @@ function DoorDetails({ object, building, floor, door, matrixRow, onSave, onBack 
             options={storageActOptions}
             onChange={(value) => handleChange("storageAct", value)}
           />
-          <SelectField
-            label="Монтаж"
-            value={form.installed}
-            options={matrixStatusOptions}
-            onChange={(value) => handleChange("installed", value)}
-          />
-          <SelectField
-            label="Акт ОХ"
-            value={form.custodyAct}
-            options={matrixStatusOptions}
-            onChange={(value) => handleChange("custodyAct", value)}
-          />
-          <SelectField
-            label="Принято ТН"
-            value={form.acceptedTN}
-            options={matrixStatusOptions}
-            onChange={(value) => handleChange("acceptedTN", value)}
-          />
-          <SelectField
-            label="Замечания ТН"
-            value={form.tnIssues}
-            options={matrixStatusOptions}
-            onChange={(value) => handleChange("tnIssues", value)}
-          />
         </div>
         <div className="form-actions">
           <button className="secondary-button" type="button" onClick={onBack}>
@@ -1192,28 +1160,6 @@ function DoorDetails({ object, building, floor, door, matrixRow, onSave, onBack 
           </button>
         </div>
         {saved && <div className="save-notice">Изменения сохранены</div>}
-        <div className="matrix-door-data">
-          <div className="panel-title"><div><h2>Данные из шахматки</h2><p>Производство, логистика и приёмка двери</p></div></div>
-          {matrixRow ? <div className="matrix-door-grid">
-            <Detail label="Этаж" value={matrixRow.floor} />
-            <Detail label="№ проёма" value={matrixRow.openingNumber} />
-            <Detail label="Марка двери" value={matrixRow.mark} />
-            <Detail label="Модель" value={matrixRow.model} />
-            <Detail label="Проём АР" value={matrixRow.arOpening} />
-            <Detail label="Высота факт" value={matrixRow.actualHeight} />
-            <Detail label="Ширина факт" value={matrixRow.actualWidth} />
-            <Detail label="Заказ" value={matrixRow.ordered} />
-            <Detail label="Приход" value={matrixRow.arrived} />
-            <Detail label="Подъём" value={matrixRow.lifted} />
-            <Detail label="Разнос" value={matrixRow.distributed} />
-            <Detail label="Монтаж" value={matrixRow.installed} />
-            <Detail label="Акт ОХ" value={matrixRow.custodyAct} />
-            <Detail label="Ключи" value={matrixRow.keys} />
-            <Detail label="Принято ТН" value={matrixRow.acceptedTN} />
-            <Detail label="Замечания ТН" value={matrixRow.tnIssues} />
-            <Detail label="Дата для ПТО" value={matrixRow.ptoDate || "—"} />
-          </div> : <p>Для этой двери строка шахматки пока не создана.</p>}
-        </div>
       </form>
       <aside className="panel history-panel">
         <div className="panel-title">
@@ -1481,12 +1427,74 @@ function CompanyDashboard({ objects }) {
   return <section className="company-dashboard"><div className="dashboard-summary"><div><h2>Монтаж по компании</h2><p>Сводные показатели на основе текущих объектов и статусов дверей.</p></div><StatusBadge value="В работе" /></div><div className="dashboard-metrics">{cards.map(([label, value]) => <div className="dashboard-metric" key={label}><span>{label}</span><strong>{value}</strong></div>)}</div><div className="dashboard-progress"><div><span>Общая готовность</span><strong>{readiness}%</strong></div><div className="progress-bar"><span style={{ width: `${readiness}%` }} /></div></div></section>;
 }
 
+const matrixDocumentLinks = [
+  {
+    id: "matrix-4-1",
+    title: "Шахматка ЖК Матвеевский парк / Корпус 4.1",
+    object: "ЖК Матвеевский парк",
+    building: "Корпус 4.1",
+    owner: "Иван Петров",
+    updatedAt: "25.06.2026",
+    url: "https://disk.yandex.ru/",
+  },
+  {
+    id: "matrix-4-2",
+    title: "Шахматка ЖК Матвеевский парк / Корпус 4.2",
+    object: "ЖК Матвеевский парк",
+    building: "Корпус 4.2",
+    owner: "Иван Петров",
+    updatedAt: "25.06.2026",
+    url: "https://disk.yandex.ru/",
+  },
+  {
+    id: "matrix-4-3",
+    title: "Шахматка ЖК Матвеевский парк / Корпус 4.3",
+    object: "ЖК Матвеевский парк",
+    building: "Корпус 4.3",
+    owner: "Иван Петров",
+    updatedAt: "25.06.2026",
+    url: "https://disk.yandex.ru/",
+  },
+];
+
+function DocumentsPage() {
+  return (
+    <section className="documents-page">
+      <div className="documents-hero">
+        <div>
+          <span>Документы объекта</span>
+          <h2>Шахматки на Яндекс.Диске</h2>
+          <p>В MVP рабочие шахматки ведутся во внешних файлах. В системе оставлены быстрые ссылки по корпусам.</p>
+        </div>
+      </div>
+      <div className="documents-grid">
+        {matrixDocumentLinks.map((item) => (
+          <article className="document-card" key={item.id}>
+            <div className="document-icon">Г</div>
+            <div className="document-card-body">
+              <h3>{item.title}</h3>
+              <dl>
+                <div><dt>Объект</dt><dd>{item.object}</dd></div>
+                <div><dt>Корпус</dt><dd>{item.building}</dd></div>
+                <div><dt>Ответственный</dt><dd>{item.owner}</dd></div>
+                <div><dt>Дата обновления</dt><dd>{item.updatedAt}</dd></div>
+              </dl>
+              <a className="primary-button document-link" href={item.url} target="_blank" rel="noreferrer">
+                Открыть шахматку
+              </a>
+            </div>
+          </article>
+        ))}
+      </div>
+    </section>
+  );
+}
+
 function PlaceholderPage({ screen }) {
   const content = {
     companies: ["Компании", "Управление компаниями и их доступами появится на следующем этапе."],
     users: ["Пользователи", "Здесь будет создание пользователей, назначения и управление доступом."],
     roles: ["Роли и доступы", "Матрица прав и детальные разрешения будут добавлены позже."],
-    reports: ["Отчёты", "Сводные отчёты по монтажу, замечаниям и актам находятся в разработке."],
     itr_team: ["Команда ИТР", "Назначение ИТР на объекты и контроль активности появятся в следующей версии."],
   };
   const [title, text] = content[screen] ?? ["Раздел", "Раздел находится в разработке."];
@@ -1637,15 +1645,86 @@ function DoorMatrixPage({ objects, rows, role, onChange, onRowsChange }) {
   </section>;
 }
 
-function ReportsPage({ rows }) {
+function reportRowsFromObjects(objects) {
+  return objects.flatMap((object) =>
+    object.buildings.flatMap((building) =>
+      building.floors
+        .filter((floor) => floor.type === "floor")
+        .flatMap((floor) =>
+          floor.doors.map((door) => ({
+            objectId: object.id,
+            object: object.name,
+            buildingId: building.id,
+            building: building.name,
+            floor: floor.number,
+            mounted: ["смонтирована", "принято технадзором", "передано по акту"].includes(door.doorStatus),
+            accepted: door.doorStatus === "принято технадзором",
+            custody: door.storageAct === "передано по акту",
+            issue: door.issue === "есть замечание",
+          }))
+        )
+    )
+  );
+}
+
+function reportMetrics(rows) {
+  const mounted = rows.filter((row) => row.mounted).length;
+  return {
+    total: rows.length,
+    mounted,
+    accepted: rows.filter((row) => row.accepted).length,
+    custody: rows.filter((row) => row.custody).length,
+    issues: rows.filter((row) => row.issue).length,
+    readiness: rows.length ? Math.round((mounted / rows.length) * 100) : 0,
+  };
+}
+
+function ReportsPage({ objects }) {
   const [groupBy, setGroupBy] = useState("object");
   const [objectId, setObjectId] = useState("");
   const [buildingId, setBuildingId] = useState("");
-  const objects = [...new Map(rows.map((row) => [row.objectId, row.object])).entries()];
-  const buildings = [...new Map(rows.filter((row) => !objectId || row.objectId === objectId).map((row) => [row.buildingId, row.building])).entries()];
+  const rows = reportRowsFromObjects(objects);
+  const objectOptions = objects.map((object) => [object.id, object.name]);
+  const buildingOptions = objects
+    .filter((object) => !objectId || object.id === objectId)
+    .flatMap((object) => object.buildings.map((building) => [building.id, building.name]));
   const scopedRows = rows.filter((row) => (!objectId || row.objectId === objectId) && (!buildingId || row.buildingId === buildingId));
-  const grouped = Object.entries(scopedRows.reduce((result, row) => { const key = String(row[groupBy]); result[key] = [...(result[key] ?? []), row]; return result; }, {}));
-  return <section className="reports-page"><div className="report-toolbar"><div><h2>Автоматический отчёт</h2><p>Показатели автоматически рассчитываются из шахматок корпусов.</p></div><div className="report-scope"><label>Объект<select value={objectId} onChange={(event) => { setObjectId(event.target.value); setBuildingId(""); }}><option value="">Все объекты</option>{objects.map(([id, name]) => <option key={id} value={id}>{name}</option>)}</select></label><label>Корпус<select value={buildingId} onChange={(event) => setBuildingId(event.target.value)}><option value="">Все корпуса</option>{buildings.map(([id, name]) => <option key={id} value={id}>{name}</option>)}</select></label><label>Группировка<select value={groupBy} onChange={(event) => setGroupBy(event.target.value)}><option value="object">По объекту</option><option value="building">По корпусу</option><option value="floor">По этажу</option></select></label></div></div><MatrixStats rows={scopedRows} /><div className="report-groups">{grouped.map(([name, groupRows]) => { const metrics = matrixMetrics(groupRows); return <div className="report-group" key={name}><div><strong>{name}</strong><span>{metrics.total} дверей</span></div><div className="progress-bar"><span style={{ width: `${metrics.readiness}%` }} /></div><b>{metrics.readiness}%</b><span>Смонтировано: {metrics.installed}</span><span>Замечаний: {metrics.tnIssues}</span></div>; })}</div></section>;
+  const metrics = reportMetrics(scopedRows);
+  const grouped = Object.entries(scopedRows.reduce((result, row) => {
+    const key = String(row[groupBy]);
+    result[key] = [...(result[key] ?? []), row];
+    return result;
+  }, {}));
+
+  return (
+    <section className="reports-page">
+      <div className="report-toolbar">
+        <div>
+          <h2>Отчёты по монтажу</h2>
+          <p>Показатели рассчитываются по текущим статусам дверей в объекте, без внутренней таблицы шахматки.</p>
+        </div>
+        <div className="report-scope">
+          <label>Объект<select value={objectId} onChange={(event) => { setObjectId(event.target.value); setBuildingId(""); }}><option value="">Все объекты</option>{objectOptions.map(([id, name]) => <option key={id} value={id}>{name}</option>)}</select></label>
+          <label>Корпус<select value={buildingId} onChange={(event) => setBuildingId(event.target.value)}><option value="">Все корпуса</option>{buildingOptions.map(([id, name]) => <option key={id} value={id}>{name}</option>)}</select></label>
+          <label>Группировка<select value={groupBy} onChange={(event) => setGroupBy(event.target.value)}><option value="object">По объекту</option><option value="building">По корпусу</option><option value="floor">По этажу</option></select></label>
+        </div>
+      </div>
+      <div className="matrix-stats">
+        <div><span>Всего дверей</span><strong>{metrics.total}</strong></div>
+        <div><span>Смонтировано</span><strong>{metrics.mounted}</strong></div>
+        <div><span>Передано по актам</span><strong>{metrics.custody}</strong></div>
+        <div><span>Принято ТН</span><strong>{metrics.accepted}</strong></div>
+        <div><span>Замечаний</span><strong>{metrics.issues}</strong></div>
+        <div><span>Готовность</span><strong>{metrics.readiness}%</strong></div>
+      </div>
+      <div className="report-groups">
+        {grouped.map(([name, groupRows]) => {
+          const groupMetrics = reportMetrics(groupRows);
+          return <div className="report-group" key={name}><div><strong>{name}</strong><span>{groupMetrics.total} дверей</span></div><div className="progress-bar"><span style={{ width: `${groupMetrics.readiness}%` }} /></div><b>{groupMetrics.readiness}%</b><span>Смонтировано: {groupMetrics.mounted}</span><span>Замечаний: {groupMetrics.issues}</span></div>;
+        })}
+      </div>
+    </section>
+  );
 }
 
 function StatusBadge({ value }) {
