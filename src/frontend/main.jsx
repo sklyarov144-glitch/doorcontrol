@@ -2,7 +2,7 @@ import React, { useMemo, useState } from "react";
 import { createRoot } from "react-dom/client";
 import matveevskyParkImage from "./assets/matveevsky-park.png";
 import workerMascot from "./assets/gross-worker-mascot.png";
-import { createDoorMatrix, getDoorMatrix, getProblems, getProblemStats, mergeDoorMatrixWithObjects, normalizeDoorMatrix, saveDoorMatrix } from "./storage";
+import { calculateTodayTasks, createDoorMatrix, getDoorMatrix, getProblems, getProblemStats, mergeDoorMatrixWithObjects, normalizeDoorMatrix, saveDoorMatrix, updateTaskStatus } from "./storage";
 import "./styles.css";
 
 const STORAGE_KEY = "gross-lean-montage.visual.mvp.v7";
@@ -593,6 +593,7 @@ function App() {
             />
           )}
           {screen === "documents" && <DocumentsPage />}
+          {screen === "today_tasks" && <TodayTasksPage objects={objects} user={user} users={users} onOpen={openProblem} />}
           {screen === "problem_center" && <ProblemCenterPage objects={objects} user={user} users={users} onOpen={openProblem} />}
           {screen === "reports" && <ReportsPage objects={objects} />}
           {screen === "company_dashboard" && <CompanyDashboard objects={objects} />}
@@ -694,10 +695,10 @@ function LoginPage({ onLogin, userPassword }) {
 
 function Sidebar({ role, activeScreen, setScreen, onLogout }) {
   const menus = {
-    creator: [["objects", "Мои объекты"], ["company_dashboard", "Дашборд"], ["problem_center", "Центр проблем"], ["documents", "Документы"], ["reports", "Отчёты"], ["users", "Пользователи"], ["admin", "Админ-панель"], ["profile", "Личный кабинет"]],
-    company_head: [["objects", "Мои объекты"], ["company_dashboard", "Дашборд"], ["problem_center", "Центр проблем"], ["documents", "Документы"], ["reports", "Отчёты"], ["users", "Пользователи"], ["admin", "Админ-панель"], ["profile", "Личный кабинет"]],
-    construction_director: [["objects", "Мои объекты"], ["company_dashboard", "Дашборд"], ["problem_center", "Центр проблем"], ["documents", "Документы"], ["reports", "Отчёты"], ["admin", "Админ-панель"], ["profile", "Личный кабинет"]],
-    itr: [["objects", "Мои объекты"], ["problem_center", "Центр проблем"], ["documents", "Документы"], ["reports", "Отчёты"], ["admin", "Админ-панель"], ["profile", "Личный кабинет"]],
+    creator: [["objects", "Мои объекты"], ["company_dashboard", "Дашборд"], ["today_tasks", "Задачи на сегодня"], ["problem_center", "Центр проблем"], ["documents", "Документы"], ["reports", "Отчёты"], ["users", "Пользователи"], ["admin", "Админ-панель"], ["profile", "Личный кабинет"]],
+    company_head: [["objects", "Мои объекты"], ["company_dashboard", "Дашборд"], ["today_tasks", "Задачи на сегодня"], ["problem_center", "Центр проблем"], ["documents", "Документы"], ["reports", "Отчёты"], ["users", "Пользователи"], ["admin", "Админ-панель"], ["profile", "Личный кабинет"]],
+    construction_director: [["objects", "Мои объекты"], ["company_dashboard", "Дашборд"], ["today_tasks", "Задачи на сегодня"], ["problem_center", "Центр проблем"], ["documents", "Документы"], ["reports", "Отчёты"], ["admin", "Админ-панель"], ["profile", "Личный кабинет"]],
+    itr: [["objects", "Мои объекты"], ["today_tasks", "Задачи на сегодня"], ["problem_center", "Центр проблем"], ["documents", "Документы"], ["reports", "Отчёты"], ["admin", "Админ-панель"], ["profile", "Личный кабинет"]],
   };
   const items = menus[role] ?? menus.itr;
 
@@ -751,6 +752,7 @@ function Header({ screen, setScreen, selectedObject, selectedBuilding, selectedF
     roles: "Роли и доступы",
     reports: "Отчёты",
     documents: "Документы",
+    today_tasks: "Задачи на сегодня",
     problem_center: "Центр проблем",
     company_dashboard: "Дашборд компании",
     itr_team: "Команда ИТР",
@@ -759,7 +761,7 @@ function Header({ screen, setScreen, selectedObject, selectedBuilding, selectedF
   return (
     <header className="page-header">
       <div>
-        {!(["admin", "profile", "companies", "users", "roles", "reports", "documents", "problem_center", "company_dashboard", "itr_team"].includes(screen)) && <div className="breadcrumbs">
+        {!(["admin", "profile", "companies", "users", "roles", "reports", "documents", "today_tasks", "problem_center", "company_dashboard", "itr_team"].includes(screen)) && <div className="breadcrumbs">
           <button onClick={() => setScreen("objects")}>Мои объекты</button>
           {screen !== "objects" && (
             <>
@@ -1548,6 +1550,105 @@ function canSeeProblemObject(problem, user) {
   if (user.role === "construction_director") return true;
   if (user.role === "itr") return !problem.responsible || problem.responsible === "Не назначен" || problem.responsible === user.id || problem.responsible === user.name;
   return false;
+}
+
+function canSeeTask(task, user) {
+  if (["creator", "company_head"].includes(user.role)) return true;
+  if (user.role === "construction_director") return true;
+  if (user.role === "itr") return !task.assignedTo || task.assignedTo === "Не назначен" || task.assignedTo === user.id || task.assignedTo === user.name;
+  return false;
+}
+
+function taskStatusLabel(status) {
+  return {
+    new: "Новая",
+    in_progress: "В работе",
+    done: "Выполнено",
+  }[status] ?? "Новая";
+}
+
+function TodayTasksPage({ objects, user, users, onOpen }) {
+  const [version, setVersion] = useState(0);
+  const userNames = new Map(users.map((item) => [item.id, item.name]));
+  const today = new Date().toISOString().slice(0, 10);
+  const tasks = calculateTodayTasks(objects)
+    .filter((task) => canSeeTask(task, user))
+    .map((task) => ({ ...task, assignedToName: userNames.get(task.assignedTo) ?? task.assignedTo }));
+  const urgentTasks = tasks.filter((task) => task.priority === "высокий" && task.status !== "done");
+  const stats = {
+    total: tasks.length,
+    urgent: urgentTasks.length,
+    today: tasks.filter((task) => task.dueDate <= today && task.status !== "done").length,
+    overdue: tasks.filter((task) => task.dueDate < today && task.status !== "done").length,
+    done: tasks.filter((task) => task.status === "done").length,
+  };
+  const sortedTasks = [...tasks].sort((a, b) => {
+    const statusWeight = { new: 0, in_progress: 1, done: 2 };
+    const priorityWeight = { высокий: 0, средний: 1, низкий: 2 };
+    return (statusWeight[a.status] ?? 0) - (statusWeight[b.status] ?? 0) || (priorityWeight[a.priority] ?? 2) - (priorityWeight[b.priority] ?? 2);
+  });
+  const changeStatus = (taskId, status) => {
+    updateTaskStatus(taskId, status);
+    setVersion((value) => value + 1);
+  };
+
+  return (
+    <section className="tasks-page" key={version}>
+      <div className="tasks-hero">
+        <div>
+          <span>Ежедневный список</span>
+          <h2>Задачи на сегодня</h2>
+          <p>Задачи формируются автоматически из проблем, статусов дверей, актов и замечаний. Выполненные действия сохраняются локально.</p>
+        </div>
+      </div>
+      <div className="tasks-summary">
+        <div><span>Всего задач</span><strong>{stats.total}</strong></div>
+        <div className="danger"><span>Срочные</span><strong>{stats.urgent}</strong></div>
+        <div><span>На сегодня</span><strong>{stats.today}</strong></div>
+        <div className="danger"><span>Просроченные</span><strong>{stats.overdue}</strong></div>
+        <div className="success"><span>Выполненные</span><strong>{stats.done}</strong></div>
+      </div>
+      {urgentTasks.length > 0 && (
+        <div className="urgent-task-strip">
+          <strong>Срочные задачи</strong>
+          <div>{urgentTasks.slice(0, 4).map((task) => <button key={task.id} onClick={() => onOpen(task)}>{task.title}<span>{task.object}</span></button>)}</div>
+        </div>
+      )}
+      <div className="tasks-table-card">
+        <table className="tasks-table">
+          <thead>
+            <tr>
+              <th>Приоритет</th>
+              <th>Задача</th>
+              <th>Объект</th>
+              <th>Корпус</th>
+              <th>Этаж</th>
+              <th>Дверь</th>
+              <th>Срок</th>
+              <th>Статус</th>
+              <th>Действие</th>
+            </tr>
+          </thead>
+          <tbody>
+            {sortedTasks.map((task) => (
+              <tr className={task.status === "done" ? "is-done" : ""} key={task.id}>
+                <td><span className={`priority-badge priority-${task.priority}`}>{task.priority}</span></td>
+                <td><strong>{task.title}</strong><small>{task.description}</small></td>
+                <td>{task.object}</td>
+                <td>{task.building}</td>
+                <td>{task.floor}</td>
+                <td>{task.door}</td>
+                <td>{task.dueDate}</td>
+                <td><span className={`task-status status-${task.status}`}>{taskStatusLabel(task.status)}</span></td>
+                <td><div className="task-actions"><button className="secondary-button slim" onClick={() => onOpen(task)}>Открыть</button><button className="secondary-button slim" disabled={task.status === "done"} onClick={() => changeStatus(task.id, "in_progress")}>В работу</button><button className="primary-button slim" disabled={task.status === "done"} onClick={() => changeStatus(task.id, "done")}>Выполнено</button></div></td>
+              </tr>
+            ))}
+          </tbody>
+        </table>
+        {sortedTasks.length === 0 && <div className="empty-plan">На сегодня задач нет.</div>}
+      </div>
+    </section>
+  );
 }
 
 function ProblemCenterPage({ objects, user, users, onOpen }) {

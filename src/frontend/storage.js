@@ -1,5 +1,6 @@
 const DOOR_MATRIX_KEY = "gross-lean-montage.door-matrix.v1";
 const MATRIX_DOCUMENTS_KEY = "gross-lean-montage.matrix-documents.v1";
+const TASKS_KEY = "gross-lean-montage.today-tasks.v1";
 const DEFAULT_MATRIX_DOCUMENTS = [
   { building: "Корпус 4.1", url: "https://disk.yandex.ru/" },
   { building: "Корпус 4.2", url: "https://disk.yandex.ru/" },
@@ -188,4 +189,84 @@ export function getProblems(objects) {
     documents = DEFAULT_MATRIX_DOCUMENTS;
   }
   return calculateDoorProblems(objects, Array.isArray(documents) ? documents : []);
+}
+
+function taskTypeFromProblem(problem) {
+  const map = {
+    "Смонтировано без акта ОХ": "Закрыть акт ОХ",
+    "Замечания ТН": "Проверить замечание ТН",
+    "Проёмы под риск": "Проверить проём",
+    "Просроченные двери": "Обновить статус двери",
+    "Нет документов": "Добавить документ",
+    "Нет ответственного": "Назначить ответственного",
+    "Зависшие статусы": "Проверить зависшую дверь",
+  };
+  return map[problem.type] ?? "Обновить статус двери";
+}
+
+function taskTitleFromProblem(problem) {
+  if (problem.type === "Замечания ТН" && problem.days > 5) return "Устранить замечание";
+  return taskTypeFromProblem(problem);
+}
+
+function toIsoDate(offsetDays = 0) {
+  const date = new Date();
+  date.setDate(date.getDate() + offsetDays);
+  return date.toISOString().slice(0, 10);
+}
+
+export function getTasks() {
+  try {
+    return JSON.parse(localStorage.getItem(TASKS_KEY)) ?? [];
+  } catch {
+    return [];
+  }
+}
+
+export function saveTasks(tasks) {
+  localStorage.setItem(TASKS_KEY, JSON.stringify(tasks));
+}
+
+export function calculateTodayTasks(objects) {
+  const saved = getTasks();
+  const savedById = new Map(saved.map((task) => [task.id, task]));
+  const problems = getProblems(objects);
+  const tasks = problems.map((problem) => {
+    const id = `task-${problem.id}`;
+    const savedTask = savedById.get(id);
+    const urgent = problem.priority === "высокий";
+    return {
+      id,
+      title: taskTitleFromProblem(problem),
+      description: `${problem.type}: ${problem.object} / ${problem.building} / ${problem.door}`,
+      type: taskTypeFromProblem(problem),
+      priority: problem.priority,
+      status: savedTask?.status ?? "new",
+      objectId: problem.objectId,
+      object: problem.object,
+      buildingId: problem.buildingId,
+      building: problem.building,
+      floorId: problem.floorId,
+      floor: problem.floor,
+      doorId: problem.doorId,
+      door: problem.door,
+      assignedTo: problem.responsible,
+      createdAt: savedTask?.createdAt ?? toIsoDate(-Math.max(0, Number(problem.days) || 0)),
+      dueDate: savedTask?.dueDate ?? toIsoDate(urgent ? 0 : 1),
+      problemId: problem.id,
+      days: problem.days,
+    };
+  });
+  const activeIds = new Set(tasks.map((task) => task.id));
+  const completed = saved.filter((task) => task.status === "done" && !activeIds.has(task.id));
+  const nextTasks = [...tasks, ...completed];
+  saveTasks(nextTasks);
+  return nextTasks;
+}
+
+export function updateTaskStatus(taskId, status) {
+  const tasks = getTasks();
+  const next = tasks.map((task) => task.id === taskId ? { ...task, status } : task);
+  saveTasks(next);
+  return next;
 }
