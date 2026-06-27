@@ -6,15 +6,21 @@ import {
   addTask,
   addTaskComment,
   addTaskLink,
+  addNotification,
   calculateTodayTasks,
   createDoorMatrix,
   getDoorMatrix,
+  getNotificationsByUser,
+  getUnreadNotificationsCount,
   getProblems,
   getProblemStats,
   getTasks,
+  markAllNotificationsRead,
+  markNotificationRead,
   mergeDoorMatrixWithObjects,
   normalizeDoorMatrix,
   saveDoorMatrix,
+  syncAutomaticTasksAndNotifications,
   updateTask,
   updateTaskStatus,
 } from "./storage";
@@ -43,7 +49,7 @@ const openingStatusOptions = [
 ];
 
 const issueOptions = ["нет", "есть замечание", "устранено"];
-const storageActOptions = ["не передана", "акт подготовлен", "передано по акту"];
+const storageActOptions = ["не передана", "акт подготовлен", "акт загружен", "передано по акту"];
 const matrixStatusOptions = ["Да", "Нет", "Не требуется"];
 const manualTaskTypes = [
   "Добавить акт АОХ",
@@ -76,6 +82,7 @@ const statusMeta = {
   устранено: { tone: "green", label: "устранено" },
   "не передана": { tone: "gray", label: "не передана" },
   "акт подготовлен": { tone: "blue", label: "акт подготовлен" },
+  "акт загружен": { tone: "teal", label: "акт загружен" },
 };
 
 const baseDoors = [
@@ -380,6 +387,8 @@ function App() {
   const [selectedDoorId, setSelectedDoorId] = useState("");
   const [taskVersion, setTaskVersion] = useState(0);
   const [taskContext, setTaskContext] = useState(null);
+  const [notificationVersion, setNotificationVersion] = useState(0);
+  const [actNotificationTask, setActNotificationTask] = useState(null);
 
   const selectedObject = useMemo(
     () => objects.find((object) => object.id === selectedObjectId) ?? objects[0],
@@ -406,29 +415,117 @@ function App() {
   );
 
   const manualTasks = useMemo(() => getTasks(), [taskVersion]);
+  const notifications = useMemo(() => getNotificationsByUser(user), [notificationVersion, user]);
+  const unreadNotifications = useMemo(() => getUnreadNotificationsCount(user), [notificationVersion, user]);
   const taskNoticeCount = useMemo(() => getManualTaskNoticeCount(manualTasks, user), [manualTasks, user]);
   const canCreateManualTask = ["creator", "company_head", "construction_director"].includes(user.role);
   const refreshManualTasks = () => setTaskVersion((value) => value + 1);
+  const refreshNotifications = () => setNotificationVersion((value) => value + 1);
+  const syncAutomation = (sourceObjects = objects) => {
+    const created = syncAutomaticTasksAndNotifications(sourceObjects, users);
+    const today = new Date().toISOString().slice(0, 10);
+    getTasks()
+      .filter((task) => task.dueDate && task.dueDate < today && !["выполнена", "отменена"].includes(task.status))
+      .forEach((task) => {
+        addNotification({
+          type: "задача просрочена",
+          title: "Задача просрочена",
+          message: task.title,
+          priority: task.priority === "высокий" ? "высокий" : "средний",
+          userId: task.assignedTo,
+          roleTarget: task.priority === "высокий" ? "company_head" : "",
+          objectId: task.objectId,
+          buildingId: task.buildingId,
+          floorId: task.floorId,
+          doorId: task.doorId,
+          taskId: task.id,
+        });
+      });
+    if (created.length > 0) {
+      refreshManualTasks();
+    }
+    refreshNotifications();
+  };
   const openTaskModal = (context = {}) => {
     if (!canCreateManualTask) return;
     setTaskContext(context);
   };
 
   const createManualTask = (task) => {
-    addTask({ ...task, createdBy: user.id });
+    const created = addTask({ ...task, createdBy: user.id });
+    addNotification({
+      type: "руководитель поставил задачу",
+      title: "Новая задача",
+      message: created.title,
+      priority: created.priority,
+      userId: created.assignedTo,
+      objectId: created.objectId,
+      buildingId: created.buildingId,
+      floorId: created.floorId,
+      doorId: created.doorId,
+      taskId: created.id,
+    });
     refreshManualTasks();
+    refreshNotifications();
     setTaskContext(null);
   };
 
   const changeManualTask = (taskId, values) => {
+    const currentTask = manualTasks.find((task) => task.id === taskId);
     updateTask(taskId, { ...values, updatedBy: user.id });
+    if (values.status === "выполнена" && currentTask?.createdBy && currentTask.createdBy !== "system") {
+      addNotification({
+        type: "ИТР выполнил задачу",
+        title: "Задача выполнена",
+        message: currentTask.title,
+        priority: currentTask.priority,
+        userId: currentTask.createdBy,
+        objectId: currentTask.objectId,
+        buildingId: currentTask.buildingId,
+        floorId: currentTask.floorId,
+        doorId: currentTask.doorId,
+        taskId,
+      });
+    }
+    if (values.status === "выполнена" && currentTask?.createdBy === "system") {
+      addNotification({
+        type: "ИТР выполнил задачу",
+        title: "Автозадача выполнена",
+        message: currentTask.title,
+        priority: currentTask.priority,
+        userId: currentTask.directorId ?? "",
+        roleTarget: "construction_director",
+        objectId: currentTask.objectId,
+        buildingId: currentTask.buildingId,
+        floorId: currentTask.floorId,
+        doorId: currentTask.doorId,
+        taskId,
+      });
+    }
     refreshManualTasks();
+    refreshNotifications();
   };
 
   const commentManualTask = (taskId, text) => {
     if (!text.trim()) return;
     addTaskComment(taskId, { userId: user.id, userName: user.name, text: text.trim() });
+    const task = manualTasks.find((item) => item.id === taskId);
+    if (task?.createdBy && task.createdBy !== user.id && task.createdBy !== "system") {
+      addNotification({
+        type: "добавлен комментарий к задаче",
+        title: "Комментарий к задаче",
+        message: `${user.name}: ${text.trim()}`,
+        priority: task.priority,
+        userId: task.createdBy,
+        objectId: task.objectId,
+        buildingId: task.buildingId,
+        floorId: task.floorId,
+        doorId: task.doorId,
+        taskId,
+      });
+    }
     refreshManualTasks();
+    refreshNotifications();
   };
 
   const linkManualTask = (task, link) => {
@@ -445,16 +542,62 @@ function App() {
           doorStatus: currentDoor.doorStatus,
           openingStatus: currentDoor.openingStatus,
           issue: currentDoor.issue,
-          storageAct: savedLink.category === "акт АОХ" ? "акт подготовлен" : currentDoor.storageAct,
+          storageAct: savedLink.category === "акт АОХ" ? "акт загружен" : currentDoor.storageAct,
           custodyActUrl: savedLink.category === "акт АОХ" ? savedLink.url : currentDoor.custodyActUrl,
+          custodyActUploadedAt: savedLink.category === "акт АОХ" ? new Date().toISOString().slice(0, 10) : currentDoor.custodyActUploadedAt,
           documentLinks: [savedLink, ...(currentDoor.documentLinks ?? [])],
         });
       }
     }
     refreshManualTasks();
+    refreshNotifications();
+  };
+
+  const completeAutomaticTask = (taskId) => {
+    if (!taskId) return;
+    updateTask(taskId, { status: "выполнена", updatedBy: user.id });
+    const task = manualTasks.find((item) => item.id === taskId);
+    if (task?.directorId || task?.createdBy === "system") {
+      addNotification({
+        type: "ИТР выполнил задачу",
+        title: "Автозадача выполнена",
+        message: task.title,
+        priority: task.priority,
+        userId: task.directorId ?? "",
+        roleTarget: "construction_director",
+        objectId: task.objectId,
+        buildingId: task.buildingId,
+        floorId: task.floorId,
+        doorId: task.doorId,
+        taskId: task.id,
+      });
+    }
+    refreshManualTasks();
+    refreshNotifications();
+  };
+
+  const quickAcceptTn = (notification) => {
+    if (!notification.doorId) return;
+    const currentDoor = objects
+      .flatMap((object) => object.buildings)
+      .flatMap((building) => building.floors)
+      .flatMap((floor) => floor.doors)
+      .find((door) => door.id === notification.doorId);
+    if (!currentDoor) return;
+    updateDoor(notification.doorId, {
+      doorStatus: "принято технадзором",
+      openingStatus: currentDoor.openingStatus,
+      issue: currentDoor.issue,
+      storageAct: currentDoor.storageAct,
+      tnAcceptedAt: new Date().toISOString().slice(0, 10),
+    });
+    completeAutomaticTask(notification.taskId);
+    markNotificationRead(notification.id);
+    refreshNotifications();
   };
 
   const updateDoor = (doorId, values) => {
+    const today = new Date().toISOString().slice(0, 10);
     const effectiveValues = {
       ...values,
       doorStatus: values.acceptedTN === "Да" ? "принято технадзором" : values.installed === "Да" && values.doorStatus === "не начато" ? "смонтирована" : values.doorStatus,
@@ -491,6 +634,10 @@ function App() {
             return {
               ...door,
               ...effectiveValues,
+              mountedAt: effectiveValues.doorStatus === "смонтирована" && !door.mountedAt ? today : effectiveValues.mountedAt ?? door.mountedAt,
+              tnAcceptedAt: effectiveValues.doorStatus === "принято технадзором" && !door.tnAcceptedAt ? today : effectiveValues.tnAcceptedAt ?? door.tnAcceptedAt,
+              custodyActUploadedAt: (effectiveValues.storageAct === "акт загружен" || effectiveValues.custodyActUrl) && !door.custodyActUploadedAt ? today : effectiveValues.custodyActUploadedAt ?? door.custodyActUploadedAt,
+              custodyActClosedAt: effectiveValues.storageAct === "передано по акту" && !door.custodyActClosedAt ? today : effectiveValues.custodyActClosedAt ?? door.custodyActClosedAt,
               history:
                 changed.length > 0
                   ? [
@@ -514,6 +661,7 @@ function App() {
     const nextMatrix = normalizeDoorMatrix(doorMatrix.map((row) => row.doorId !== doorId ? row : { ...row, ...matrixPatchFromDoor(effectiveValues) }));
     setDoorMatrix(nextMatrix);
     saveDoorMatrix(nextMatrix);
+    syncAutomation(nextObjects);
   };
 
   const updateMatrixCell = (rowId, field, value) => {
@@ -614,6 +762,8 @@ function App() {
       issue: currentDoor.issue,
       storageAct: values.storageAct ?? currentDoor.storageAct,
       custodyActUrl: values.custodyActUrl ?? currentDoor.custodyActUrl ?? "",
+      custodyActUploadedAt: values.custodyActUrl ? new Date().toISOString().slice(0, 10) : currentDoor.custodyActUploadedAt,
+      custodyActClosedAt: values.storageAct === "передано по акту" ? new Date().toISOString().slice(0, 10) : currentDoor.custodyActClosedAt,
     });
   };
 
@@ -639,6 +789,18 @@ function App() {
     setScreen("object");
   };
 
+  React.useEffect(() => {
+    if (isLoggedIn) {
+      syncAutomation(objects);
+    }
+  }, [isLoggedIn]);
+
+  React.useEffect(() => {
+    if (isLoggedIn && ["tasks", "today_tasks", "problem_center", "custody_acts"].includes(screen)) {
+      syncAutomation(objects);
+    }
+  }, [screen]);
+
   const navigate = (nextScreen) => {
     setScreen(nextScreen);
   };
@@ -660,6 +822,26 @@ function App() {
           selectedDoor={selectedDoor}
           user={user}
           users={users}
+          notifications={notifications}
+          unreadNotifications={unreadNotifications}
+          onOpenNotification={(notification) => {
+            markNotificationRead(notification.id);
+            refreshNotifications();
+            if (notification.taskId) {
+              setScreen("tasks");
+              return;
+            }
+            openProblem(notification);
+          }}
+          onMarkNotificationRead={(id) => {
+            markNotificationRead(id);
+            refreshNotifications();
+          }}
+          onMarkAllNotificationsRead={() => {
+            markAllNotificationsRead(user);
+            refreshNotifications();
+          }}
+          onOpenNotificationsPage={() => setScreen("notifications")}
           onUserChange={(userId) => {
             setCurrentUserId(userId);
             localStorage.setItem(CURRENT_USER_KEY, userId);
@@ -689,6 +871,31 @@ function App() {
             />
           )}
           {screen === "documents" && <DocumentsPage />}
+          {screen === "notifications" && (
+            <NotificationsPage
+              notifications={notifications}
+              onOpen={(notification) => {
+                markNotificationRead(notification.id);
+                refreshNotifications();
+                notification.taskId ? setScreen("tasks") : openProblem(notification);
+              }}
+              onMarkRead={(id) => {
+                markNotificationRead(id);
+                refreshNotifications();
+              }}
+              onMarkAll={() => {
+                markAllNotificationsRead(user);
+                refreshNotifications();
+              }}
+              onQuickAct={(notification) => {
+                const task = manualTasks.find((item) => item.id === notification.taskId);
+                if (task) setActNotificationTask({ task, notificationId: notification.id });
+              }}
+              onQuickTn={(notification) => {
+                quickAcceptTn(notification);
+              }}
+            />
+          )}
           {screen === "tasks" && (
             <ManualTasksPage
               tasks={manualTasks}
@@ -756,6 +963,20 @@ function App() {
           users={users}
           onClose={() => setTaskContext(null)}
           onCreate={createManualTask}
+        />
+      )}
+      {actNotificationTask && (
+        <TaskLinkModal
+          task={actNotificationTask.task}
+          defaultCategory="акт АОХ"
+          onClose={() => setActNotificationTask(null)}
+          onSave={(link) => {
+            linkManualTask(actNotificationTask.task, { ...link, category: "акт АОХ" });
+            completeAutomaticTask(actNotificationTask.task.id);
+            markNotificationRead(actNotificationTask.notificationId);
+            refreshNotifications();
+            setActNotificationTask(null);
+          }}
         />
       )}
     </div>
@@ -866,7 +1087,23 @@ function BrandMark({ variant = "default" }) {
   );
 }
 
-function Header({ screen, setScreen, selectedObject, selectedBuilding, selectedFloor, selectedDoor, user, users, onUserChange }) {
+function Header({
+  screen,
+  setScreen,
+  selectedObject,
+  selectedBuilding,
+  selectedFloor,
+  selectedDoor,
+  user,
+  users,
+  notifications,
+  unreadNotifications,
+  onOpenNotification,
+  onMarkNotificationRead,
+  onMarkAllNotificationsRead,
+  onOpenNotificationsPage,
+  onUserChange,
+}) {
   const labels = {
     objects: "Мои объекты",
     object: "Корпуса объекта",
@@ -881,6 +1118,7 @@ function Header({ screen, setScreen, selectedObject, selectedBuilding, selectedF
     reports: "Отчёты",
     documents: "Документы",
     tasks: "Задачи",
+    notifications: "Уведомления",
     today_tasks: "Задачи на сегодня",
     problem_center: "Центр проблем",
     custody_acts: "Акты ОХ",
@@ -891,7 +1129,7 @@ function Header({ screen, setScreen, selectedObject, selectedBuilding, selectedF
   return (
     <header className="page-header">
       <div>
-        {!(["admin", "profile", "companies", "users", "roles", "reports", "documents", "tasks", "today_tasks", "problem_center", "custody_acts", "company_dashboard", "itr_team"].includes(screen)) && <div className="breadcrumbs">
+        {!(["admin", "profile", "companies", "users", "roles", "reports", "documents", "tasks", "notifications", "today_tasks", "problem_center", "custody_acts", "company_dashboard", "itr_team"].includes(screen)) && <div className="breadcrumbs">
           <button onClick={() => setScreen("objects")}>Мои объекты</button>
           {screen !== "objects" && (
             <>
@@ -923,10 +1161,52 @@ function Header({ screen, setScreen, selectedObject, selectedBuilding, selectedF
         <h1>{labels[screen]}</h1>
       </div>
       <div className="header-user-control">
+        <NotificationBell
+          notifications={notifications}
+          unreadCount={unreadNotifications}
+          onOpen={onOpenNotification}
+          onMarkRead={onMarkNotificationRead}
+          onMarkAll={onMarkAllNotificationsRead}
+          onOpenPage={onOpenNotificationsPage}
+        />
         <div className="user-chip"><strong>{user.name}</strong><span>{roleLabels[user.role]}</span></div>
         <select aria-label="Текущий пользователь" value={user.id} onChange={(event) => onUserChange(event.target.value)}>{users.map((item) => <option key={item.id} value={item.id}>{item.name} — {roleLabels[item.role]}</option>)}</select>
       </div>
     </header>
+  );
+}
+
+function NotificationBell({ notifications, unreadCount, onOpen, onMarkRead, onMarkAll, onOpenPage }) {
+  const [open, setOpen] = useState(false);
+  const latest = [...notifications].sort((a, b) => new Date(b.createdAt) - new Date(a.createdAt)).slice(0, 6);
+  return (
+    <div className="notification-shell">
+      <button className="notification-bell" type="button" onClick={() => setOpen((value) => !value)} aria-label="Уведомления">
+        <span>⌁</span>
+        {unreadCount > 0 && <em>{unreadCount}</em>}
+      </button>
+      {open && (
+        <div className="notification-dropdown">
+          <div className="notification-dropdown-head">
+            <strong>Уведомления</strong>
+            <button type="button" onClick={onMarkAll}>Все прочитаны</button>
+          </div>
+          <div className="notification-list">
+            {latest.map((item) => (
+              <article className={`notification-item ${item.status} priority-${item.priority}`} key={item.id}>
+                <div><strong>{item.title}</strong><span>{item.message}</span><small>{new Date(item.createdAt).toLocaleString("ru-RU")}</small></div>
+                <div className="notification-actions">
+                  <button type="button" onClick={() => onOpen(item)}>Открыть</button>
+                  {item.status === "unread" && <button type="button" onClick={() => onMarkRead(item.id)}>Прочитано</button>}
+                </div>
+              </article>
+            ))}
+            {latest.length === 0 && <div className="empty-plan">Уведомлений нет.</div>}
+          </div>
+          <button className="notification-page-link" type="button" onClick={() => { setOpen(false); onOpenPage(); }}>Открыть все уведомления</button>
+        </div>
+      )}
+    </div>
   );
 }
 
@@ -2122,8 +2402,8 @@ function TaskCommentModal({ task, onClose, onSave }) {
   );
 }
 
-function TaskLinkModal({ task, onClose, onSave }) {
-  const [form, setForm] = useState({ title: "", url: "", category: "документ", comment: "" });
+function TaskLinkModal({ task, defaultCategory = "документ", onClose, onSave }) {
+  const [form, setForm] = useState({ title: defaultCategory === "акт АОХ" ? "Акт АОХ" : "", url: "", category: defaultCategory, comment: "" });
   const update = (field, value) => setForm((current) => ({ ...current, [field]: value }));
   return (
     <div className="modal-backdrop">
@@ -2136,6 +2416,68 @@ function TaskLinkModal({ task, onClose, onSave }) {
         <div className="form-actions"><button className="secondary-button" type="button" onClick={onClose}>Отмена</button><button className="primary-button">Сохранить ссылку</button></div>
       </form>
     </div>
+  );
+}
+
+function NotificationsPage({ notifications, onOpen, onMarkRead, onMarkAll, onQuickAct, onQuickTn }) {
+  const [filter, setFilter] = useState("all");
+  const [search, setSearch] = useState("");
+  const priorityWeight = { высокий: 0, средний: 1, низкий: 2 };
+  const filtered = notifications
+    .filter((item) => {
+      const haystack = `${item.title} ${item.message}`.toLowerCase();
+      const matchesSearch = !search.trim() || haystack.includes(search.trim().toLowerCase());
+      if (!matchesSearch) return false;
+      if (filter === "unread") return item.status === "unread";
+      if (filter === "overdue") return item.type.includes("просроч") || item.priority === "высокий";
+      if (filter === "tasks") return item.taskId || item.type.includes("задач");
+      if (filter === "acts") return item.type.includes("АОХ") || item.title.includes("АОХ") || item.message.includes("акт");
+      if (filter === "tn") return item.type.includes("ТН") || item.title.includes("ТН");
+      return true;
+    })
+    .sort((a, b) => (priorityWeight[a.priority] ?? 2) - (priorityWeight[b.priority] ?? 2) || new Date(b.createdAt) - new Date(a.createdAt));
+
+  return (
+    <section className="notifications-page">
+      <div className="tasks-hero">
+        <div>
+          <span>Центр уведомлений</span>
+          <h2>Уведомления</h2>
+          <p>Автоматические просрочки, новые задачи, комментарии и быстрые действия по ТН и актам АОХ.</p>
+        </div>
+        <button className="secondary-button" onClick={onMarkAll}>Отметить все как прочитанные</button>
+      </div>
+      <div className="notification-filters">
+        {[
+          ["all", "Все"],
+          ["unread", "Непрочитанные"],
+          ["overdue", "Просроченные"],
+          ["tasks", "Задачи"],
+          ["acts", "Акты"],
+          ["tn", "ТН"],
+        ].map(([id, label]) => <button key={id} className={filter === id ? "active" : ""} onClick={() => setFilter(id)}>{label}</button>)}
+        <input value={search} onChange={(event) => setSearch(event.target.value)} placeholder="Поиск по объекту / корпусу" />
+      </div>
+      <div className="notifications-grid">
+        {filtered.map((item) => (
+          <article className={`notification-card ${item.status} priority-${item.priority}`} key={item.id}>
+            <div className="notification-card-head">
+              <span className={`priority-badge priority-${item.priority}`}>{item.priority}</span>
+              <small>{new Date(item.createdAt).toLocaleString("ru-RU")}</small>
+            </div>
+            <h3>{item.title}</h3>
+            <p>{item.message}</p>
+            <div className="manual-task-actions">
+              <button className="secondary-button slim" onClick={() => onOpen(item)}>Открыть</button>
+              {item.status === "unread" && <button className="secondary-button slim" onClick={() => onMarkRead(item.id)}>Прочитано</button>}
+              {(item.type.includes("АОХ") || item.title.includes("АОХ")) && item.doorId && <button className="primary-button slim" onClick={() => onQuickAct(item)}>Добавить акт</button>}
+              {(item.type.includes("ТН") || item.title.includes("ТН")) && item.doorId && <button className="primary-button slim" onClick={() => onQuickTn(item)}>Передано ТН</button>}
+            </div>
+          </article>
+        ))}
+      </div>
+      {filtered.length === 0 && <div className="empty-plan">Уведомлений по выбранному фильтру нет.</div>}
+    </section>
   );
 }
 

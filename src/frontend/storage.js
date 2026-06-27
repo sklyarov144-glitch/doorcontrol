@@ -2,6 +2,7 @@ const DOOR_MATRIX_KEY = "gross-lean-montage.door-matrix.v1";
 const MATRIX_DOCUMENTS_KEY = "gross-lean-montage.matrix-documents.v1";
 const TODAY_TASKS_KEY = "gross-lean-montage.today-tasks.v1";
 const MANUAL_TASKS_KEY = "gross-lean-montage.manual-tasks.v1";
+const NOTIFICATIONS_KEY = "gross-lean-montage.notifications.v1";
 const DEFAULT_MATRIX_DOCUMENTS = [
   { building: "Корпус 4.1", url: "https://disk.yandex.ru/" },
   { building: "Корпус 4.2", url: "https://disk.yandex.ru/" },
@@ -216,6 +217,17 @@ function toIsoDate(offsetDays = 0) {
   return date.toISOString().slice(0, 10);
 }
 
+function daysBetween(fromIso, toDate = new Date()) {
+  if (!fromIso) return 0;
+  const from = new Date(fromIso);
+  if (Number.isNaN(from.getTime())) return 0;
+  return Math.floor((toDate.setHours(0, 0, 0, 0) - from.setHours(0, 0, 0, 0)) / 86400000);
+}
+
+function todayIso() {
+  return new Date().toISOString().slice(0, 10);
+}
+
 function getTodayTaskState() {
   try {
     return JSON.parse(localStorage.getItem(TODAY_TASKS_KEY)) ?? [];
@@ -304,6 +316,9 @@ export function addTask(task) {
     updatedAt: now,
     comments: task.comments ?? [],
     documentLinks: task.documentLinks ?? [],
+    automatic: task.automatic ?? false,
+    automaticKey: task.automaticKey ?? "",
+    directorId: task.directorId ?? "",
     history: task.history ?? [{ id: `history-${Date.now()}`, text: "Задача создана", at: now, userId: task.createdBy ?? "" }],
   };
   const tasks = getTasks();
@@ -388,4 +403,206 @@ export function addTaskLink(taskId, link) {
   } : task);
   saveTasks(next);
   return prepared;
+}
+
+export function getNotifications() {
+  try {
+    return JSON.parse(localStorage.getItem(NOTIFICATIONS_KEY)) ?? [];
+  } catch {
+    return [];
+  }
+}
+
+export function saveNotifications(notifications) {
+  localStorage.setItem(NOTIFICATIONS_KEY, JSON.stringify(notifications));
+}
+
+export function addNotification(notification) {
+  const now = new Date().toISOString();
+  const prepared = {
+    id: notification.id ?? `notification-${Date.now()}-${Math.random().toString(16).slice(2)}`,
+    type: notification.type ?? "новая задача",
+    title: notification.title ?? "Уведомление",
+    message: notification.message ?? "",
+    priority: notification.priority ?? "средний",
+    status: notification.status ?? "unread",
+    createdAt: notification.createdAt ?? now,
+    userId: notification.userId ?? "",
+    roleTarget: notification.roleTarget ?? "",
+    objectId: notification.objectId ?? "",
+    buildingId: notification.buildingId ?? "",
+    floorId: notification.floorId ?? "",
+    doorId: notification.doorId ?? "",
+    taskId: notification.taskId ?? "",
+    actionUrl: notification.actionUrl ?? "",
+  };
+  const exists = getNotifications().some((item) =>
+    item.type === prepared.type &&
+    item.userId === prepared.userId &&
+    item.taskId === prepared.taskId &&
+    item.doorId === prepared.doorId &&
+    item.status === "unread"
+  );
+  if (exists) return prepared;
+  const next = [prepared, ...getNotifications()];
+  saveNotifications(next);
+  return prepared;
+}
+
+export function markNotificationRead(notificationId) {
+  const next = getNotifications().map((item) => item.id === notificationId ? { ...item, status: "read" } : item);
+  saveNotifications(next);
+  return next;
+}
+
+export function markAllNotificationsRead(user) {
+  const next = getNotifications().map((item) => canNotificationReachUser(item, user) ? { ...item, status: "read" } : item);
+  saveNotifications(next);
+  return next;
+}
+
+function canNotificationReachUser(notification, user) {
+  if (!user) return false;
+  if (user.role === "creator") return true;
+  if (notification.userId && notification.userId === user.id) return true;
+  if (notification.roleTarget && notification.roleTarget === user.role) return true;
+  if (user.role === "company_head" && notification.priority === "высокий") return true;
+  return false;
+}
+
+export function getNotificationsByUser(user) {
+  return getNotifications().filter((item) => canNotificationReachUser(item, user));
+}
+
+export function getUnreadNotificationsCount(user) {
+  return getNotificationsByUser(user).filter((item) => item.status === "unread").length;
+}
+
+function taskAssigneeForDoor(object, door, users) {
+  if (door.assignedUserId) return door.assignedUserId;
+  const objectResponsible = users.find((user) => user.id === object.responsibleId);
+  if (objectResponsible?.role === "itr") return objectResponsible.id;
+  return users.find((user) => user.role === "itr")?.id ?? "";
+}
+
+function objectDirectorId(object, users) {
+  if (object.responsibleId) return object.responsibleId;
+  return users.find((user) => user.role === "construction_director")?.id ?? users.find((user) => user.role === "company_head")?.id ?? "";
+}
+
+export function calculateOverdueDoorTasks(objects, users = []) {
+  const tasks = [];
+  objects.forEach((object) => {
+    object.buildings.forEach((building) => {
+      building.floors.filter((floor) => floor.type === "floor").forEach((floor) => {
+        floor.doors.forEach((door) => {
+          const mounted = door.doorStatus === "смонтирована" || door.mountedAt;
+          if (!mounted) return;
+          const mountedAt = door.mountedAt ?? todayIso();
+          const mountedDays = daysBetween(mountedAt);
+          const assignedTo = taskAssigneeForDoor(object, door, users);
+          const common = {
+            priority: "высокий",
+            status: "новая",
+            createdBy: "system",
+            assignedTo,
+            objectId: object.id,
+            buildingId: building.id,
+            floorId: floor.id,
+            doorId: door.id,
+            automatic: true,
+          };
+          if (mountedDays > 2 && door.doorStatus !== "принято технадзором" && !door.tnAcceptedAt) {
+            tasks.push({
+              ...common,
+              id: `auto-tn-${door.id}-${mountedAt}`,
+              automaticKey: `auto-tn-${door.id}`,
+              title: "Передать дверь ТН",
+              type: "Проверить замечание ТН",
+              description: `${object.name} / ${building.name} / этаж ${floor.number} / ${door.number}: дверь смонтирована ${mountedDays} дн. назад, ТН не принят.`,
+              dueDate: todayIso(),
+              days: mountedDays,
+              directorId: objectDirectorId(object, users),
+            });
+          }
+          const actClosed = ["акт загружен", "передано по акту", "закрыто"].includes(door.storageAct) || door.custodyActUploadedAt || door.custodyActClosedAt;
+          if (mountedDays > 3 && !actClosed) {
+            tasks.push({
+              ...common,
+              id: `auto-act-${door.id}-${mountedAt}`,
+              automaticKey: `auto-act-${door.id}`,
+              title: "Добавить акт АОХ",
+              type: "Добавить акт АОХ",
+              description: `${object.name} / ${building.name} / этаж ${floor.number} / ${door.number}: акт АОХ не загружен ${mountedDays} дн. после монтажа.`,
+              dueDate: todayIso(),
+              days: mountedDays,
+              directorId: objectDirectorId(object, users),
+            });
+          }
+        });
+      });
+    });
+  });
+  return tasks;
+}
+
+export function createAutomaticTaskIfNeeded(task) {
+  const tasks = getTasks();
+  const hasActiveDuplicate = tasks.some((item) =>
+    item.automaticKey === task.automaticKey &&
+    item.doorId === task.doorId &&
+    !["выполнена", "отменена"].includes(item.status)
+  );
+  if (hasActiveDuplicate) return null;
+  return addTask(task);
+}
+
+export function syncAutomaticTasksAndNotifications(objects, users = []) {
+  const candidates = calculateOverdueDoorTasks(objects, users);
+  const created = [];
+  candidates.forEach((candidate) => {
+    const task = createAutomaticTaskIfNeeded(candidate);
+    if (!task) return;
+    created.push(task);
+    addNotification({
+      type: candidate.title === "Передать дверь ТН" ? "дверь не передана ТН в срок" : "акт АОХ не загружен в срок",
+      title: candidate.title,
+      message: candidate.description,
+      priority: "высокий",
+      userId: task.assignedTo,
+      objectId: task.objectId,
+      buildingId: task.buildingId,
+      floorId: task.floorId,
+      doorId: task.doorId,
+      taskId: task.id,
+    });
+    if (candidate.directorId && candidate.directorId !== task.assignedTo) {
+      addNotification({
+        type: "новая задача",
+        title: `Автозадача: ${candidate.title}`,
+        message: candidate.description,
+        priority: "высокий",
+        userId: candidate.directorId,
+        roleTarget: "construction_director",
+        objectId: task.objectId,
+        buildingId: task.buildingId,
+        floorId: task.floorId,
+        doorId: task.doorId,
+        taskId: task.id,
+      });
+    }
+    addNotification({
+      type: "задача просрочена",
+      title: `Высокая просрочка: ${candidate.title}`,
+      message: candidate.description,
+      priority: "высокий",
+      roleTarget: "company_head",
+      objectId: task.objectId,
+      buildingId: task.buildingId,
+      floorId: task.floorId,
+      doorId: task.doorId,
+      taskId: task.id,
+    });
+  });
+  return created;
 }
