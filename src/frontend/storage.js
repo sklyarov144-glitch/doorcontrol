@@ -1,6 +1,7 @@
 const DOOR_MATRIX_KEY = "gross-lean-montage.door-matrix.v1";
 const MATRIX_DOCUMENTS_KEY = "gross-lean-montage.matrix-documents.v1";
-const TASKS_KEY = "gross-lean-montage.today-tasks.v1";
+const TODAY_TASKS_KEY = "gross-lean-montage.today-tasks.v1";
+const MANUAL_TASKS_KEY = "gross-lean-montage.manual-tasks.v1";
 const DEFAULT_MATRIX_DOCUMENTS = [
   { building: "Корпус 4.1", url: "https://disk.yandex.ru/" },
   { building: "Корпус 4.2", url: "https://disk.yandex.ru/" },
@@ -215,20 +216,20 @@ function toIsoDate(offsetDays = 0) {
   return date.toISOString().slice(0, 10);
 }
 
-export function getTasks() {
+function getTodayTaskState() {
   try {
-    return JSON.parse(localStorage.getItem(TASKS_KEY)) ?? [];
+    return JSON.parse(localStorage.getItem(TODAY_TASKS_KEY)) ?? [];
   } catch {
     return [];
   }
 }
 
-export function saveTasks(tasks) {
-  localStorage.setItem(TASKS_KEY, JSON.stringify(tasks));
+function saveTodayTaskState(tasks) {
+  localStorage.setItem(TODAY_TASKS_KEY, JSON.stringify(tasks));
 }
 
 export function calculateTodayTasks(objects) {
-  const saved = getTasks();
+  const saved = getTodayTaskState();
   const savedById = new Map(saved.map((task) => [task.id, task]));
   const problems = getProblems(objects);
   const tasks = problems.map((problem) => {
@@ -260,13 +261,131 @@ export function calculateTodayTasks(objects) {
   const activeIds = new Set(tasks.map((task) => task.id));
   const completed = saved.filter((task) => task.status === "done" && !activeIds.has(task.id));
   const nextTasks = [...tasks, ...completed];
-  saveTasks(nextTasks);
+  saveTodayTaskState(nextTasks);
   return nextTasks;
 }
 
 export function updateTaskStatus(taskId, status) {
-  const tasks = getTasks();
+  const tasks = getTodayTaskState();
   const next = tasks.map((task) => task.id === taskId ? { ...task, status } : task);
+  saveTodayTaskState(next);
+  return next;
+}
+
+export function getTasks() {
+  try {
+    return JSON.parse(localStorage.getItem(MANUAL_TASKS_KEY)) ?? [];
+  } catch {
+    return [];
+  }
+}
+
+export function saveTasks(tasks) {
+  localStorage.setItem(MANUAL_TASKS_KEY, JSON.stringify(tasks));
+}
+
+export function addTask(task) {
+  const now = new Date().toISOString();
+  const nextTask = {
+    id: task.id ?? `manual-task-${Date.now()}`,
+    title: task.title ?? "Новая задача",
+    description: task.description ?? "",
+    type: task.type ?? "Другое",
+    priority: task.priority ?? "средний",
+    status: task.status ?? "новая",
+    createdBy: task.createdBy ?? "",
+    assignedTo: task.assignedTo ?? "",
+    objectId: task.objectId ?? "",
+    buildingId: task.buildingId ?? "",
+    floorId: task.floorId ?? "",
+    doorId: task.doorId ?? "",
+    dueDate: task.dueDate ?? toIsoDate(1),
+    createdAt: task.createdAt ?? now,
+    updatedAt: now,
+    comments: task.comments ?? [],
+    documentLinks: task.documentLinks ?? [],
+    history: task.history ?? [{ id: `history-${Date.now()}`, text: "Задача создана", at: now, userId: task.createdBy ?? "" }],
+  };
+  const tasks = getTasks();
+  const next = [nextTask, ...tasks];
+  saveTasks(next);
+  return nextTask;
+}
+
+export function updateTask(taskId, values) {
+  const now = new Date().toISOString();
+  const tasks = getTasks();
+  const next = tasks.map((task) => task.id === taskId ? {
+    ...task,
+    ...values,
+    updatedAt: now,
+    history: values.history ?? [
+      { id: `history-${Date.now()}`, text: values.status ? `Статус изменён: ${values.status}` : "Задача обновлена", at: now, userId: values.updatedBy ?? "" },
+      ...(task.history ?? []),
+    ],
+  } : task);
   saveTasks(next);
   return next;
+}
+
+export function deleteTask(taskId) {
+  const next = getTasks().filter((task) => task.id !== taskId);
+  saveTasks(next);
+  return next;
+}
+
+export function getTasksByUser(userId) {
+  return getTasks().filter((task) => task.assignedTo === userId || task.createdBy === userId);
+}
+
+export function getTasksByObject(objectId) {
+  return getTasks().filter((task) => task.objectId === objectId);
+}
+
+export function addTaskComment(taskId, comment) {
+  const now = new Date().toISOString();
+  const prepared = {
+    id: comment.id ?? `comment-${Date.now()}`,
+    userId: comment.userId ?? "",
+    userName: comment.userName ?? "",
+    text: comment.text ?? "",
+    createdAt: comment.createdAt ?? now,
+  };
+  const tasks = getTasks();
+  const next = tasks.map((task) => task.id === taskId ? {
+    ...task,
+    updatedAt: now,
+    comments: [prepared, ...(task.comments ?? [])],
+    history: [
+      { id: `history-${Date.now()}`, text: "Добавлен комментарий", at: now, userId: prepared.userId },
+      ...(task.history ?? []),
+    ],
+  } : task);
+  saveTasks(next);
+  return prepared;
+}
+
+export function addTaskLink(taskId, link) {
+  const now = new Date().toISOString();
+  const prepared = {
+    id: link.id ?? `link-${Date.now()}`,
+    title: link.title ?? "Ссылка",
+    url: link.url ?? "",
+    category: link.category ?? "документ",
+    comment: link.comment ?? "",
+    createdAt: link.createdAt ?? now,
+    createdBy: link.createdBy ?? "",
+  };
+  const tasks = getTasks();
+  const next = tasks.map((task) => task.id === taskId ? {
+    ...task,
+    updatedAt: now,
+    documentLinks: [prepared, ...(task.documentLinks ?? [])],
+    history: [
+      { id: `history-${Date.now()}`, text: "Добавлена ссылка", at: now, userId: prepared.createdBy },
+      ...(task.history ?? []),
+    ],
+  } : task);
+  saveTasks(next);
+  return prepared;
 }

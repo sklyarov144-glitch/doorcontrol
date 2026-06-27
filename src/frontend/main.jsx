@@ -2,7 +2,22 @@ import React, { useMemo, useState } from "react";
 import { createRoot } from "react-dom/client";
 import matveevskyParkImage from "./assets/matveevsky-park.png";
 import workerMascot from "./assets/gross-worker-mascot.png";
-import { calculateTodayTasks, createDoorMatrix, getDoorMatrix, getProblems, getProblemStats, mergeDoorMatrixWithObjects, normalizeDoorMatrix, saveDoorMatrix, updateTaskStatus } from "./storage";
+import {
+  addTask,
+  addTaskComment,
+  addTaskLink,
+  calculateTodayTasks,
+  createDoorMatrix,
+  getDoorMatrix,
+  getProblems,
+  getProblemStats,
+  getTasks,
+  mergeDoorMatrixWithObjects,
+  normalizeDoorMatrix,
+  saveDoorMatrix,
+  updateTask,
+  updateTaskStatus,
+} from "./storage";
 import "./styles.css";
 
 const STORAGE_KEY = "gross-lean-montage.visual.mvp.v7";
@@ -30,6 +45,20 @@ const openingStatusOptions = [
 const issueOptions = ["нет", "есть замечание", "устранено"];
 const storageActOptions = ["не передана", "акт подготовлен", "передано по акту"];
 const matrixStatusOptions = ["Да", "Нет", "Не требуется"];
+const manualTaskTypes = [
+  "Добавить акт АОХ",
+  "Проверить замечание ТН",
+  "Устранить замечание",
+  "Проверить проём",
+  "Обновить статус двери",
+  "Добавить документ",
+  "Проверить этаж",
+  "Проверить корпус",
+  "Другое",
+];
+const manualTaskPriorities = ["низкий", "средний", "высокий"];
+const manualTaskStatuses = ["новая", "в работе", "выполнена", "отменена"];
+const taskLinkCategories = ["акт АОХ", "фото", "документ", "прочее"];
 
 const statusMeta = {
   "не начато": { tone: "gray", label: "не начато" },
@@ -349,6 +378,8 @@ function App() {
   );
   const [selectedFloorId, setSelectedFloorId] = useState("");
   const [selectedDoorId, setSelectedDoorId] = useState("");
+  const [taskVersion, setTaskVersion] = useState(0);
+  const [taskContext, setTaskContext] = useState(null);
 
   const selectedObject = useMemo(
     () => objects.find((object) => object.id === selectedObjectId) ?? objects[0],
@@ -373,6 +404,55 @@ function App() {
       selectedFloor?.doors[0] ?? null,
     [selectedDoorId, selectedFloor]
   );
+
+  const manualTasks = useMemo(() => getTasks(), [taskVersion]);
+  const taskNoticeCount = useMemo(() => getManualTaskNoticeCount(manualTasks, user), [manualTasks, user]);
+  const canCreateManualTask = ["creator", "company_head", "construction_director"].includes(user.role);
+  const refreshManualTasks = () => setTaskVersion((value) => value + 1);
+  const openTaskModal = (context = {}) => {
+    if (!canCreateManualTask) return;
+    setTaskContext(context);
+  };
+
+  const createManualTask = (task) => {
+    addTask({ ...task, createdBy: user.id });
+    refreshManualTasks();
+    setTaskContext(null);
+  };
+
+  const changeManualTask = (taskId, values) => {
+    updateTask(taskId, { ...values, updatedBy: user.id });
+    refreshManualTasks();
+  };
+
+  const commentManualTask = (taskId, text) => {
+    if (!text.trim()) return;
+    addTaskComment(taskId, { userId: user.id, userName: user.name, text: text.trim() });
+    refreshManualTasks();
+  };
+
+  const linkManualTask = (task, link) => {
+    if (!link.url.trim()) return;
+    const savedLink = addTaskLink(task.id, { ...link, createdBy: user.id });
+    if (task.doorId) {
+      const currentDoor = objects
+        .flatMap((object) => object.buildings)
+        .flatMap((building) => building.floors)
+        .flatMap((floor) => floor.doors)
+        .find((door) => door.id === task.doorId);
+      if (currentDoor) {
+        updateDoor(task.doorId, {
+          doorStatus: currentDoor.doorStatus,
+          openingStatus: currentDoor.openingStatus,
+          issue: currentDoor.issue,
+          storageAct: savedLink.category === "акт АОХ" ? "акт подготовлен" : currentDoor.storageAct,
+          custodyActUrl: savedLink.category === "акт АОХ" ? savedLink.url : currentDoor.custodyActUrl,
+          documentLinks: [savedLink, ...(currentDoor.documentLinks ?? [])],
+        });
+      }
+    }
+    refreshManualTasks();
+  };
 
   const updateDoor = (doorId, values) => {
     const effectiveValues = {
@@ -569,7 +649,7 @@ function App() {
 
   return (
     <div className="app-shell">
-      <Sidebar role={user.role} activeScreen={screen} setScreen={navigate} onLogout={() => setIsLoggedIn(false)} />
+      <Sidebar role={user.role} activeScreen={screen} setScreen={navigate} onLogout={() => setIsLoggedIn(false)} taskNoticeCount={taskNoticeCount} />
       <main className="content">
         <Header
           screen={screen}
@@ -609,22 +689,38 @@ function App() {
             />
           )}
           {screen === "documents" && <DocumentsPage />}
+          {screen === "tasks" && (
+            <ManualTasksPage
+              tasks={manualTasks}
+              objects={objects}
+              user={user}
+              users={users}
+              onOpen={openProblem}
+              onCreateTask={() => openTaskModal({})}
+              onUpdateTask={changeManualTask}
+              onAddComment={commentManualTask}
+              onAddLink={linkManualTask}
+            />
+          )}
           {screen === "custody_acts" && <CustodyActsPage objects={objects} user={user} users={users} onOpen={openProblem} onUpdateAct={updateCustodyAct} />}
           {screen === "today_tasks" && <TodayTasksPage objects={objects} user={user} users={users} onOpen={openProblem} />}
-          {screen === "problem_center" && <ProblemCenterPage objects={objects} user={user} users={users} onOpen={openProblem} />}
+          {screen === "problem_center" && <ProblemCenterPage objects={objects} user={user} users={users} onOpen={openProblem} onCreateTask={openTaskModal} />}
           {screen === "reports" && <ReportsPage objects={objects} />}
           {screen === "company_dashboard" && <CompanyDashboard objects={objects} user={user} users={users} onOpen={openProblem} />}
           {["companies", "users", "roles", "itr_team"].includes(screen) && <PlaceholderPage screen={screen} />}
           {screen === "objects" && <ObjectsPage objects={objects} onOpen={goToObject} />}
           {screen === "object" && (
-            <ObjectPage object={selectedObject} onOpenBuilding={goToBuilding} />
+            <ObjectPage object={selectedObject} onOpenBuilding={goToBuilding} onCreateTask={openTaskModal} canCreateTask={canCreateManualTask} />
           )}
           {screen === "building" && selectedBuilding && (
             <section className="building-dashboard">
               <BuildingVisualization
                 building={selectedBuilding}
+                objectId={selectedObject.id}
                 selectedFloorId={selectedFloorId}
                 onSelectFloor={goToFloor}
+                onCreateTask={openTaskModal}
+                canCreateTask={canCreateManualTask}
               />
             </section>
           )}
@@ -635,6 +731,8 @@ function App() {
               floor={selectedFloor}
               onOpenDoor={goToDoor}
               onBack={() => setScreen("building")}
+              onCreateTask={openTaskModal}
+              canCreateTask={canCreateManualTask}
             />
           )}
           {screen === "door" && selectedDoor && (
@@ -645,10 +743,21 @@ function App() {
               door={selectedDoor}
               onSave={updateDoor}
               onBack={() => setScreen("floor")}
+              onCreateTask={openTaskModal}
+              canCreateTask={canCreateManualTask}
             />
           )}
         </div>
       </main>
+      {taskContext && (
+        <TaskCreateModal
+          context={taskContext}
+          objects={objects}
+          users={users}
+          onClose={() => setTaskContext(null)}
+          onCreate={createManualTask}
+        />
+      )}
     </div>
   );
 }
@@ -710,12 +819,12 @@ function LoginPage({ onLogin, userPassword }) {
   );
 }
 
-function Sidebar({ role, activeScreen, setScreen, onLogout }) {
+function Sidebar({ role, activeScreen, setScreen, onLogout, taskNoticeCount }) {
   const menus = {
-    creator: [["objects", "Мои объекты"], ["company_dashboard", "Дашборд"], ["today_tasks", "Задачи на сегодня"], ["problem_center", "Центр проблем"], ["custody_acts", "Акты ОХ"], ["documents", "Документы"], ["reports", "Отчёты"], ["users", "Пользователи"], ["admin", "Админ-панель"], ["profile", "Личный кабинет"]],
-    company_head: [["objects", "Мои объекты"], ["company_dashboard", "Дашборд"], ["today_tasks", "Задачи на сегодня"], ["problem_center", "Центр проблем"], ["custody_acts", "Акты ОХ"], ["documents", "Документы"], ["reports", "Отчёты"], ["users", "Пользователи"], ["admin", "Админ-панель"], ["profile", "Личный кабинет"]],
-    construction_director: [["objects", "Мои объекты"], ["company_dashboard", "Дашборд"], ["today_tasks", "Задачи на сегодня"], ["problem_center", "Центр проблем"], ["custody_acts", "Акты ОХ"], ["documents", "Документы"], ["reports", "Отчёты"], ["admin", "Админ-панель"], ["profile", "Личный кабинет"]],
-    itr: [["objects", "Мои объекты"], ["today_tasks", "Задачи на сегодня"], ["problem_center", "Центр проблем"], ["custody_acts", "Акты ОХ"], ["documents", "Документы"], ["reports", "Отчёты"], ["admin", "Админ-панель"], ["profile", "Личный кабинет"]],
+    creator: [["objects", "Мои объекты"], ["company_dashboard", "Дашборд"], ["tasks", "Задачи"], ["today_tasks", "Задачи на сегодня"], ["problem_center", "Центр проблем"], ["custody_acts", "Акты ОХ"], ["documents", "Документы"], ["reports", "Отчёты"], ["users", "Пользователи"], ["admin", "Админ-панель"], ["profile", "Личный кабинет"]],
+    company_head: [["objects", "Мои объекты"], ["company_dashboard", "Дашборд"], ["tasks", "Задачи"], ["today_tasks", "Задачи на сегодня"], ["problem_center", "Центр проблем"], ["custody_acts", "Акты ОХ"], ["documents", "Документы"], ["reports", "Отчёты"], ["users", "Пользователи"], ["admin", "Админ-панель"], ["profile", "Личный кабинет"]],
+    construction_director: [["objects", "Мои объекты"], ["company_dashboard", "Дашборд"], ["tasks", "Задачи"], ["today_tasks", "Задачи на сегодня"], ["problem_center", "Центр проблем"], ["custody_acts", "Акты ОХ"], ["documents", "Документы"], ["reports", "Отчёты"], ["admin", "Админ-панель"], ["profile", "Личный кабинет"]],
+    itr: [["objects", "Мои объекты"], ["tasks", "Задачи"], ["today_tasks", "Задачи на сегодня"], ["problem_center", "Центр проблем"], ["custody_acts", "Акты ОХ"], ["documents", "Документы"], ["reports", "Отчёты"], ["admin", "Админ-панель"], ["profile", "Личный кабинет"]],
   };
   const items = menus[role] ?? menus.itr;
 
@@ -731,10 +840,12 @@ function Sidebar({ role, activeScreen, setScreen, onLogout }) {
               key={id}
               onClick={() => setScreen(id)}
             >
-              {label}
+              <span>{label}</span>
+              {id === "tasks" && taskNoticeCount > 0 && <em>{taskNoticeCount}</em>}
             </button>
           ))}
         </nav>
+        {taskNoticeCount > 0 && <div className="sidebar-task-indicator">Новые задачи: {taskNoticeCount}</div>}
       </div>
       <button className="ghost-button" onClick={onLogout}>
         Выйти
@@ -769,6 +880,7 @@ function Header({ screen, setScreen, selectedObject, selectedBuilding, selectedF
     roles: "Роли и доступы",
     reports: "Отчёты",
     documents: "Документы",
+    tasks: "Задачи",
     today_tasks: "Задачи на сегодня",
     problem_center: "Центр проблем",
     custody_acts: "Акты ОХ",
@@ -779,7 +891,7 @@ function Header({ screen, setScreen, selectedObject, selectedBuilding, selectedF
   return (
     <header className="page-header">
       <div>
-        {!(["admin", "profile", "companies", "users", "roles", "reports", "documents", "today_tasks", "problem_center", "custody_acts", "company_dashboard", "itr_team"].includes(screen)) && <div className="breadcrumbs">
+        {!(["admin", "profile", "companies", "users", "roles", "reports", "documents", "tasks", "today_tasks", "problem_center", "custody_acts", "company_dashboard", "itr_team"].includes(screen)) && <div className="breadcrumbs">
           <button onClick={() => setScreen("objects")}>Мои объекты</button>
           {screen !== "objects" && (
             <>
@@ -880,7 +992,7 @@ function ObjectCard({ object, onOpen }) {
   );
 }
 
-function ObjectPage({ object, onOpenBuilding }) {
+function ObjectPage({ object, onOpenBuilding, onCreateTask, canCreateTask }) {
   return (
     <section className="visual-panel">
       <div className="view-heading">
@@ -888,7 +1000,10 @@ function ObjectPage({ object, onOpenBuilding }) {
           <h2>{object.name}</h2>
           <p>Выберите корпус, чтобы перейти к визуализации этажей.</p>
         </div>
-        <StatusBadge value={object.status} />
+        <div className="heading-actions">
+          <StatusBadge value={object.status} />
+          {canCreateTask && <button className="secondary-button slim" onClick={() => onCreateTask({ objectId: object.id })}>Поставить задачу</button>}
+        </div>
       </div>
       <div className="building-grid">
         {object.buildings.map((building) => (
@@ -918,7 +1033,7 @@ function ObjectPage({ object, onOpenBuilding }) {
   );
 }
 
-function BuildingVisualization({ building, selectedFloorId, onSelectFloor }) {
+function BuildingVisualization({ building, objectId, selectedFloorId, onSelectFloor, onCreateTask, canCreateTask }) {
   const selectedNumber = selectedFloorId.startsWith("floor-")
     ? Number(selectedFloorId.replace("floor-", ""))
     : null;
@@ -943,6 +1058,7 @@ function BuildingVisualization({ building, selectedFloorId, onSelectFloor }) {
         <StatusBadge value="В работе" />
         <h2>{building.name}</h2>
         <p>{building.floors.filter((floor) => floor.type === "floor").length} этажей</p>
+        {canCreateTask && <button className="secondary-button slim building-task-button" onClick={() => onCreateTask({ objectId, buildingId: building.id })}>Поставить задачу по корпусу</button>}
       </div>
       <div className="building-visual">
         <div className="roof-line">Кровля</div>
@@ -975,7 +1091,7 @@ function BuildingVisualization({ building, selectedFloorId, onSelectFloor }) {
   );
 }
 
-function FloorPlan({ object, building, floor, onOpenDoor, onBack }) {
+function FloorPlan({ object, building, floor, onOpenDoor, onBack, onCreateTask, canCreateTask }) {
   const label = floor.type === "floor" ? `Этаж ${floor.number}` : floor.label;
   const [doorFilter, setDoorFilter] = useState("all");
   const visibleDoors = floor.doors.filter((door) => {
@@ -998,9 +1114,12 @@ function FloorPlan({ object, building, floor, onOpenDoor, onBack }) {
               {object.name} / {building.name} / {label}
             </p>
           </div>
-          <button className="secondary-button slim" onClick={onBack}>
-            К корпусу
-          </button>
+          <div className="heading-actions">
+            {canCreateTask && <button className="secondary-button slim" onClick={() => onCreateTask({ objectId: object.id, buildingId: building.id, floorId: floor.id })}>Поставить задачу</button>}
+            <button className="secondary-button slim" onClick={onBack}>
+              К корпусу
+            </button>
+          </div>
         </div>
         {floor.doors.length > 0 ? (
           <>
@@ -1124,7 +1243,7 @@ function SavedTemplateLayout({ template }) {
   );
 }
 
-function DoorDetails({ object, building, floor, door, onSave, onBack }) {
+function DoorDetails({ object, building, floor, door, onSave, onBack, onCreateTask, canCreateTask }) {
   const [form, setForm] = useState({
     doorStatus: door.doorStatus,
     openingStatus: door.openingStatus,
@@ -1164,7 +1283,10 @@ function DoorDetails({ object, building, floor, door, onSave, onBack }) {
               {object.name} / {building.name} / Этаж {floor.number}
             </p>
           </div>
-          <StatusBadge value={form.doorStatus} />
+          <div className="heading-actions">
+            <StatusBadge value={form.doorStatus} />
+            {canCreateTask && <button className="secondary-button slim" type="button" onClick={() => onCreateTask({ objectId: object.id, buildingId: building.id, floorId: floor.id, doorId: door.id })}>Поставить задачу</button>}
+          </div>
         </div>
         <div className="detail-grid">
           <Detail label="Номер двери" value={door.number} />
@@ -1205,6 +1327,14 @@ function DoorDetails({ object, building, floor, door, onSave, onBack }) {
           </button>
         </div>
         {saved && <div className="save-notice">Изменения сохранены</div>}
+        {door.documentLinks?.length > 0 && (
+          <div className="linked-documents">
+            <h3>Связанные документы</h3>
+            {door.documentLinks.map((link) => (
+              <a key={link.id} href={link.url} target="_blank" rel="noreferrer">{link.title} · {link.category}</a>
+            ))}
+          </div>
+        )}
       </form>
       <aside className="panel history-panel">
         <div className="panel-title">
@@ -1792,6 +1922,223 @@ function taskStatusLabel(status) {
   }[status] ?? "Новая";
 }
 
+function isManualTaskOverdue(task) {
+  return task.dueDate && task.dueDate < new Date().toISOString().slice(0, 10) && !["выполнена", "отменена"].includes(task.status);
+}
+
+function canSeeManualTask(task, user) {
+  if (["creator", "company_head"].includes(user.role)) return true;
+  if (user.role === "construction_director") return true;
+  if (user.role === "itr") return task.assignedTo === user.id;
+  return false;
+}
+
+function getManualTaskNoticeCount(tasks, user) {
+  return tasks.filter((task) => canSeeManualTask(task, user) && (task.status === "новая" || isManualTaskOverdue(task))).length;
+}
+
+function getTaskContext(objects, task) {
+  const object = objects.find((item) => item.id === task.objectId);
+  const building = object?.buildings.find((item) => item.id === task.buildingId);
+  const floor = building?.floors.find((item) => item.id === task.floorId);
+  const door = floor?.doors.find((item) => item.id === task.doorId);
+  return {
+    objectName: object?.name ?? "—",
+    buildingName: building?.name ?? "—",
+    floorName: floor?.number ? `Этаж ${floor.number}` : "—",
+    doorName: door?.number ?? door?.mark ?? "—",
+  };
+}
+
+function ManualTasksPage({ tasks, objects, user, users, onOpen, onCreateTask, onUpdateTask, onAddComment, onAddLink }) {
+  const isItr = user.role === "itr";
+  const tabs = isItr
+    ? ["Мои задачи", "Новые", "В работе", "Просроченные", "Выполненные"]
+    : ["Все задачи", "Созданные мной", "Просроченные", "Выполненные"];
+  const [activeTab, setActiveTab] = useState(tabs[0]);
+  const [commentTask, setCommentTask] = useState(null);
+  const [linkTask, setLinkTask] = useState(null);
+  const userNames = new Map(users.map((item) => [item.id, item.name]));
+  const visibleTasks = tasks.filter((task) => canSeeManualTask(task, user));
+  const filteredTasks = visibleTasks.filter((task) => {
+    if (activeTab === "Созданные мной") return task.createdBy === user.id;
+    if (activeTab === "Новые") return task.status === "новая";
+    if (activeTab === "В работе") return task.status === "в работе";
+    if (activeTab === "Просроченные") return isManualTaskOverdue(task);
+    if (activeTab === "Выполненные") return task.status === "выполнена";
+    return true;
+  });
+  const stats = {
+    total: visibleTasks.length,
+    new: visibleTasks.filter((task) => task.status === "новая").length,
+    progress: visibleTasks.filter((task) => task.status === "в работе").length,
+    overdue: visibleTasks.filter(isManualTaskOverdue).length,
+    done: visibleTasks.filter((task) => task.status === "выполнена").length,
+  };
+
+  const openTaskTarget = (task) => {
+    if (task.doorId || task.floorId || task.buildingId || task.objectId) {
+      onOpen(task);
+    }
+  };
+
+  return (
+    <section className="manual-tasks-page">
+      <div className="tasks-hero">
+        <div>
+          <span>Ручное управление</span>
+          <h2>{isItr ? "Мои задачи" : "Задачи команды"}</h2>
+          <p>Руководитель ставит задачи по объекту, корпусу, этажу или двери. ИТР закрывает их прямо в карточке задачи.</p>
+        </div>
+        {!isItr && <button className="primary-button" onClick={onCreateTask}>Поставить задачу</button>}
+      </div>
+      <div className="tasks-summary">
+        <div><span>Всего задач</span><strong>{stats.total}</strong></div>
+        <div><span>Новые</span><strong>{stats.new}</strong></div>
+        <div><span>В работе</span><strong>{stats.progress}</strong></div>
+        <div className="danger"><span>Просроченные</span><strong>{stats.overdue}</strong></div>
+        <div className="success"><span>Выполненные</span><strong>{stats.done}</strong></div>
+      </div>
+      <div className="task-tabs">
+        {tabs.map((tab) => <button key={tab} className={activeTab === tab ? "active" : ""} onClick={() => setActiveTab(tab)}>{tab}</button>)}
+      </div>
+      <div className={isItr ? "manual-task-card-grid itr-task-grid" : "manual-task-card-grid"}>
+        {filteredTasks.map((task) => {
+          const context = getTaskContext(objects, task);
+          return (
+            <article className={`manual-task-card priority-${task.priority} ${isManualTaskOverdue(task) ? "overdue" : ""}`} key={task.id}>
+              <div className="manual-task-card-head">
+                <span className={`priority-badge priority-${task.priority}`}>{task.priority}</span>
+                <span className={`manual-task-status status-${task.status.replaceAll(" ", "-")}`}>{task.status}</span>
+              </div>
+              <h3>{task.title}</h3>
+              <p>{task.description || "Без описания"}</p>
+              <dl className="task-context-grid">
+                <div><dt>Объект</dt><dd>{context.objectName}</dd></div>
+                <div><dt>Корпус</dt><dd>{context.buildingName}</dd></div>
+                <div><dt>Этаж</dt><dd>{context.floorName}</dd></div>
+                <div><dt>Дверь</dt><dd>{context.doorName}</dd></div>
+                <div><dt>Срок</dt><dd>{task.dueDate || "—"}</dd></div>
+                <div><dt>Исполнитель</dt><dd>{userNames.get(task.assignedTo) ?? "—"}</dd></div>
+              </dl>
+              {task.comments?.[0] && <div className="task-last-comment"><strong>{task.comments[0].userName}</strong><span>{task.comments[0].text}</span></div>}
+              {task.documentLinks?.length > 0 && <div className="task-links-list">{task.documentLinks.slice(0, 2).map((link) => <a key={link.id} href={link.url} target="_blank" rel="noreferrer">{link.title}</a>)}</div>}
+              <div className="manual-task-actions">
+                <button className="secondary-button slim" onClick={() => openTaskTarget(task)}>Открыть</button>
+                {task.status !== "выполнена" && <button className="secondary-button slim" onClick={() => onUpdateTask(task.id, { status: "в работе" })}>В работу</button>}
+                {task.status !== "выполнена" && <button className="primary-button slim" onClick={() => onUpdateTask(task.id, { status: "выполнена" })}>Выполнено</button>}
+                <button className="secondary-button slim" onClick={() => setCommentTask(task)}>Комментарий</button>
+                <button className="secondary-button slim" onClick={() => setLinkTask(task)}>Ссылка</button>
+                {!isItr && task.status !== "отменена" && <button className="secondary-button slim" onClick={() => onUpdateTask(task.id, { status: "отменена" })}>Отменить</button>}
+              </div>
+            </article>
+          );
+        })}
+      </div>
+      {filteredTasks.length === 0 && <div className="empty-plan">Задач в этом режиме нет.</div>}
+      {commentTask && <TaskCommentModal task={commentTask} onClose={() => setCommentTask(null)} onSave={(text) => { onAddComment(commentTask.id, text); setCommentTask(null); }} />}
+      {linkTask && <TaskLinkModal task={linkTask} onClose={() => setLinkTask(null)} onSave={(link) => { onAddLink(linkTask, link); setLinkTask(null); }} />}
+    </section>
+  );
+}
+
+function TaskCreateModal({ context, objects, users, onClose, onCreate }) {
+  const firstObject = objects.find((object) => object.id === context.objectId) ?? objects[0];
+  const firstBuilding = firstObject?.buildings.find((building) => building.id === context.buildingId) ?? firstObject?.buildings[0];
+  const firstFloor = firstBuilding?.floors.find((floor) => floor.id === context.floorId) ?? firstBuilding?.floors.find((floor) => floor.type === "floor");
+  const firstDoor = firstFloor?.doors.find((door) => door.id === context.doorId) ?? firstFloor?.doors[0];
+  const assignees = users.filter((item) => ["itr", "construction_director"].includes(item.role));
+  const [form, setForm] = useState({
+    title: context.title ?? "",
+    description: context.description ?? "",
+    type: context.type ?? "Другое",
+    priority: context.priority ?? "средний",
+    assignedTo: context.assignedTo ?? assignees.find((item) => item.role === "itr")?.id ?? assignees[0]?.id ?? "",
+    objectId: firstObject?.id ?? "",
+    buildingId: firstBuilding?.id ?? "",
+    floorId: firstFloor?.id ?? "",
+    doorId: firstDoor?.id ?? "",
+    dueDate: new Date(Date.now() + 86400000).toISOString().slice(0, 10),
+  });
+  const selectedObject = objects.find((object) => object.id === form.objectId) ?? objects[0];
+  const selectedBuilding = selectedObject?.buildings.find((building) => building.id === form.buildingId) ?? selectedObject?.buildings[0];
+  const selectedFloor = selectedBuilding?.floors.find((floor) => floor.id === form.floorId) ?? selectedBuilding?.floors.find((floor) => floor.type === "floor");
+  const update = (field, value) => setForm((current) => {
+    const next = { ...current, [field]: value };
+    if (field === "objectId") {
+      const nextObject = objects.find((object) => object.id === value);
+      const nextBuilding = nextObject?.buildings[0];
+      const nextFloor = nextBuilding?.floors.find((floor) => floor.type === "floor");
+      return { ...next, buildingId: nextBuilding?.id ?? "", floorId: nextFloor?.id ?? "", doorId: nextFloor?.doors[0]?.id ?? "" };
+    }
+    if (field === "buildingId") {
+      const nextBuilding = selectedObject?.buildings.find((building) => building.id === value);
+      const nextFloor = nextBuilding?.floors.find((floor) => floor.type === "floor");
+      return { ...next, floorId: nextFloor?.id ?? "", doorId: nextFloor?.doors[0]?.id ?? "" };
+    }
+    if (field === "floorId") {
+      const nextFloor = selectedBuilding?.floors.find((floor) => floor.id === value);
+      return { ...next, doorId: nextFloor?.doors[0]?.id ?? "" };
+    }
+    return next;
+  });
+
+  return (
+    <div className="modal-backdrop">
+      <form className="task-modal" onSubmit={(event) => { event.preventDefault(); if (!form.title.trim()) return; onCreate(form); }}>
+        <div className="modal-title">
+          <div><h2>Поставить задачу</h2><p>Быстрая постановка задачи по текущему контексту.</p></div>
+          <button type="button" onClick={onClose}>×</button>
+        </div>
+        <div className="task-form-grid">
+          <label className="wide">Название задачи<input value={form.title} onChange={(event) => update("title", event.target.value)} placeholder="Например: закрыть акт ОХ" /></label>
+          <label className="wide">Описание<textarea value={form.description} onChange={(event) => update("description", event.target.value)} placeholder="Что нужно сделать ИТР" /></label>
+          <label>Исполнитель<select value={form.assignedTo} onChange={(event) => update("assignedTo", event.target.value)}>{assignees.map((item) => <option key={item.id} value={item.id}>{item.name} — {item.position}</option>)}</select></label>
+          <label>Тип<select value={form.type} onChange={(event) => update("type", event.target.value)}>{manualTaskTypes.map((item) => <option key={item} value={item}>{item}</option>)}</select></label>
+          <label>Приоритет<select value={form.priority} onChange={(event) => update("priority", event.target.value)}>{manualTaskPriorities.map((item) => <option key={item} value={item}>{item}</option>)}</select></label>
+          <label>Срок<input type="date" value={form.dueDate} onChange={(event) => update("dueDate", event.target.value)} /></label>
+          <label>Объект<select value={form.objectId} onChange={(event) => update("objectId", event.target.value)}>{objects.map((object) => <option key={object.id} value={object.id}>{object.name}</option>)}</select></label>
+          <label>Корпус<select value={form.buildingId} onChange={(event) => update("buildingId", event.target.value)}>{selectedObject?.buildings.map((building) => <option key={building.id} value={building.id}>{building.name}</option>)}</select></label>
+          <label>Этаж<select value={form.floorId} onChange={(event) => update("floorId", event.target.value)}><option value="">Не выбран</option>{selectedBuilding?.floors.filter((floor) => floor.type === "floor").map((floor) => <option key={floor.id} value={floor.id}>Этаж {floor.number}</option>)}</select></label>
+          <label>Дверь<select value={form.doorId} onChange={(event) => update("doorId", event.target.value)}><option value="">Не выбрана</option>{selectedFloor?.doors.map((door) => <option key={door.id} value={door.id}>{door.number} · {door.mark}</option>)}</select></label>
+        </div>
+        <div className="form-actions"><button className="secondary-button" type="button" onClick={onClose}>Отмена</button><button className="primary-button" type="submit">Поставить задачу</button></div>
+      </form>
+    </div>
+  );
+}
+
+function TaskCommentModal({ task, onClose, onSave }) {
+  const [text, setText] = useState("");
+  return (
+    <div className="modal-backdrop">
+      <form className="task-modal compact" onSubmit={(event) => { event.preventDefault(); onSave(text); }}>
+        <div className="modal-title"><div><h2>Комментарий</h2><p>{task.title}</p></div><button type="button" onClick={onClose}>×</button></div>
+        <textarea value={text} onChange={(event) => setText(event.target.value)} placeholder="Сделано, нет доступа, акт загрузил..." />
+        <div className="quick-comments">{["Сделано", "Нет доступа", "Акт загрузил", "Ждём технадзор"].map((item) => <button type="button" key={item} onClick={() => setText(item)}>{item}</button>)}</div>
+        <div className="form-actions"><button className="secondary-button" type="button" onClick={onClose}>Отмена</button><button className="primary-button">Добавить</button></div>
+      </form>
+    </div>
+  );
+}
+
+function TaskLinkModal({ task, onClose, onSave }) {
+  const [form, setForm] = useState({ title: "", url: "", category: "документ", comment: "" });
+  const update = (field, value) => setForm((current) => ({ ...current, [field]: value }));
+  return (
+    <div className="modal-backdrop">
+      <form className="task-modal compact" onSubmit={(event) => { event.preventDefault(); onSave(form); }}>
+        <div className="modal-title"><div><h2>Добавить ссылку</h2><p>{task.title}</p></div><button type="button" onClick={onClose}>×</button></div>
+        <label>Название ссылки<input value={form.title} onChange={(event) => update("title", event.target.value)} placeholder="Акт АОХ / фото / документ" /></label>
+        <label>Ссылка на Яндекс.Диск<input type="url" value={form.url} onChange={(event) => update("url", event.target.value)} placeholder="https://disk.yandex.ru/..." /></label>
+        <label>Категория<select value={form.category} onChange={(event) => update("category", event.target.value)}>{taskLinkCategories.map((item) => <option key={item} value={item}>{item}</option>)}</select></label>
+        <label>Комментарий<textarea value={form.comment} onChange={(event) => update("comment", event.target.value)} /></label>
+        <div className="form-actions"><button className="secondary-button" type="button" onClick={onClose}>Отмена</button><button className="primary-button">Сохранить ссылку</button></div>
+      </form>
+    </div>
+  );
+}
+
 function TodayTasksPage({ objects, user, users, onOpen }) {
   const [version, setVersion] = useState(0);
   const userNames = new Map(users.map((item) => [item.id, item.name]));
@@ -1876,7 +2223,7 @@ function TodayTasksPage({ objects, user, users, onOpen }) {
   );
 }
 
-function ProblemCenterPage({ objects, user, users, onOpen }) {
+function ProblemCenterPage({ objects, user, users, onOpen, onCreateTask }) {
   const userNames = new Map(users.map((item) => [item.id, item.name]));
   const problems = getProblems(objects)
     .filter((problem) => canSeeProblemObject(problem, user))
@@ -1951,7 +2298,28 @@ function ProblemCenterPage({ objects, user, users, onOpen }) {
                 <td>{problem.responsible || "Не назначен"}</td>
                 <td>{problem.days}</td>
                 <td><span className={`priority-badge priority-${problem.priority}`}>{problem.priority}</span></td>
-                <td><button className="secondary-button slim" onClick={() => onOpen(problem)}>Открыть</button></td>
+                <td>
+                  <div className="task-actions">
+                    <button className="secondary-button slim" onClick={() => onOpen(problem)}>Открыть</button>
+                    {["creator", "company_head", "construction_director"].includes(user.role) && (
+                      <button
+                        className="primary-button slim"
+                        onClick={() => onCreateTask({
+                          title: problem.action,
+                          description: `${problem.type}: ${problem.object} / ${problem.building} / ${problem.door}`,
+                          type: problem.type === "Смонтировано без акта ОХ" ? "Добавить акт АОХ" : problem.type === "Замечания ТН" ? "Проверить замечание ТН" : "Другое",
+                          priority: problem.priority,
+                          objectId: problem.objectId,
+                          buildingId: problem.buildingId,
+                          floorId: problem.floorId,
+                          doorId: problem.doorId,
+                        })}
+                      >
+                        Задача
+                      </button>
+                    )}
+                  </div>
+                </td>
               </tr>
             ))}
           </tbody>
