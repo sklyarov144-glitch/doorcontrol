@@ -1,4 +1,10 @@
 const DOOR_MATRIX_KEY = "gross-lean-montage.door-matrix.v1";
+const MATRIX_DOCUMENTS_KEY = "gross-lean-montage.matrix-documents.v1";
+const DEFAULT_MATRIX_DOCUMENTS = [
+  { building: "Корпус 4.1", url: "https://disk.yandex.ru/" },
+  { building: "Корпус 4.2", url: "https://disk.yandex.ru/" },
+  { building: "Корпус 4.3", url: "https://disk.yandex.ru/" },
+];
 
 export function getDoorMatrix() {
   try {
@@ -80,4 +86,106 @@ export function mergeDoorMatrixWithObjects(rows, objects) {
   const existing = new Map(rows.map((row) => [row.doorId, row]));
   const generated = createDoorMatrix(objects);
   return generated.map((row) => ({ ...row, ...(existing.get(row.doorId) ?? {}) }));
+}
+
+function getDoorStatusAge(floor, doorIndex) {
+  return ((Number(floor.number) || 1) + doorIndex * 2) % 14 + 1;
+}
+
+function getPriority(type, days) {
+  if (type === "Замечания ТН") return "высокий";
+  if (type === "Смонтировано без акта ОХ" && days > 3) return "высокий";
+  if (type === "Зависшие статусы" && days > 7) return "высокий";
+  if (["Проёмы под риск", "Нет документов", "Нет ответственного"].includes(type)) return "средний";
+  return "низкий";
+}
+
+function createProblem({ type, object, building, floor, door, days, action = "Проверить" }) {
+  return {
+    id: `${type}-${door?.id ?? building?.id ?? object.id}-${floor?.id ?? "object"}`,
+    type,
+    objectId: object.id,
+    object: object.name,
+    buildingId: building?.id ?? "",
+    building: building?.name ?? "—",
+    floorId: floor?.id ?? "",
+    floor: floor?.number ?? "—",
+    doorId: door?.id ?? "",
+    door: door?.number ?? door?.mark ?? "—",
+    responsible: object.responsibleName ?? object.responsibleId ?? "Не назначен",
+    days,
+    priority: getPriority(type, days),
+    action,
+  };
+}
+
+export function calculateDoorProblems(objects, documents = []) {
+  const documentBuildings = new Set(documents.filter((item) => item.url).map((item) => item.building));
+  const problems = [];
+
+  objects.forEach((object) => {
+    if (!object.responsibleId) {
+      problems.push(createProblem({ type: "Нет ответственного", object, days: 0, action: "Назначить" }));
+    }
+
+    object.buildings.forEach((building) => {
+      if (!documentBuildings.has(building.name)) {
+        problems.push(createProblem({ type: "Нет документов", object, building, days: 0, action: "Добавить документ" }));
+      }
+
+      building.floors
+        .filter((floor) => floor.type === "floor")
+        .forEach((floor) => {
+          floor.doors.forEach((door, doorIndex) => {
+            const days = getDoorStatusAge(floor, doorIndex);
+            const hasOpeningComment = door.openingComment || door.comment || door.note;
+
+            if (days > 7) {
+              problems.push(createProblem({ type: "Просроченные двери", object, building, floor, door, days }));
+            }
+            if (door.doorStatus === "смонтирована" && !["передано по акту", "закрыто"].includes(door.storageAct)) {
+              problems.push(createProblem({ type: "Смонтировано без акта ОХ", object, building, floor, door, days }));
+            }
+            if (door.issue === "есть замечание") {
+              problems.push(createProblem({ type: "Замечания ТН", object, building, floor, door, days, action: "Устранить" }));
+            }
+            if (door.openingStatus === "требует корректировки" || hasOpeningComment) {
+              problems.push(createProblem({ type: "Проёмы под риск", object, building, floor, door, days, action: "Проверить проём" }));
+            }
+            if (!door.assignedUserId && !object.responsibleId) {
+              problems.push(createProblem({ type: "Нет ответственного", object, building, floor, door, days, action: "Назначить" }));
+            }
+            if (door.doorStatus === "доставлена" && days > 7) {
+              problems.push(createProblem({ type: "Зависшие статусы", object, building, floor, door, days, action: "Поднять дверь" }));
+            }
+            if (door.doorStatus === "смонтирована" && days > 7) {
+              problems.push(createProblem({ type: "Зависшие статусы", object, building, floor, door, days, action: "Передать ТН" }));
+            }
+          });
+        });
+    });
+  });
+
+  return problems;
+}
+
+export function getProblemStats(problems) {
+  return {
+    total: problems.length,
+    overdue: problems.filter((item) => item.type === "Просроченные двери").length,
+    tnIssues: problems.filter((item) => item.type === "Замечания ТН").length,
+    noCustodyAct: problems.filter((item) => item.type === "Смонтировано без акта ОХ").length,
+    riskyOpenings: problems.filter((item) => item.type === "Проёмы под риск").length,
+  };
+}
+
+export function getProblems(objects) {
+  let documents = DEFAULT_MATRIX_DOCUMENTS;
+  try {
+    const saved = JSON.parse(localStorage.getItem(MATRIX_DOCUMENTS_KEY));
+    documents = Array.isArray(saved) ? saved : DEFAULT_MATRIX_DOCUMENTS;
+  } catch {
+    documents = DEFAULT_MATRIX_DOCUMENTS;
+  }
+  return calculateDoorProblems(objects, Array.isArray(documents) ? documents : []);
 }

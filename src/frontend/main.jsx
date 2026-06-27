@@ -2,7 +2,7 @@ import React, { useMemo, useState } from "react";
 import { createRoot } from "react-dom/client";
 import matveevskyParkImage from "./assets/matveevsky-park.png";
 import workerMascot from "./assets/gross-worker-mascot.png";
-import { createDoorMatrix, getDoorMatrix, mergeDoorMatrixWithObjects, normalizeDoorMatrix, saveDoorMatrix } from "./storage";
+import { createDoorMatrix, getDoorMatrix, getProblems, getProblemStats, mergeDoorMatrixWithObjects, normalizeDoorMatrix, saveDoorMatrix } from "./storage";
 import "./styles.css";
 
 const STORAGE_KEY = "gross-lean-montage.visual.mvp.v7";
@@ -521,6 +521,28 @@ function App() {
     setScreen("door");
   };
 
+  const openProblem = (problem) => {
+    const nextObject = objects.find((object) => object.id === problem.objectId);
+    if (!nextObject) return;
+    setSelectedObjectId(nextObject.id);
+    if (problem.buildingId) setSelectedBuildingId(problem.buildingId);
+    if (problem.floorId) setSelectedFloorId(problem.floorId);
+    if (problem.doorId) {
+      setSelectedDoorId(problem.doorId);
+      setScreen("door");
+      return;
+    }
+    if (problem.floorId) {
+      setScreen("floor");
+      return;
+    }
+    if (problem.buildingId) {
+      setScreen("building");
+      return;
+    }
+    setScreen("object");
+  };
+
   const navigate = (nextScreen) => {
     setScreen(nextScreen);
   };
@@ -571,6 +593,7 @@ function App() {
             />
           )}
           {screen === "documents" && <DocumentsPage />}
+          {screen === "problem_center" && <ProblemCenterPage objects={objects} user={user} users={users} onOpen={openProblem} />}
           {screen === "reports" && <ReportsPage objects={objects} />}
           {screen === "company_dashboard" && <CompanyDashboard objects={objects} />}
           {["companies", "users", "roles", "itr_team"].includes(screen) && <PlaceholderPage screen={screen} />}
@@ -671,10 +694,10 @@ function LoginPage({ onLogin, userPassword }) {
 
 function Sidebar({ role, activeScreen, setScreen, onLogout }) {
   const menus = {
-    creator: [["objects", "Мои объекты"], ["company_dashboard", "Дашборд"], ["documents", "Документы"], ["reports", "Отчёты"], ["users", "Пользователи"], ["admin", "Админ-панель"], ["profile", "Личный кабинет"]],
-    company_head: [["objects", "Мои объекты"], ["company_dashboard", "Дашборд"], ["documents", "Документы"], ["reports", "Отчёты"], ["users", "Пользователи"], ["admin", "Админ-панель"], ["profile", "Личный кабинет"]],
-    construction_director: [["objects", "Мои объекты"], ["company_dashboard", "Дашборд"], ["documents", "Документы"], ["reports", "Отчёты"], ["admin", "Админ-панель"], ["profile", "Личный кабинет"]],
-    itr: [["objects", "Мои объекты"], ["documents", "Документы"], ["reports", "Отчёты"], ["admin", "Админ-панель"], ["profile", "Личный кабинет"]],
+    creator: [["objects", "Мои объекты"], ["company_dashboard", "Дашборд"], ["problem_center", "Центр проблем"], ["documents", "Документы"], ["reports", "Отчёты"], ["users", "Пользователи"], ["admin", "Админ-панель"], ["profile", "Личный кабинет"]],
+    company_head: [["objects", "Мои объекты"], ["company_dashboard", "Дашборд"], ["problem_center", "Центр проблем"], ["documents", "Документы"], ["reports", "Отчёты"], ["users", "Пользователи"], ["admin", "Админ-панель"], ["profile", "Личный кабинет"]],
+    construction_director: [["objects", "Мои объекты"], ["company_dashboard", "Дашборд"], ["problem_center", "Центр проблем"], ["documents", "Документы"], ["reports", "Отчёты"], ["admin", "Админ-панель"], ["profile", "Личный кабинет"]],
+    itr: [["objects", "Мои объекты"], ["problem_center", "Центр проблем"], ["documents", "Документы"], ["reports", "Отчёты"], ["admin", "Админ-панель"], ["profile", "Личный кабинет"]],
   };
   const items = menus[role] ?? menus.itr;
 
@@ -728,6 +751,7 @@ function Header({ screen, setScreen, selectedObject, selectedBuilding, selectedF
     roles: "Роли и доступы",
     reports: "Отчёты",
     documents: "Документы",
+    problem_center: "Центр проблем",
     company_dashboard: "Дашборд компании",
     itr_team: "Команда ИТР",
   };
@@ -735,7 +759,7 @@ function Header({ screen, setScreen, selectedObject, selectedBuilding, selectedF
   return (
     <header className="page-header">
       <div>
-        {!(["admin", "profile", "companies", "users", "roles", "reports", "documents", "company_dashboard", "itr_team"].includes(screen)) && <div className="breadcrumbs">
+        {!(["admin", "profile", "companies", "users", "roles", "reports", "documents", "problem_center", "company_dashboard", "itr_team"].includes(screen)) && <div className="breadcrumbs">
           <button onClick={() => setScreen("objects")}>Мои объекты</button>
           {screen !== "objects" && (
             <>
@@ -1514,6 +1538,99 @@ function DocumentsPage() {
             </div>
           </article>
         ))}
+      </div>
+    </section>
+  );
+}
+
+function canSeeProblemObject(problem, user) {
+  if (["creator", "company_head"].includes(user.role)) return true;
+  if (user.role === "construction_director") return true;
+  if (user.role === "itr") return !problem.responsible || problem.responsible === "Не назначен" || problem.responsible === user.id || problem.responsible === user.name;
+  return false;
+}
+
+function ProblemCenterPage({ objects, user, users, onOpen }) {
+  const userNames = new Map(users.map((item) => [item.id, item.name]));
+  const problems = getProblems(objects)
+    .filter((problem) => canSeeProblemObject(problem, user))
+    .map((problem) => ({
+      ...problem,
+      responsible: userNames.get(problem.responsible) ?? problem.responsible,
+    }));
+  const stats = getProblemStats(problems);
+  const summary = [
+    ["Всего проблем", stats.total, "critical"],
+    ["Просрочено", stats.overdue, "critical"],
+    ["Замечания ТН", stats.tnIssues, "critical"],
+    ["Без акта ОХ", stats.noCustodyAct, "warning"],
+    ["Проёмы под риск", stats.riskyOpenings, "warning"],
+  ];
+  const typeCards = [
+    "Просроченные двери",
+    "Смонтировано без акта ОХ",
+    "Замечания ТН",
+    "Проёмы под риск",
+    "Нет ответственного",
+    "Нет документов",
+    "Зависшие статусы",
+  ];
+
+  return (
+    <section className="problem-center">
+      <div className="problem-hero">
+        <div>
+          <span>Контроль рисков</span>
+          <h2>Центр проблем</h2>
+          <p>Система подсвечивает зоны, где монтаж дверей может зависнуть: статусы, акты, замечания, документы и ответственные.</p>
+        </div>
+      </div>
+      <div className="problem-summary">
+        {summary.map(([label, value, tone]) => (
+          <div className={`problem-summary-card ${tone}`} key={label}>
+            <span>{label}</span>
+            <strong>{value}</strong>
+          </div>
+        ))}
+      </div>
+      <div className="problem-type-grid">
+        {typeCards.map((type) => {
+          const count = problems.filter((problem) => problem.type === type).length;
+          return <div className="problem-type-card" key={type}><span>{type}</span><strong>{count}</strong></div>;
+        })}
+      </div>
+      <div className="problem-table-card">
+        <table className="problem-table">
+          <thead>
+            <tr>
+              <th>Тип проблемы</th>
+              <th>Объект</th>
+              <th>Корпус</th>
+              <th>Этаж</th>
+              <th>Дверь / проём</th>
+              <th>Ответственный</th>
+              <th>Дней</th>
+              <th>Приоритет</th>
+              <th>Действие</th>
+            </tr>
+          </thead>
+          <tbody>
+            {problems.map((problem) => (
+              <tr key={problem.id}>
+                <td><strong>{problem.type}</strong></td>
+                <td>{problem.object}</td>
+                <td>{problem.building}</td>
+                <td>{problem.floor}</td>
+                <td>{problem.door}</td>
+                <td>{problem.responsible || "Не назначен"}</td>
+                <td>{problem.days}</td>
+                <td><span className={`priority-badge priority-${problem.priority}`}>{problem.priority}</span></td>
+                <td><button className="secondary-button slim" onClick={() => onOpen(problem)}>Открыть</button></td>
+              </tr>
+            ))}
+          </tbody>
+        </table>
+        {problems.length === 0 && <div className="empty-plan">Проблем по доступным объектам нет.</div>}
       </div>
     </section>
   );
