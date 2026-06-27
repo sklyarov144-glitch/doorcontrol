@@ -3962,6 +3962,33 @@ th.matrix-actions-column {
   font-weight: 800;
 }
 
+.document-url-field {
+  display: grid;
+  gap: 8px;
+  margin-bottom: 16px;
+  color: var(--muted);
+  font-size: 12px;
+  font-weight: 900;
+}
+
+.document-url-field input {
+  width: 100%;
+  border: 1px solid var(--line);
+  border-radius: 14px;
+  padding: 12px 14px;
+  color: var(--text);
+  background: #f8fafc;
+  font: inherit;
+  font-size: 14px;
+  font-weight: 700;
+}
+
+.document-url-field input:focus {
+  outline: 3px solid rgba(201, 32, 47, 0.14);
+  border-color: rgba(201, 32, 47, 0.45);
+  background: #ffffff;
+}
+
 .document-link {
   width: fit-content;
   min-height: 44px;

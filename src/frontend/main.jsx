@@ -8,6 +8,7 @@ import "./styles.css";
 const STORAGE_KEY = "gross-lean-montage.visual.mvp.v7";
 const USERS_STORAGE_KEY = "gross-lean-montage.users.v1";
 const CURRENT_USER_KEY = "gross-lean-montage.current-user.v1";
+const MATRIX_DOCUMENTS_KEY = "gross-lean-montage.matrix-documents.v1";
 const ADMIN_PASSWORD = "123456";
 
 const doorStatusOptions = [
@@ -198,6 +199,7 @@ function createInitialObjects() {
       name: "ЖК Матвеевский парк",
       address: "Очаково-Матвеевское, ближайшая станция метро «Аминьевская»",
       status: "В работе",
+      responsibleId: "itr-1",
       buildings: [
         createBuilding("building-1", "Корпус 1", 0),
         createBuilding("building-2", "Корпус 2", -18),
@@ -520,10 +522,6 @@ function App() {
   };
 
   const navigate = (nextScreen) => {
-    if (nextScreen === "admin" && user.role === "itr") {
-      setScreen("objects");
-      return;
-    }
     setScreen(nextScreen);
   };
 
@@ -554,6 +552,8 @@ function App() {
           {screen === "admin" && (
             <AdminPanel
               objects={objects}
+              user={user}
+              users={users}
               onChange={(nextObjects) => {
                 setObjects(nextObjects);
                 saveObjects(nextObjects);
@@ -674,7 +674,7 @@ function Sidebar({ role, activeScreen, setScreen, onLogout }) {
     creator: [["objects", "Мои объекты"], ["company_dashboard", "Дашборд"], ["documents", "Документы"], ["reports", "Отчёты"], ["users", "Пользователи"], ["admin", "Админ-панель"], ["profile", "Личный кабинет"]],
     company_head: [["objects", "Мои объекты"], ["company_dashboard", "Дашборд"], ["documents", "Документы"], ["reports", "Отчёты"], ["users", "Пользователи"], ["admin", "Админ-панель"], ["profile", "Личный кабинет"]],
     construction_director: [["objects", "Мои объекты"], ["company_dashboard", "Дашборд"], ["documents", "Документы"], ["reports", "Отчёты"], ["admin", "Админ-панель"], ["profile", "Личный кабинет"]],
-    itr: [["objects", "Мои объекты"], ["documents", "Документы"], ["reports", "Отчёты"], ["profile", "Личный кабинет"]],
+    itr: [["objects", "Мои объекты"], ["documents", "Документы"], ["reports", "Отчёты"], ["admin", "Админ-панель"], ["profile", "Личный кабинет"]],
   };
   const items = menus[role] ?? menus.itr;
 
@@ -1239,7 +1239,7 @@ function createTemplateRooms(count) {
   });
 }
 
-function AdminPanel({ objects, onChange }) {
+function AdminPanel({ objects, user, users, onChange }) {
   const [objectForm, setObjectForm] = useState({ name: "", address: "", metro: "" });
   const [buildingForm, setBuildingForm] = useState({ number: "", floors: 25 });
   const [templateForm, setTemplateForm] = useState({ apartments: 6, mop: 2 });
@@ -1255,6 +1255,9 @@ function AdminPanel({ objects, onChange }) {
   const [editing, setEditing] = useState(false);
   const [selectedElement, setSelectedElement] = useState(null);
   const [notice, setNotice] = useState("");
+  const canCreateObject = ["creator", "company_head", "construction_director"].includes(user.role);
+  const canAssignResponsible = ["creator", "company_head", "construction_director"].includes(user.role);
+  const responsibleUsers = users.filter((item) => ["itr", "construction_director"].includes(item.role));
 
   React.useEffect(() => {
     setBuildingId(selectedObject?.buildings[0]?.id ?? "");
@@ -1270,6 +1273,10 @@ function AdminPanel({ objects, onChange }) {
 
   const createObject = (event) => {
     event.preventDefault();
+    if (!canCreateObject) {
+      setNotice("Создавать объект может только руководитель");
+      return;
+    }
     if (!objectForm.name.trim()) return;
     const id = `object-${Date.now()}`;
     const nextObject = {
@@ -1278,12 +1285,20 @@ function AdminPanel({ objects, onChange }) {
       address: [objectForm.address.trim(), objectForm.metro.trim() && `метро «${objectForm.metro.trim()}»`].filter(Boolean).join(", "),
       metro: objectForm.metro.trim(),
       status: "В работе",
+      responsibleId: responsibleUsers[0]?.id ?? "",
       buildings: [],
     };
     onChange([...objects, nextObject]);
     setObjectId(id);
     setObjectForm({ name: "", address: "", metro: "" });
     setNotice("Объект создан");
+  };
+
+  const assignResponsible = (responsibleId) => {
+    if (!selectedObject || !canAssignResponsible) return;
+    const next = objects.map((item) => item.id === selectedObject.id ? { ...item, responsibleId } : item);
+    onChange(next);
+    setNotice("Ответственный за объект назначен");
   };
 
   const addBuilding = (event) => {
@@ -1360,9 +1375,10 @@ function AdminPanel({ objects, onChange }) {
     <section className="admin-panel">
       <div className="admin-intro"><div><h2>Настройка объекта</h2><p>Создайте структуру и расставьте двери типового этажа.</p></div>{notice && <span>{notice}</span>}</div>
       <div className="admin-steps">
-        <form className="admin-card" onSubmit={createObject}><b>01</b><h3>Создание объекта</h3><label>Название<input value={objectForm.name} onChange={(e) => setObjectForm({ ...objectForm, name: e.target.value })} /></label><label>Район / адрес<input value={objectForm.address} onChange={(e) => setObjectForm({ ...objectForm, address: e.target.value })} /></label><label>Метро<input value={objectForm.metro} onChange={(e) => setObjectForm({ ...objectForm, metro: e.target.value })} /></label><button className="primary-button">Создать объект</button></form>
-        <form className="admin-card" onSubmit={addBuilding}><b>02</b><h3>Добавление корпуса</h3><label>Объект<select value={selectedObject?.id ?? ""} onChange={(e) => setObjectId(e.target.value)}>{objects.map((item) => <option key={item.id} value={item.id}>{item.name}</option>)}</select></label><label>Номер корпуса<input value={buildingForm.number} placeholder="4.1" onChange={(e) => setBuildingForm({ ...buildingForm, number: e.target.value })} /></label><label>Количество этажей<input type="number" min="1" value={buildingForm.floors} onChange={(e) => setBuildingForm({ ...buildingForm, floors: e.target.value })} /></label><button className="primary-button">Добавить корпус</button></form>
-        <div className="admin-card"><b>03</b><h3>Типовой этаж</h3><label>Корпус<select value={selectedBuilding?.id ?? ""} onChange={(e) => setBuildingId(e.target.value)}>{selectedObject?.buildings.map((item) => <option key={item.id} value={item.id}>{item.name}</option>)}</select></label><label>Квартир на этаже<input type="number" min="1" value={templateForm.apartments} onChange={(e) => setTemplateForm({ ...templateForm, apartments: e.target.value })} /></label><label>МОП-дверей<input type="number" min="0" value={templateForm.mop} onChange={(e) => setTemplateForm({ ...templateForm, mop: e.target.value })} /></label><button className="primary-button" type="button" disabled={!selectedBuilding} onClick={generateTemplate}>Сгенерировать план</button></div>
+        {canCreateObject && <form className="admin-card" onSubmit={createObject}><b>01</b><h3>Создание объекта</h3><label>Название<input value={objectForm.name} onChange={(e) => setObjectForm({ ...objectForm, name: e.target.value })} /></label><label>Район / адрес<input value={objectForm.address} onChange={(e) => setObjectForm({ ...objectForm, address: e.target.value })} /></label><label>Метро<input value={objectForm.metro} onChange={(e) => setObjectForm({ ...objectForm, metro: e.target.value })} /></label><button className="primary-button">Создать объект</button></form>}
+        <div className="admin-card"><b>{canCreateObject ? "02" : "01"}</b><h3>Ответственный за объект</h3><label>Объект<select value={selectedObject?.id ?? ""} onChange={(e) => setObjectId(e.target.value)}>{objects.map((item) => <option key={item.id} value={item.id}>{item.name}</option>)}</select></label><label>Ответственный<select value={selectedObject?.responsibleId ?? ""} disabled={!canAssignResponsible} onChange={(event) => assignResponsible(event.target.value)}><option value="">Не назначен</option>{responsibleUsers.map((item) => <option key={item.id} value={item.id}>{item.name} — {item.position}</option>)}</select></label><p>{canAssignResponsible ? "Руководитель может назначить ответственного за объект." : "Назначение ответственного доступно руководителю."}</p></div>
+        <form className="admin-card" onSubmit={addBuilding}><b>{canCreateObject ? "03" : "02"}</b><h3>Добавление корпуса</h3><label>Объект<select value={selectedObject?.id ?? ""} onChange={(e) => setObjectId(e.target.value)}>{objects.map((item) => <option key={item.id} value={item.id}>{item.name}</option>)}</select></label><label>Номер корпуса<input value={buildingForm.number} placeholder="4.1" onChange={(e) => setBuildingForm({ ...buildingForm, number: e.target.value })} /></label><label>Количество этажей<input type="number" min="1" value={buildingForm.floors} onChange={(e) => setBuildingForm({ ...buildingForm, floors: e.target.value })} /></label><button className="primary-button">Добавить корпус</button></form>
+        <div className="admin-card"><b>{canCreateObject ? "04" : "03"}</b><h3>Типовой этаж</h3><label>Корпус<select value={selectedBuilding?.id ?? ""} onChange={(e) => setBuildingId(e.target.value)}>{selectedObject?.buildings.map((item) => <option key={item.id} value={item.id}>{item.name}</option>)}</select></label><label>Квартир на этаже<input type="number" min="1" value={templateForm.apartments} onChange={(e) => setTemplateForm({ ...templateForm, apartments: e.target.value })} /></label><label>МОП-дверей<input type="number" min="0" value={templateForm.mop} onChange={(e) => setTemplateForm({ ...templateForm, mop: e.target.value })} /></label><button className="primary-button" type="button" disabled={!selectedBuilding} onClick={generateTemplate}>Сгенерировать план</button></div>
       </div>
       <div className="admin-template-card">
         <div className="admin-template-toolbar"><div><h3>Шаблон этажа</h3><p>{selectedBuilding?.name ?? "Сначала добавьте корпус"}</p></div><label className="file-button">Загрузить план<input type="file" accept="image/*" onChange={(event) => { const file = event.target.files?.[0]; if (!file) return; const reader = new FileReader(); reader.onload = () => setPlanImage(String(reader.result)); reader.readAsDataURL(file); }} /></label><button className="secondary-button" type="button" onClick={() => setEditing((value) => !value)}>{editing ? "Завершить расстановку" : "Редактировать расположение"}</button><button className="primary-button" type="button" onClick={saveTemplate}>Сохранить шаблон этажа</button></div>
@@ -1403,10 +1419,11 @@ function RangeField({ label, value, min, max, onChange }) {
 }
 
 function ProfilePage({ user, onSave }) {
-  const [form, setForm] = useState(user);
+  const [form, setForm] = useState({ ...user, oldPassword: "", newPassword: "" });
   const [saved, setSaved] = useState(false);
+  const [error, setError] = useState("");
   const update = (field, value) => { setForm((current) => ({ ...current, [field]: value })); setSaved(false); };
-  return <section className="profile-panel"><div className="profile-card"><div className="profile-avatar"><div>{form.avatar ? <img src={form.avatar} alt="Аватар" /> : form.name.slice(0, 1)}</div><label>Загрузить аватар<input type="file" accept="image/*" onChange={(event) => { const file = event.target.files?.[0]; if (!file) return; const reader = new FileReader(); reader.onload = () => update("avatar", String(reader.result)); reader.readAsDataURL(file); }} /></label></div><form onSubmit={(event) => { event.preventDefault(); onSave(form); setSaved(true); }}><div className="profile-grid"><label>Имя<input value={form.name} onChange={(event) => update("name", event.target.value)} /></label><label>Должность<input value={form.position} onChange={(event) => update("position", event.target.value)} /></label><label>Роль<input value={roleLabels[form.role]} readOnly /></label><label>Email<input type="email" value={form.email} onChange={(event) => update("email", event.target.value)} /></label><label>Телефон<input value={form.phone} onChange={(event) => update("phone", event.target.value)} /></label><label className="profile-password">Новый пароль<input type="password" value={form.password} onChange={(event) => update("password", event.target.value)} /></label></div><button className="primary-button">Сохранить профиль</button>{saved && <div className="save-notice">Данные пользователя сохранены</div>}</form></div></section>;
+  return <section className="profile-panel"><div className="profile-card"><div className="profile-avatar"><div>{form.avatar ? <img src={form.avatar} alt="Аватар" /> : form.name.slice(0, 1)}</div><label>Загрузить аватар<input type="file" accept="image/*" onChange={(event) => { const file = event.target.files?.[0]; if (!file) return; const reader = new FileReader(); reader.onload = () => update("avatar", String(reader.result)); reader.readAsDataURL(file); }} /></label></div><form onSubmit={(event) => { event.preventDefault(); setError(""); if (form.newPassword && form.oldPassword !== user.password) { setError("Введите текущий пароль, чтобы подтвердить смену пароля"); return; } const { oldPassword, newPassword, ...profile } = form; onSave({ ...profile, password: newPassword ? newPassword : user.password }); setForm((current) => ({ ...current, oldPassword: "", newPassword: "", password: newPassword ? newPassword : user.password })); setSaved(true); }}><div className="profile-grid"><label>Имя<input value={form.name} onChange={(event) => update("name", event.target.value)} /></label><label>Должность<input value={form.position} onChange={(event) => update("position", event.target.value)} /></label><label>Роль<input value={roleLabels[form.role]} readOnly /></label><label>Email<input type="email" value={form.email} onChange={(event) => update("email", event.target.value)} /></label><label>Телефон<input value={form.phone} onChange={(event) => update("phone", event.target.value)} /></label><label className="profile-password">Текущий пароль<input type="password" value={form.oldPassword} onChange={(event) => update("oldPassword", event.target.value)} placeholder="Введите старый пароль" /></label><label className="profile-password">Новый пароль<input type="password" value={form.newPassword} onChange={(event) => update("newPassword", event.target.value)} placeholder="Оставьте пустым, если не меняете" /></label></div><button className="primary-button">Сохранить профиль</button>{error && <div className="form-error">{error}</div>}{saved && <div className="save-notice">Данные пользователя сохранены</div>}</form></div></section>;
 }
 
 function CompanyDashboard({ objects }) {
@@ -1434,7 +1451,6 @@ const matrixDocumentLinks = [
     object: "ЖК Матвеевский парк",
     building: "Корпус 4.1",
     owner: "Иван Петров",
-    updatedAt: "25.06.2026",
     url: "https://disk.yandex.ru/",
   },
   {
@@ -1443,7 +1459,6 @@ const matrixDocumentLinks = [
     object: "ЖК Матвеевский парк",
     building: "Корпус 4.2",
     owner: "Иван Петров",
-    updatedAt: "25.06.2026",
     url: "https://disk.yandex.ru/",
   },
   {
@@ -1452,12 +1467,26 @@ const matrixDocumentLinks = [
     object: "ЖК Матвеевский парк",
     building: "Корпус 4.3",
     owner: "Иван Петров",
-    updatedAt: "25.06.2026",
     url: "https://disk.yandex.ru/",
   },
 ];
 
 function DocumentsPage() {
+  const [documents, setDocuments] = useState(() => {
+    try {
+      const saved = JSON.parse(localStorage.getItem(MATRIX_DOCUMENTS_KEY));
+      const savedItems = Array.isArray(saved) ? saved : [];
+      return matrixDocumentLinks.map((item) => ({ ...item, ...(savedItems.find((savedItem) => savedItem.id === item.id) ?? {}) }));
+    } catch {
+      return matrixDocumentLinks;
+    }
+  });
+  const updateLink = (id, url) => {
+    const next = documents.map((item) => item.id === id ? { ...item, url } : item);
+    setDocuments(next);
+    localStorage.setItem(MATRIX_DOCUMENTS_KEY, JSON.stringify(next));
+  };
+
   return (
     <section className="documents-page">
       <div className="documents-hero">
@@ -1468,7 +1497,7 @@ function DocumentsPage() {
         </div>
       </div>
       <div className="documents-grid">
-        {matrixDocumentLinks.map((item) => (
+        {documents.map((item) => (
           <article className="document-card" key={item.id}>
             <div className="document-icon">Г</div>
             <div className="document-card-body">
@@ -1477,9 +1506,9 @@ function DocumentsPage() {
                 <div><dt>Объект</dt><dd>{item.object}</dd></div>
                 <div><dt>Корпус</dt><dd>{item.building}</dd></div>
                 <div><dt>Ответственный</dt><dd>{item.owner}</dd></div>
-                <div><dt>Дата обновления</dt><dd>{item.updatedAt}</dd></div>
               </dl>
-              <a className="primary-button document-link" href={item.url} target="_blank" rel="noreferrer">
+              <label className="document-url-field">Ссылка на шахматку<input type="url" value={item.url} onChange={(event) => updateLink(item.id, event.target.value)} placeholder="https://disk.yandex.ru/..." /></label>
+              <a className="primary-button document-link" href={item.url || "https://disk.yandex.ru/"} target="_blank" rel="noreferrer">
                 Открыть шахматку
               </a>
             </div>
