@@ -9,6 +9,7 @@ import {
   addNotification,
   addDailyWorkReport,
   addEmployee,
+  addDailyAutoReport,
   addObjectWorkPlan,
   addTeam,
   addWorkStandard,
@@ -16,18 +17,24 @@ import {
   createDoorMatrix,
   getDoorMatrix,
   getDailyWorkReports,
+  getDailyAutoReports,
+  getDelayReasonStats,
   getEmployeeOutput,
   getEmployees,
   getNotificationsByUser,
   getUnreadNotificationsCount,
   getObjectWorkPlans,
   getPlanFactStats,
+  getPlanFactMoneyStats,
   getProblems,
   getProblemStats,
   getTasks,
   getTeamEfficiency,
+  getTeamRating,
+  getItrRating,
   getTeams,
   getWorkStandards,
+  generateDailyAutoReport,
   markAllNotificationsRead,
   markNotificationRead,
   mergeDoorMatrixWithObjects,
@@ -82,6 +89,17 @@ const manualTaskTypes = [
 const manualTaskPriorities = ["низкий", "средний", "высокий"];
 const manualTaskStatuses = ["новая", "в работе", "выполнена", "отменена"];
 const taskLinkCategories = ["акт АОХ", "фото", "документ", "прочее"];
+const delayReasonOptions = [
+  "Не готов проём",
+  "Нет доступа",
+  "Нет дверей на этаже",
+  "Не подняты двери",
+  "Нет фурнитуры",
+  "Не было бригады",
+  "Замечания ТН",
+  "Ожидание заказчика",
+  "Другое",
+];
 
 const statusMeta = {
   "не начато": { tone: "gray", label: "не начато" },
@@ -1914,6 +1932,8 @@ function BrigadePlanPage({ objects, user, users }) {
   const employees = getEmployees();
   const reports = getDailyWorkReports();
   const stats = getPlanFactStats();
+  const moneyStats = getPlanFactMoneyStats();
+  const delayStats = getDelayReasonStats();
   const objectNames = new Map(objects.map((object) => [object.id, object.name]));
   const buildingNames = new Map(objects.flatMap((object) => object.buildings.map((building) => [building.id, building.name])));
   const standardNames = new Map(standards.map((item) => [item.id, item.workType]));
@@ -1942,11 +1962,13 @@ function BrigadePlanPage({ objects, user, users }) {
 
   return <section className="brigade-page" key={version}>
     <div className="tasks-hero"><div><span>План бригад / План-факт работ</span><h2>Контроль выработки по объектам</h2><p>Регламент компании, план по корпусам и ежедневный факт ИТР в одном модуле.</p></div><div className="heading-actions"><button className="primary-button" onClick={() => setFactOpen(true)}>Добавить факт за день</button><button className="secondary-button" onClick={() => setMultiOpen(true)}>Факт по сотрудникам</button></div></div>
-    <div className="task-tabs brigade-tabs">{[["current", "Текущий план"], ["standards", "Регламент работ"], ["object", "План на объект"], ["daily", "Ежедневный факт"], ["fact", "План-факт"], ["teams", "Бригады / сотрудники"]].map(([id, label]) => <button key={id} className={tab === id ? "active" : ""} onClick={() => setTab(id)}>{label}</button>)}</div>
+    <div className="task-tabs brigade-tabs">{[["current", "Текущий план"], ["standards", "Регламент работ"], ["object", "План на объект"], ["daily", "Ежедневный факт"], ["fact", "План-факт"], ["ratings", "Рейтинги"], ["auto-report", "Автоотчёт"], ["teams", "Бригады / сотрудники"]].map(([id, label]) => <button key={id} className={tab === id ? "active" : ""} onClick={() => setTab(id)}>{label}</button>)}</div>
     {["current", "standards"].includes(tab) && <div className="brigade-card"><div className="panel-title"><div><h2>{tab === "current" ? "Утверждённый текущий план" : "Регламент работ"}</h2><p>Основа для переноса текущего Excel-плана компании.</p></div>{canEditStandards && <button className="primary-button slim" onClick={() => setStandardEdit({})}>Добавить вид работ</button>}</div><StandardsTable rows={standards} canEdit={canEditStandards} onEdit={setStandardEdit} onDisable={(id) => { disableWorkStandard(id); refresh(); }} /></div>}
     {tab === "object" && <ObjectPlanPanel objects={objects} users={users} standards={activeStandards} teams={teams} plans={plans} canAssign={canAssignPlan} onSave={(values) => { addObjectWorkPlan({ ...values, createdBy: user.id }); refresh(); }} />}
     {tab === "daily" && <div className="brigade-card"><div className="panel-title"><div><h2>Журнал ежедневного факта</h2><p>Факт по бригадам и сотрудникам.</p></div><button className="primary-button slim" onClick={() => setFactOpen(true)}>Добавить факт</button></div><ReportsTable reports={reports} objectNames={objectNames} buildingNames={buildingNames} standardNames={standardNames} teamNames={teamNames} employeeNames={employeeNames} userNames={userNames} /></div>}
-    {tab === "fact" && <div className="brigade-planfact"><div className="tasks-summary"><div><span>План</span><strong>{stats.plan}</strong></div><div><span>Факт</span><strong>{stats.fact}</strong></div><div className={stats.completionPercent >= 100 ? "success" : stats.completionPercent < 80 ? "danger" : ""}><span>Выполнение</span><strong>{stats.completionPercent}%</strong></div><div><span>Отклонение</span><strong>{stats.deviation}</strong></div><div className="success"><span>Перевыполнение</span><strong>{stats.overrun}</strong></div><div className="danger"><span>Отставание</span><strong>{stats.lag}</strong></div><div><span>Бригад</span><strong>{stats.activeTeams}</strong></div></div><div className="brigade-card"><h2>План-факт</h2><ReportsTable reports={stats.reports} objectNames={objectNames} buildingNames={buildingNames} standardNames={standardNames} teamNames={teamNames} employeeNames={employeeNames} userNames={userNames} /></div><div className="brigade-analytics-grid"><TeamEfficiencyTable rows={getTeamEfficiency()} objectNames={objectNames} /><EmployeeOutputTable rows={getEmployeeOutput()} teamNames={teamNames} /></div></div>}
+    {tab === "fact" && <div className="brigade-planfact"><div className="tasks-summary"><div><span>План</span><strong>{stats.plan}</strong></div><div><span>Факт</span><strong>{stats.fact}</strong></div><div className={stats.completionPercent >= 100 ? "success" : stats.completionPercent < 80 ? "danger" : ""}><span>Выполнение</span><strong>{stats.completionPercent}%</strong></div><div><span>Отклонение</span><strong>{stats.deviation}</strong></div><div className="success"><span>Перевыполнение</span><strong>{stats.overrun}</strong></div><div className="danger"><span>Отставание</span><strong>{stats.lag}</strong></div><div><span>Бригад</span><strong>{stats.activeTeams}</strong></div></div><MoneySummary stats={moneyStats} /><div className="brigade-card"><h2>План-факт</h2><ReportsTable reports={stats.reports} objectNames={objectNames} buildingNames={buildingNames} standardNames={standardNames} teamNames={teamNames} employeeNames={employeeNames} userNames={userNames} /></div><DelayReasonsBlock rows={delayStats} /><div className="brigade-analytics-grid"><TeamEfficiencyTable rows={getTeamEfficiency()} objectNames={objectNames} /><EmployeeOutputTable rows={getEmployeeOutput()} teamNames={teamNames} /></div></div>}
+    {tab === "ratings" && <div className="brigade-analytics-grid"><TeamRatingTable rows={getTeamRating()} objectNames={objectNames} buildingNames={buildingNames} /><ItrRatingTable rows={getItrRating()} /></div>}
+    {tab === "auto-report" && <AutoReportTab objects={objects} users={users} objectNames={objectNames} buildingNames={buildingNames} user={user} />}
     {tab === "teams" && <TeamsPanel teams={teams} employees={employees} objects={objects} users={users} refresh={refresh} />}
     {standardEdit && <StandardModal standard={standardEdit} onClose={() => setStandardEdit(null)} onSave={saveStandard} />}
     {factOpen && <DailyFactModal objects={objects} standards={activeStandards} teams={teams} employees={employees} user={user} onClose={() => setFactOpen(false)} onSave={(values) => { saveFact(values); setFactOpen(false); }} />}
@@ -1964,6 +1986,50 @@ function StandardModal({ standard, onClose, onSave }) {
   return <div className="modal-backdrop"><form className="task-modal" onSubmit={(event) => { event.preventDefault(); onSave(form); }}><div className="modal-title"><div><h2>{form.id ? "Редактировать вид работ" : "Добавить вид работ"}</h2><p>Регламент работ компании.</p></div><button type="button" onClick={onClose}>×</button></div><div className="task-form-grid"><label className="wide">Вид работ<input value={form.workType} onChange={(event) => update("workType", event.target.value)} /></label><label>Состав группы<input value={form.teamComposition} onChange={(event) => update("teamComposition", event.target.value)} /></label><label>План в день<input type="number" value={form.dailyPlan} onChange={(event) => update("dailyPlan", event.target.value)} /></label><label>Единица<select value={form.unitName} onChange={(event) => update("unitName", event.target.value)}>{["двери", "комплекты", "этажи", "операции", "часы", "рейсы"].map((item) => <option key={item}>{item}</option>)}</select></label><label>Сумма в день<input type="number" value={form.dailyBudget} onChange={(event) => update("dailyBudget", event.target.value)} /></label><label>Цена за единицу<input type="number" value={form.unitPrice} onChange={(event) => update("unitPrice", event.target.value)} /></label><label>Категория<input value={form.category} onChange={(event) => update("category", event.target.value)} /></label><label className="wide">Комментарий<textarea value={form.comment} onChange={(event) => update("comment", event.target.value)} /></label></div><div className="form-actions"><button className="secondary-button" type="button" onClick={onClose}>Отмена</button><button className="primary-button">Сохранить</button></div></form></div>;
 }
 
+function formatRub(value) {
+  return `${Math.round(Number(value) || 0).toLocaleString("ru-RU")} ₽`;
+}
+
+function MoneySummary({ stats }) {
+  return <div className="money-summary"><div><span>План в деньгах</span><strong>{formatRub(stats.plannedAmount)}</strong></div><div><span>Факт в деньгах</span><strong>{formatRub(stats.actualAmount)}</strong></div><div className={stats.moneyDeviation < 0 ? "danger" : "success"}><span>Отклонение в деньгах</span><strong>{formatRub(stats.moneyDeviation)}</strong></div><div className="danger"><span>Недовыполнение</span><strong>{formatRub(stats.moneyUnderperformance)}</strong></div><div className="success"><span>Перевыполнение</span><strong>{formatRub(stats.moneyOverperformance)}</strong></div></div>;
+}
+
+function DelayReasonsBlock({ rows }) {
+  return <div className="brigade-card"><h2>Причины отставания</h2><div className="delay-reason-grid">{rows.map((row) => <div key={row.reason}><strong>{row.reason}</strong><span>{row.quantityLag} ед. · {formatRub(row.moneyLag)} · {row.percent}%</span></div>)}{rows.length === 0 && <div className="empty-plan">Отставаний за период нет.</div>}</div></div>;
+}
+
+function scoreTone(score) {
+  if (score >= 100) return "good";
+  if (score >= 80) return "warn";
+  return "bad";
+}
+
+function TeamRatingTable({ rows, objectNames }) {
+  return <div className="brigade-card"><h2>Рейтинг бригад</h2><table className="executive-table"><thead><tr><th>Бригада</th><th>Объект</th><th>План</th><th>Факт</th><th>%</th><th>План ₽</th><th>Факт ₽</th><th>Откл. ₽</th><th>Дней</th><th>Ниже 80%</th><th>Балл</th></tr></thead><tbody>{rows.map((row) => <tr key={row.teamId}><td>{row.team}</td><td>{objectNames.get(row.objectId)}</td><td>{row.plan}</td><td>{row.fact}</td><td>{row.completionPercent}%</td><td>{formatRub(row.plannedAmount)}</td><td>{formatRub(row.actualAmount)}</td><td className={row.moneyDeviation < 0 ? "danger-text" : "success-text"}>{formatRub(row.moneyDeviation)}</td><td>{row.daysCount}</td><td>{row.lowDays}</td><td><span className={`completion-pill ${scoreTone(row.score)}`}>{row.score}</span></td></tr>)}</tbody></table></div>;
+}
+
+function ItrRatingTable({ rows }) {
+  return <div className="brigade-card"><h2>Рейтинг ИТР</h2><table className="executive-table"><thead><tr><th>ФИО</th><th>Объекты</th><th>Корпуса</th><th>Отчётов</th><th>Дней без отчёта</th><th>План</th><th>Факт</th><th>%</th><th>План ₽</th><th>Факт ₽</th><th>Откл. ₽</th><th>Бригад ниже 80%</th><th>Балл</th></tr></thead><tbody>{rows.map((row) => <tr key={row.userId}><td>{row.name}</td><td>{row.objectsCount}</td><td>{row.buildingsCount}</td><td>{row.reportsCount}</td><td>{row.daysWithoutReport}</td><td>{row.plan}</td><td>{row.fact}</td><td>{row.completionPercent}%</td><td>{formatRub(row.plannedAmount)}</td><td>{formatRub(row.actualAmount)}</td><td className={row.moneyDeviation < 0 ? "danger-text" : "success-text"}>{formatRub(row.moneyDeviation)}</td><td>{row.lowTeams}</td><td><span className={`completion-pill ${scoreTone(row.score)}`}>{row.score}</span></td></tr>)}</tbody></table>{rows.length === 0 && <div className="empty-plan">Пока нет данных для рейтинга ИТР.</div>}</div>;
+}
+
+function AutoReportTab({ objects, users, objectNames, buildingNames, user }) {
+  const [filters, setFilters] = useState({ date: new Date().toISOString().slice(0, 10), objectId: objects[0]?.id ?? "", buildingId: objects[0]?.buildings[0]?.id ?? "", itrId: "" });
+  const [copied, setCopied] = useState(false);
+  const selectedObject = objects.find((object) => object.id === filters.objectId) ?? objects[0];
+  const reportText = generateDailyAutoReport(filters, { objectNames, buildingNames });
+  const history = getDailyAutoReports();
+  const update = (field, value) => setFilters((current) => field === "objectId" ? { ...current, objectId: value, buildingId: objects.find((object) => object.id === value)?.buildings[0]?.id ?? "" } : { ...current, [field]: value });
+  const copyReport = async () => {
+    try {
+      await navigator.clipboard.writeText(reportText);
+      setCopied(true);
+    } catch {
+      setCopied(false);
+    }
+  };
+  return <div className="auto-report-layout"><div className="brigade-card"><div className="panel-title"><div><h2>Автоотчёт за день</h2><p>Формируется автоматически из ежедневного факта.</p></div></div><div className="object-plan-form"><label>Дата<input type="date" value={filters.date} onChange={(event) => update("date", event.target.value)} /></label><label>Объект<select value={filters.objectId} onChange={(event) => update("objectId", event.target.value)}>{objects.map((object) => <option key={object.id} value={object.id}>{object.name}</option>)}</select></label><label>Корпус<select value={filters.buildingId} onChange={(event) => update("buildingId", event.target.value)}>{selectedObject?.buildings.map((building) => <option key={building.id} value={building.id}>{building.name}</option>)}</select></label><label>ИТР<select value={filters.itrId} onChange={(event) => update("itrId", event.target.value)}><option value="">Все ИТР</option>{users.filter((item) => item.role === "itr").map((item) => <option key={item.id} value={item.id}>{item.name}</option>)}</select></label></div><pre className="auto-report-text">{reportText}</pre><div className="form-actions"><button className="primary-button" onClick={copyReport}>{copied ? "Скопировано" : "Скопировать отчёт"}</button><button className="secondary-button" onClick={() => addDailyAutoReport({ ...filters, createdBy: user.id, reportText })}>Сохранить в историю</button></div></div><div className="brigade-card"><h2>История автоотчётов</h2><div className="team-list">{history.map((item) => <div key={item.id}><strong>{item.date}</strong><span>{objectNames.get(item.objectId) ?? "Все объекты"} · {new Date(item.createdAt).toLocaleString("ru-RU")}</span></div>)}{history.length === 0 && <div className="empty-plan">История пока пустая.</div>}</div></div></div>;
+}
+
 function ObjectPlanPanel({ objects, users, standards, teams, plans, canAssign, onSave }) {
   const firstObject = objects[0];
   const [form, setForm] = useState({ objectId: firstObject?.id ?? "", buildingId: firstObject?.buildings[0]?.id ?? "", workTypeId: standards[0]?.id ?? "", plannedQuantity: 240, startDate: new Date().toISOString().slice(0, 10), endDate: new Date(Date.now() + 7 * 86400000).toISOString().slice(0, 10), assignedItrId: users.find((item) => item.role === "itr")?.id ?? "", assignedTeamId: teams[0]?.id ?? "", comment: "" });
@@ -1974,11 +2040,12 @@ function ObjectPlanPanel({ objects, users, standards, teams, plans, canAssign, o
 
 function DailyFactModal({ objects, standards, teams, employees, user, onClose, onSave }) {
   const object = objects[0];
-  const [form, setForm] = useState({ date: new Date().toISOString().slice(0, 10), objectId: object?.id ?? "", buildingId: object?.buildings[0]?.id ?? "", teamId: teams[0]?.id ?? "", employeeId: "", workTypeId: standards[0]?.id ?? "", actualQuantity: 0, comment: "" });
+  const [form, setForm] = useState({ date: new Date().toISOString().slice(0, 10), objectId: object?.id ?? "", buildingId: object?.buildings[0]?.id ?? "", teamId: teams[0]?.id ?? "", employeeId: "", workTypeId: standards[0]?.id ?? "", actualQuantity: 0, delayReason: "", comment: "" });
   const selectedObject = objects.find((item) => item.id === form.objectId) ?? object;
   const standard = standards.find((item) => item.id === form.workTypeId);
+  const isBehindPlan = Number(form.actualQuantity) < Number(standard?.dailyPlan ?? 0);
   const update = (field, value) => setForm((current) => field === "objectId" ? { ...current, objectId: value, buildingId: objects.find((item) => item.id === value)?.buildings[0]?.id ?? "" } : { ...current, [field]: value });
-  return <div className="modal-backdrop"><form className="task-modal compact" onSubmit={(event) => { event.preventDefault(); onSave({ ...form, plannedQuantity: standard?.dailyPlan ?? 0, createdBy: user.id }); }}><div className="modal-title"><div><h2>Добавить факт за день</h2><p>Короткая форма для ИТР.</p></div><button type="button" onClick={onClose}>×</button></div><label>Дата<input type="date" value={form.date} onChange={(event) => update("date", event.target.value)} /></label><label>Объект<select value={form.objectId} onChange={(event) => update("objectId", event.target.value)}>{objects.map((item) => <option key={item.id} value={item.id}>{item.name}</option>)}</select></label><label>Корпус<select value={form.buildingId} onChange={(event) => update("buildingId", event.target.value)}>{selectedObject?.buildings.map((building) => <option key={building.id} value={building.id}>{building.name}</option>)}</select></label><label>Бригада<select value={form.teamId} onChange={(event) => update("teamId", event.target.value)}>{teams.map((team) => <option key={team.id} value={team.id}>{team.name}</option>)}</select></label><label>Сотрудник<select value={form.employeeId} onChange={(event) => update("employeeId", event.target.value)}><option value="">Бригада целиком</option>{employees.filter((employee) => employee.teamId === form.teamId).map((employee) => <option key={employee.id} value={employee.id}>{employee.name}</option>)}</select></label><label>Вид работ<select value={form.workTypeId} onChange={(event) => update("workTypeId", event.target.value)}>{standards.map((item) => <option key={item.id} value={item.id}>{item.workType}</option>)}</select></label><div className="auto-plan-box">План: <strong>{standard?.dailyPlan ?? 0} {standard?.unitName}</strong></div><label>Факт<input type="number" value={form.actualQuantity} onChange={(event) => update("actualQuantity", event.target.value)} /></label><label>Комментарий<textarea value={form.comment} onChange={(event) => update("comment", event.target.value)} /></label><div className="form-actions"><button className="secondary-button" type="button" onClick={onClose}>Отмена</button><button className="primary-button">Сохранить факт</button></div></form></div>;
+  return <div className="modal-backdrop"><form className="task-modal compact" onSubmit={(event) => { event.preventDefault(); onSave({ ...form, plannedQuantity: standard?.dailyPlan ?? 0, createdBy: user.id }); }}><div className="modal-title"><div><h2>Добавить факт за день</h2><p>Короткая форма для ИТР.</p></div><button type="button" onClick={onClose}>×</button></div><label>Дата<input type="date" value={form.date} onChange={(event) => update("date", event.target.value)} /></label><label>Объект<select value={form.objectId} onChange={(event) => update("objectId", event.target.value)}>{objects.map((item) => <option key={item.id} value={item.id}>{item.name}</option>)}</select></label><label>Корпус<select value={form.buildingId} onChange={(event) => update("buildingId", event.target.value)}>{selectedObject?.buildings.map((building) => <option key={building.id} value={building.id}>{building.name}</option>)}</select></label><label>Бригада<select value={form.teamId} onChange={(event) => update("teamId", event.target.value)}>{teams.map((team) => <option key={team.id} value={team.id}>{team.name}</option>)}</select></label><label>Сотрудник<select value={form.employeeId} onChange={(event) => update("employeeId", event.target.value)}><option value="">Бригада целиком</option>{employees.filter((employee) => employee.teamId === form.teamId).map((employee) => <option key={employee.id} value={employee.id}>{employee.name}</option>)}</select></label><label>Вид работ<select value={form.workTypeId} onChange={(event) => update("workTypeId", event.target.value)}>{standards.map((item) => <option key={item.id} value={item.id}>{item.workType}</option>)}</select></label><div className="auto-plan-box">План: <strong>{standard?.dailyPlan ?? 0} {standard?.unitName}</strong></div><label>Факт<input type="number" value={form.actualQuantity} onChange={(event) => update("actualQuantity", event.target.value)} /></label>{isBehindPlan && <div className="soft-warning">Укажите причину отставания, чтобы руководитель видел, что мешает работе.</div>}<label className={isBehindPlan && !form.delayReason ? "needs-attention" : ""}>Причина отставания<select value={form.delayReason} onChange={(event) => update("delayReason", event.target.value)}><option value="">Не выбрана</option>{delayReasonOptions.map((item) => <option key={item} value={item}>{item}</option>)}</select></label><label>Комментарий<textarea value={form.comment} onChange={(event) => update("comment", event.target.value)} /></label><div className="form-actions"><button className="secondary-button" type="button" onClick={onClose}>Отмена</button><button className="primary-button">Сохранить факт</button></div></form></div>;
 }
 
 function MultiFactModal({ objects, standards, teams, employees, user, onClose, onSave }) {
@@ -1993,7 +2060,7 @@ function MultiFactModal({ objects, standards, teams, employees, user, onClose, o
 }
 
 function ReportsTable({ reports, objectNames, buildingNames, standardNames, teamNames, employeeNames, userNames }) {
-  return <div className="brigade-table-wrap"><table className="executive-table brigade-table"><thead><tr><th>Дата</th><th>Объект</th><th>Корпус</th><th>Бригада</th><th>Сотрудник</th><th>Вид работ</th><th>План</th><th>Факт</th><th>Отклонение</th><th>%</th><th>Комментарий</th><th>Внёс</th></tr></thead><tbody>{reports.map((row) => <tr key={row.id}><td>{row.date}</td><td>{objectNames.get(row.objectId)}</td><td>{buildingNames.get(row.buildingId)}</td><td>{teamNames.get(row.teamId)}</td><td>{employeeNames.get(row.employeeId) ?? "Бригада"}</td><td>{standardNames.get(row.workTypeId)}</td><td>{row.plannedQuantity}</td><td>{row.actualQuantity}</td><td>{row.deviation}</td><td><span className={`completion-pill ${row.completionPercent >= 100 ? "good" : row.completionPercent >= 80 ? "warn" : "bad"}`}>{row.completionPercent}%</span></td><td>{row.comment || "—"}</td><td>{userNames.get(row.createdBy) ?? row.createdBy}</td></tr>)}</tbody></table>{reports.length === 0 && <div className="empty-plan">Факты пока не внесены.</div>}</div>;
+  return <div className="brigade-table-wrap"><table className="executive-table brigade-table"><thead><tr><th>Дата</th><th>Объект</th><th>Корпус</th><th>Бригада</th><th>Сотрудник</th><th>Вид работ</th><th>План</th><th>Факт</th><th>%</th><th>Откл.</th><th>План, ₽</th><th>Факт, ₽</th><th>Откл., ₽</th><th>Причина</th><th>Комментарий</th><th>Внёс</th></tr></thead><tbody>{reports.map((row) => <tr key={row.id}><td>{row.date}</td><td>{objectNames.get(row.objectId)}</td><td>{buildingNames.get(row.buildingId)}</td><td>{teamNames.get(row.teamId)}</td><td>{employeeNames.get(row.employeeId) ?? "Бригада"}</td><td>{standardNames.get(row.workTypeId)}</td><td>{row.plannedQuantity}</td><td>{row.actualQuantity}</td><td><span className={`completion-pill ${row.completionPercent >= 100 ? "good" : row.completionPercent >= 80 ? "warn" : "bad"}`}>{row.completionPercent}%</span></td><td>{row.deviation}</td><td>{formatRub(row.plannedAmount)}</td><td>{formatRub(row.actualAmount)}</td><td className={row.moneyDeviation < 0 ? "danger-text" : "success-text"}>{formatRub(row.moneyDeviation)}</td><td>{row.delayReason || "—"}</td><td>{row.comment || "—"}</td><td>{userNames.get(row.createdBy) ?? row.createdBy}</td></tr>)}</tbody></table>{reports.length === 0 && <div className="empty-plan">Факты пока не внесены.</div>}</div>;
 }
 
 function TeamEfficiencyTable({ rows, objectNames }) {

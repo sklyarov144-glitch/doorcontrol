@@ -8,6 +8,7 @@ const OBJECT_WORK_PLANS_KEY = "gross-lean-montage.object-work-plans.v1";
 const TEAMS_KEY = "gross-lean-montage.teams.v1";
 const EMPLOYEES_KEY = "gross-lean-montage.employees.v1";
 const DAILY_WORK_REPORTS_KEY = "gross-lean-montage.daily-work-reports.v1";
+const DAILY_AUTO_REPORTS_KEY = "gross-lean-montage.daily-auto-reports.v1";
 const DEFAULT_MATRIX_DOCUMENTS = [
   { building: "Корпус 4.1", url: "https://disk.yandex.ru/" },
   { building: "Корпус 4.2", url: "https://disk.yandex.ru/" },
@@ -769,10 +770,15 @@ export function saveDailyWorkReports(rows) {
 export function addDailyWorkReport(values) {
   const planned = Number(values.plannedQuantity) || 0;
   const actual = Number(values.actualQuantity) || 0;
+  const money = calculateReportMoney({ ...values, plannedQuantity: planned, actualQuantity: actual });
   const row = stamp({
     id: `daily-report-${Date.now()}-${Math.random().toString(16).slice(2)}`,
     completionPercent: planned > 0 ? Math.round((actual / planned) * 100) : 0,
     deviation: actual - planned,
+    delayReason: values.delayReason ?? "",
+    plannedAmount: money.plannedAmount,
+    actualAmount: money.actualAmount,
+    moneyDeviation: money.moneyDeviation,
     ...values,
     plannedQuantity: planned,
     actualQuantity: actual,
@@ -786,10 +792,32 @@ export function updateDailyWorkReport(id, values) {
     if (row.id !== id) return row;
     const planned = Number(values.plannedQuantity ?? row.plannedQuantity) || 0;
     const actual = Number(values.actualQuantity ?? row.actualQuantity) || 0;
-    return { ...row, ...values, plannedQuantity: planned, actualQuantity: actual, completionPercent: planned > 0 ? Math.round((actual / planned) * 100) : 0, deviation: actual - planned, updatedAt: new Date().toISOString() };
+    const money = calculateReportMoney({ ...row, ...values, plannedQuantity: planned, actualQuantity: actual });
+    return { ...row, ...values, plannedQuantity: planned, actualQuantity: actual, completionPercent: planned > 0 ? Math.round((actual / planned) * 100) : 0, deviation: actual - planned, ...money, updatedAt: new Date().toISOString() };
   });
   saveDailyWorkReports(next);
   return next;
+}
+
+function calculateReportMoney(report) {
+  const standard = getWorkStandards().find((item) => item.id === report.workTypeId);
+  const planned = Number(report.plannedQuantity) || 0;
+  const actual = Number(report.actualQuantity) || 0;
+  const completion = planned > 0 ? actual / planned : 0;
+  let plannedAmount = 0;
+  let actualAmount = 0;
+  if (Number(standard?.unitPrice) > 0) {
+    plannedAmount = planned * Number(standard.unitPrice);
+    actualAmount = actual * Number(standard.unitPrice);
+  } else if (Number(standard?.dailyBudget) > 0) {
+    plannedAmount = Number(standard.dailyBudget);
+    actualAmount = Number(standard.dailyBudget) * completion;
+  }
+  return {
+    plannedAmount: Math.round(plannedAmount),
+    actualAmount: Math.round(actualAmount),
+    moneyDeviation: Math.round(actualAmount - plannedAmount),
+  };
 }
 
 function filterReports(reports, filters = {}) {
@@ -807,9 +835,11 @@ function filterReports(reports, filters = {}) {
 }
 
 export function getPlanFactStats(filters = {}) {
-  const reports = filterReports(getDailyWorkReports(), filters);
+  const reports = filterReports(getDailyWorkReports(), filters).map((row) => ({ ...calculateReportMoney(row), ...row }));
   const plan = reports.reduce((sum, row) => sum + (Number(row.plannedQuantity) || 0), 0);
   const fact = reports.reduce((sum, row) => sum + (Number(row.actualQuantity) || 0), 0);
+  const plannedAmount = reports.reduce((sum, row) => sum + (Number(row.plannedAmount) || 0), 0);
+  const actualAmount = reports.reduce((sum, row) => sum + (Number(row.actualAmount) || 0), 0);
   return {
     reports,
     plan,
@@ -818,7 +848,23 @@ export function getPlanFactStats(filters = {}) {
     deviation: fact - plan,
     overrun: Math.max(0, fact - plan),
     lag: Math.max(0, plan - fact),
+    plannedAmount,
+    actualAmount,
+    moneyDeviation: actualAmount - plannedAmount,
+    moneyUnderperformance: Math.max(0, plannedAmount - actualAmount),
+    moneyOverperformance: Math.max(0, actualAmount - plannedAmount),
     activeTeams: new Set(reports.map((row) => row.teamId).filter(Boolean)).size,
+  };
+}
+
+export function getPlanFactMoneyStats(filters = {}) {
+  const stats = getPlanFactStats(filters);
+  return {
+    plannedAmount: stats.plannedAmount,
+    actualAmount: stats.actualAmount,
+    moneyDeviation: stats.moneyDeviation,
+    moneyUnderperformance: stats.moneyUnderperformance,
+    moneyOverperformance: stats.moneyOverperformance,
   };
 }
 
@@ -840,6 +886,87 @@ export function getTeamEfficiency(filters = {}) {
     lag: Math.max(0, row.plan - row.fact),
     daysCount: row.days.size,
   }));
+}
+
+export function getTeamRating(filters = {}) {
+  const tasks = getTasks();
+  return getTeamEfficiency(filters).map((row) => {
+    const lowDays = getPlanFactStats(filters).reports.filter((report) => report.teamId === row.teamId && report.completionPercent < 80).length;
+    const overdueTasks = tasks.filter((task) => task.teamId === row.teamId && task.dueDate && task.dueDate < todayIso() && !["выполнена", "отменена"].includes(task.status)).length;
+    const score = Math.max(0, Math.min(120, row.completionPercent - lowDays * 5 - overdueTasks * 3));
+    const reports = getPlanFactStats(filters).reports.filter((report) => report.teamId === row.teamId);
+    return {
+      ...row,
+      plannedAmount: reports.reduce((sum, report) => sum + (Number(report.plannedAmount) || 0), 0),
+      actualAmount: reports.reduce((sum, report) => sum + (Number(report.actualAmount) || 0), 0),
+      moneyDeviation: reports.reduce((sum, report) => sum + (Number(report.moneyDeviation) || 0), 0),
+      lowDays,
+      overdueTasks,
+      score,
+    };
+  }).sort((a, b) => b.score - a.score);
+}
+
+export function getItrRating(filters = {}) {
+  const usersById = new Map([
+    ["itr-1", "ИТР"],
+    ["director-1", "Директор строительства"],
+    ["head-1", "Руководитель"],
+    ["creator-1", "Иван"],
+  ]);
+  const reports = getPlanFactStats(filters).reports;
+  const tasks = getTasks();
+  const grouped = reports.reduce((map, report) => {
+    const key = report.createdBy || "unknown";
+    const current = map.get(key) ?? { userId: key, reports: [], plan: 0, fact: 0, plannedAmount: 0, actualAmount: 0, objects: new Set(), buildings: new Set(), lowTeams: 0 };
+    current.reports.push(report);
+    current.plan += Number(report.plannedQuantity) || 0;
+    current.fact += Number(report.actualQuantity) || 0;
+    current.plannedAmount += Number(report.plannedAmount) || 0;
+    current.actualAmount += Number(report.actualAmount) || 0;
+    if (report.objectId) current.objects.add(report.objectId);
+    if (report.buildingId) current.buildings.add(report.buildingId);
+    if (report.completionPercent < 80) current.lowTeams += 1;
+    map.set(key, current);
+    return map;
+  }, new Map());
+  return Array.from(grouped.values()).map((row) => {
+    const completionPercent = row.plan > 0 ? Math.round((row.fact / row.plan) * 100) : 0;
+    const reportDates = new Set(row.reports.map((report) => report.date));
+    const daysWithoutReport = Math.max(0, 7 - reportDates.size);
+    const overdueTasks = tasks.filter((task) => task.assignedTo === row.userId && task.dueDate && task.dueDate < todayIso() && !["выполнена", "отменена"].includes(task.status)).length;
+    const score = Math.max(0, Math.min(120, completionPercent - daysWithoutReport * 5 - row.lowTeams * 3 - overdueTasks * 3));
+    return {
+      ...row,
+      name: usersById.get(row.userId) ?? row.userId,
+      objectsCount: row.objects.size,
+      buildingsCount: row.buildings.size,
+      reportsCount: row.reports.length,
+      completionPercent,
+      moneyDeviation: row.actualAmount - row.plannedAmount,
+      daysWithoutReport,
+      overdueTasks,
+      score,
+    };
+  }).sort((a, b) => b.score - a.score);
+}
+
+export function getDelayReasonStats(filters = {}) {
+  const reports = getPlanFactStats(filters).reports.filter((report) => report.actualQuantity < report.plannedQuantity);
+  const totalLag = reports.reduce((sum, report) => sum + Math.max(0, Number(report.plannedQuantity) - Number(report.actualQuantity)), 0);
+  const totalMoneyLag = reports.reduce((sum, report) => sum + Math.max(0, -Number(report.moneyDeviation || 0)), 0);
+  const grouped = reports.reduce((map, report) => {
+    const reason = report.delayReason || "Причина не указана";
+    const current = map.get(reason) ?? { reason, quantityLag: 0, moneyLag: 0 };
+    current.quantityLag += Math.max(0, Number(report.plannedQuantity) - Number(report.actualQuantity));
+    current.moneyLag += Math.max(0, -Number(report.moneyDeviation || 0));
+    map.set(reason, current);
+    return map;
+  }, new Map());
+  return Array.from(grouped.values()).map((row) => ({
+    ...row,
+    percent: totalLag > 0 ? Math.round((row.quantityLag / totalLag) * 100) : totalMoneyLag > 0 ? Math.round((row.moneyLag / totalMoneyLag) * 100) : 0,
+  })).sort((a, b) => b.quantityLag - a.quantityLag);
 }
 
 export function getEmployeeOutput(filters = {}) {
@@ -868,4 +995,54 @@ export function getEmployeeOutput(filters = {}) {
     workType: standards.find((standard) => standard.id === row.workTypeId)?.workType ?? "—",
     completionPercent: row.plan > 0 ? Math.round((row.fact / row.plan) * 100) : 0,
   }));
+}
+
+export function generateDailyAutoReport({ date = todayIso(), objectId = "", buildingId = "", itrId = "" } = {}, dictionaries = {}) {
+  const filters = { dateFrom: date, dateTo: date, objectId, buildingId, createdBy: itrId };
+  const stats = getPlanFactStats(filters);
+  const delayStats = getDelayReasonStats(filters);
+  const teamRows = getTeamEfficiency(filters);
+  const objectName = dictionaries.objectNames?.get(objectId) ?? "Все объекты";
+  const buildingName = dictionaries.buildingNames?.get(buildingId) ?? "Все корпуса";
+  const rub = (value) => `${Math.round(value || 0).toLocaleString("ru-RU")} ₽`;
+  const lines = [
+    `Отчёт за ${date.split("-").reverse().join(".")}`,
+    "",
+    `Объект: ${objectName}`,
+    `Корпус: ${buildingName}`,
+    "",
+    `План: ${stats.plan}`,
+    `Факт: ${stats.fact}`,
+    `Выполнение: ${stats.completionPercent}%`,
+    `Отклонение: ${stats.deviation}`,
+    `План в деньгах: ${rub(stats.plannedAmount)}`,
+    `Факт в деньгах: ${rub(stats.actualAmount)}`,
+    `Отклонение: ${rub(stats.moneyDeviation)}`,
+    "",
+    "По бригадам:",
+    ...(teamRows.length ? teamRows.map((row) => `* ${row.team}: план ${row.plan} / факт ${row.fact} / ${row.completionPercent}%`) : ["* Данных нет"]),
+    "",
+    "Причины отставания:",
+    ...(delayStats.length ? delayStats.map((row) => `* ${row.reason} — ${row.quantityLag} — ${rub(row.moneyLag)} — ${row.percent}%`) : ["* Отставаний нет"]),
+    "",
+    "Итог:",
+    `За день выполнено работ на ${rub(stats.actualAmount)}.`,
+    `Отставание от плана: ${rub(stats.moneyUnderperformance)}.`,
+    `Требуют внимания: ${teamRows.filter((row) => row.completionPercent < 80).map((row) => row.team).join(", ") || "нет"}.`,
+  ];
+  return lines.join("\n");
+}
+
+export function getDailyAutoReports() {
+  return readStorageList(DAILY_AUTO_REPORTS_KEY, []);
+}
+
+export function saveDailyAutoReports(rows) {
+  writeStorageList(DAILY_AUTO_REPORTS_KEY, rows);
+}
+
+export function addDailyAutoReport(values) {
+  const row = stamp({ id: `auto-report-${Date.now()}`, ...values });
+  saveDailyAutoReports([row, ...getDailyAutoReports()]);
+  return row;
 }

@@ -627,6 +627,115 @@ textarea {
   font-weight: 800;
 }
 
+.money-summary {
+  display: grid;
+  grid-template-columns: repeat(5, minmax(0, 1fr));
+  gap: 12px;
+}
+
+.money-summary div {
+  display: grid;
+  gap: 7px;
+  border: 1px solid #dce6f0;
+  border-radius: 18px;
+  padding: 16px;
+  background: #ffffff;
+  box-shadow: 0 14px 34px rgba(20, 38, 62, 0.06);
+}
+
+.money-summary span {
+  color: #66788f;
+  font-size: 13px;
+  font-weight: 900;
+}
+
+.money-summary strong {
+  color: #172033;
+  font-size: 24px;
+}
+
+.money-summary .danger strong {
+  color: var(--brand-red);
+}
+
+.money-summary .success strong {
+  color: #147a4b;
+}
+
+.delay-reason-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(220px, 1fr));
+  gap: 12px;
+}
+
+.delay-reason-grid > div:not(.empty-plan) {
+  display: grid;
+  gap: 5px;
+  border: 1px solid #ead8b8;
+  border-radius: 16px;
+  padding: 13px;
+  background: #fffaf0;
+}
+
+.delay-reason-grid strong {
+  color: #172033;
+}
+
+.delay-reason-grid span {
+  color: #9b650b;
+  font-weight: 850;
+}
+
+.soft-warning {
+  border: 1px solid #f1d08b;
+  border-radius: 14px;
+  padding: 10px 12px;
+  color: #8a5a0a;
+  background: #fff7df;
+  font-weight: 850;
+}
+
+.needs-attention select {
+  border-color: #d58a1c;
+  box-shadow: 0 0 0 4px rgba(213, 138, 28, 0.12);
+}
+
+.auto-report-layout {
+  display: grid;
+  grid-template-columns: minmax(0, 1.3fr) minmax(320px, 0.7fr);
+  gap: 18px;
+}
+
+.auto-report-text {
+  min-height: 420px;
+  overflow: auto;
+  border: 1px solid #dce6f0;
+  border-radius: 18px;
+  padding: 18px;
+  color: #172033;
+  background: #f8fbfe;
+  font: 15px/1.6 ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, "Liberation Mono", monospace;
+  white-space: pre-wrap;
+}
+
+.danger-text {
+  color: var(--brand-red) !important;
+  font-weight: 950;
+}
+
+.success-text {
+  color: #147a4b !important;
+  font-weight: 950;
+}
+
+@media (max-width: 1180px) {
+  .money-summary,
+  .auto-report-layout,
+  .brigade-analytics-grid {
+    grid-template-columns: 1fr;
+  }
+}
+
 .form-error {
   border: 1px solid #efb1a8;
   color: #8f2f24;
