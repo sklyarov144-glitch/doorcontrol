@@ -3,10 +3,51 @@ const MATRIX_DOCUMENTS_KEY = "gross-lean-montage.matrix-documents.v1";
 const TODAY_TASKS_KEY = "gross-lean-montage.today-tasks.v1";
 const MANUAL_TASKS_KEY = "gross-lean-montage.manual-tasks.v1";
 const NOTIFICATIONS_KEY = "gross-lean-montage.notifications.v1";
+const WORK_STANDARDS_KEY = "gross-lean-montage.work-standards.v1";
+const OBJECT_WORK_PLANS_KEY = "gross-lean-montage.object-work-plans.v1";
+const TEAMS_KEY = "gross-lean-montage.teams.v1";
+const EMPLOYEES_KEY = "gross-lean-montage.employees.v1";
+const DAILY_WORK_REPORTS_KEY = "gross-lean-montage.daily-work-reports.v1";
 const DEFAULT_MATRIX_DOCUMENTS = [
   { building: "Корпус 4.1", url: "https://disk.yandex.ru/" },
   { building: "Корпус 4.2", url: "https://disk.yandex.ru/" },
   { building: "Корпус 4.3", url: "https://disk.yandex.ru/" },
+];
+
+const initialWorkStandards = [
+  { workType: "Монтаж квартирных дверей", teamComposition: "2 монтажника", dailyPlan: 18, unitName: "двери", dailyBudget: 54000, unitPrice: 3000, category: "Монтаж", comment: "Базовый план по квартирным дверям" },
+  { workType: "Монтаж квартирных дверей с фурнитурой", teamComposition: "2 монтажника + подсобник", dailyPlan: 14, unitName: "комплекты", dailyBudget: 49000, unitPrice: 3500, category: "Монтаж", comment: "Сложная фурнитура / доборные операции" },
+  { workType: "Монтаж МОП", teamComposition: "2 монтажника", dailyPlan: 10, unitName: "двери", dailyBudget: 36000, unitPrice: 3600, category: "Монтаж", comment: "Двери мест общего пользования" },
+  { workType: "Монтаж ДШ", teamComposition: "2 монтажника", dailyPlan: 8, unitName: "комплекты", dailyBudget: 32000, unitPrice: 4000, category: "Монтаж", comment: "Двери шахт / спецпомещения" },
+  { workType: "Монтаж НХП", teamComposition: "2 монтажника", dailyPlan: 8, unitName: "комплекты", dailyBudget: 32000, unitPrice: 4000, category: "Монтаж", comment: "НХП и технические двери" },
+  { workType: "Монтаж доборов", teamComposition: "2 отделочника", dailyPlan: 24, unitName: "комплекты", dailyBudget: 24000, unitPrice: 1000, category: "Доборы", comment: "" },
+  { workType: "Наличники", teamComposition: "2 отделочника", dailyPlan: 30, unitName: "комплекты", dailyBudget: 24000, unitPrice: 800, category: "Отделка", comment: "" },
+  { workType: "Фрамуги", teamComposition: "2 монтажника", dailyPlan: 12, unitName: "операции", dailyBudget: 18000, unitPrice: 1500, category: "Отделка", comment: "" },
+  { workType: "Разгрузка дверей", teamComposition: "4 грузчика", dailyPlan: 120, unitName: "двери", dailyBudget: 18000, unitPrice: 150, category: "Логистика", comment: "" },
+  { workType: "Подъём дверей", teamComposition: "2 грузчика", dailyPlan: 80, unitName: "двери", dailyBudget: 16000, unitPrice: 200, category: "Логистика", comment: "" },
+  { workType: "Разнос дверей", teamComposition: "2 грузчика", dailyPlan: 70, unitName: "двери", dailyBudget: 14000, unitPrice: 200, category: "Логистика", comment: "" },
+  { workType: "Подготовка дверей к монтажу", teamComposition: "2 сотрудника", dailyPlan: 36, unitName: "операции", dailyBudget: 18000, unitPrice: 500, category: "Подготовка", comment: "" },
+  { workType: "Вывоз мусора", teamComposition: "2 сотрудника", dailyPlan: 1, unitName: "операции", dailyBudget: 6000, unitPrice: 6000, category: "Сервис", comment: "По заявке ИТР" },
+  { workType: "Подвоз погрузчиком", teamComposition: "Водитель погрузчика", dailyPlan: 6, unitName: "рейсы", dailyBudget: 12000, unitPrice: 2000, category: "Логистика", comment: "" },
+].map((item, index) => ({
+  id: `standard-${index + 1}`,
+  ...item,
+  isActive: true,
+  createdAt: "2026-06-01T08:00:00.000Z",
+  updatedAt: "2026-06-01T08:00:00.000Z",
+}));
+
+const initialTeams = [
+  { id: "team-1", name: "Бригада Матвеевский 1", teamType: "Монтаж", members: ["employee-1", "employee-2", "employee-3"], objectId: "matveevsky-park", buildingId: "building-4-1", responsibleItrId: "itr-1", isActive: true },
+  { id: "team-2", name: "Бригада Логистика", teamType: "Логистика", members: ["employee-4", "employee-5"], objectId: "matveevsky-park", buildingId: "building-4-2", responsibleItrId: "itr-1", isActive: true },
+];
+
+const initialEmployees = [
+  { id: "employee-1", name: "Иванов Сергей", role: "Монтажник", teamId: "team-1", isActive: true },
+  { id: "employee-2", name: "Петров Алексей", role: "Монтажник", teamId: "team-1", isActive: true },
+  { id: "employee-3", name: "Сидоров Павел", role: "Подсобник", teamId: "team-1", isActive: true },
+  { id: "employee-4", name: "Кузнецов Денис", role: "Грузчик", teamId: "team-2", isActive: true },
+  { id: "employee-5", name: "Орлов Максим", role: "Грузчик", teamId: "team-2", isActive: true },
 ];
 
 export function getDoorMatrix() {
@@ -605,4 +646,226 @@ export function syncAutomaticTasksAndNotifications(objects, users = []) {
     });
   });
   return created;
+}
+
+function readStorageList(key, fallback = []) {
+  try {
+    const saved = JSON.parse(localStorage.getItem(key));
+    return Array.isArray(saved) ? saved : fallback;
+  } catch {
+    return fallback;
+  }
+}
+
+function writeStorageList(key, rows) {
+  localStorage.setItem(key, JSON.stringify(rows));
+}
+
+function stamp(values = {}) {
+  const now = new Date().toISOString();
+  return { ...values, updatedAt: now, createdAt: values.createdAt ?? now };
+}
+
+export function getWorkStandards() {
+  return readStorageList(WORK_STANDARDS_KEY, initialWorkStandards);
+}
+
+export function saveWorkStandards(rows) {
+  writeStorageList(WORK_STANDARDS_KEY, rows);
+}
+
+export function addWorkStandard(values) {
+  const row = stamp({ id: `standard-${Date.now()}`, isActive: true, ...values });
+  saveWorkStandards([row, ...getWorkStandards()]);
+  return row;
+}
+
+export function updateWorkStandard(id, values) {
+  const next = getWorkStandards().map((row) => row.id === id ? { ...row, ...values, updatedAt: new Date().toISOString() } : row);
+  saveWorkStandards(next);
+  return next;
+}
+
+export function disableWorkStandard(id) {
+  return updateWorkStandard(id, { isActive: false });
+}
+
+export function getObjectWorkPlans() {
+  return readStorageList(OBJECT_WORK_PLANS_KEY, []);
+}
+
+export function saveObjectWorkPlans(rows) {
+  writeStorageList(OBJECT_WORK_PLANS_KEY, rows);
+}
+
+export function addObjectWorkPlan(values) {
+  const row = stamp({ id: `object-plan-${Date.now()}`, ...values });
+  saveObjectWorkPlans([row, ...getObjectWorkPlans()]);
+  return row;
+}
+
+export function updateObjectWorkPlan(id, values) {
+  const next = getObjectWorkPlans().map((row) => row.id === id ? { ...row, ...values, updatedAt: new Date().toISOString() } : row);
+  saveObjectWorkPlans(next);
+  return next;
+}
+
+export function getTeams() {
+  return readStorageList(TEAMS_KEY, initialTeams);
+}
+
+export function saveTeams(rows) {
+  writeStorageList(TEAMS_KEY, rows);
+}
+
+export function addTeam(values) {
+  const row = { id: `team-${Date.now()}`, members: [], isActive: true, ...values };
+  saveTeams([row, ...getTeams()]);
+  return row;
+}
+
+export function updateTeam(id, values) {
+  const next = getTeams().map((row) => row.id === id ? { ...row, ...values } : row);
+  saveTeams(next);
+  return next;
+}
+
+export function disableTeam(id) {
+  return updateTeam(id, { isActive: false });
+}
+
+export function getEmployees() {
+  return readStorageList(EMPLOYEES_KEY, initialEmployees);
+}
+
+export function saveEmployees(rows) {
+  writeStorageList(EMPLOYEES_KEY, rows);
+}
+
+export function addEmployee(values) {
+  const row = { id: `employee-${Date.now()}`, isActive: true, ...values };
+  saveEmployees([row, ...getEmployees()]);
+  return row;
+}
+
+export function updateEmployee(id, values) {
+  const next = getEmployees().map((row) => row.id === id ? { ...row, ...values } : row);
+  saveEmployees(next);
+  return next;
+}
+
+export function disableEmployee(id) {
+  return updateEmployee(id, { isActive: false });
+}
+
+export function getDailyWorkReports() {
+  return readStorageList(DAILY_WORK_REPORTS_KEY, []);
+}
+
+export function saveDailyWorkReports(rows) {
+  writeStorageList(DAILY_WORK_REPORTS_KEY, rows);
+}
+
+export function addDailyWorkReport(values) {
+  const planned = Number(values.plannedQuantity) || 0;
+  const actual = Number(values.actualQuantity) || 0;
+  const row = stamp({
+    id: `daily-report-${Date.now()}-${Math.random().toString(16).slice(2)}`,
+    completionPercent: planned > 0 ? Math.round((actual / planned) * 100) : 0,
+    deviation: actual - planned,
+    ...values,
+    plannedQuantity: planned,
+    actualQuantity: actual,
+  });
+  saveDailyWorkReports([row, ...getDailyWorkReports()]);
+  return row;
+}
+
+export function updateDailyWorkReport(id, values) {
+  const next = getDailyWorkReports().map((row) => {
+    if (row.id !== id) return row;
+    const planned = Number(values.plannedQuantity ?? row.plannedQuantity) || 0;
+    const actual = Number(values.actualQuantity ?? row.actualQuantity) || 0;
+    return { ...row, ...values, plannedQuantity: planned, actualQuantity: actual, completionPercent: planned > 0 ? Math.round((actual / planned) * 100) : 0, deviation: actual - planned, updatedAt: new Date().toISOString() };
+  });
+  saveDailyWorkReports(next);
+  return next;
+}
+
+function filterReports(reports, filters = {}) {
+  return reports.filter((row) => {
+    if (filters.dateFrom && row.date < filters.dateFrom) return false;
+    if (filters.dateTo && row.date > filters.dateTo) return false;
+    if (filters.objectId && row.objectId !== filters.objectId) return false;
+    if (filters.buildingId && row.buildingId !== filters.buildingId) return false;
+    if (filters.teamId && row.teamId !== filters.teamId) return false;
+    if (filters.employeeId && row.employeeId !== filters.employeeId) return false;
+    if (filters.workTypeId && row.workTypeId !== filters.workTypeId) return false;
+    if (filters.createdBy && row.createdBy !== filters.createdBy) return false;
+    return true;
+  });
+}
+
+export function getPlanFactStats(filters = {}) {
+  const reports = filterReports(getDailyWorkReports(), filters);
+  const plan = reports.reduce((sum, row) => sum + (Number(row.plannedQuantity) || 0), 0);
+  const fact = reports.reduce((sum, row) => sum + (Number(row.actualQuantity) || 0), 0);
+  return {
+    reports,
+    plan,
+    fact,
+    completionPercent: plan > 0 ? Math.round((fact / plan) * 100) : 0,
+    deviation: fact - plan,
+    overrun: Math.max(0, fact - plan),
+    lag: Math.max(0, plan - fact),
+    activeTeams: new Set(reports.map((row) => row.teamId).filter(Boolean)).size,
+  };
+}
+
+export function getTeamEfficiency(filters = {}) {
+  const teams = getTeams();
+  const stats = getPlanFactStats(filters).reports.reduce((map, row) => {
+    const key = row.teamId || "no-team";
+    const current = map.get(key) ?? { teamId: key, plan: 0, fact: 0, days: new Set(), objectId: row.objectId };
+    current.plan += Number(row.plannedQuantity) || 0;
+    current.fact += Number(row.actualQuantity) || 0;
+    current.days.add(row.date);
+    map.set(key, current);
+    return map;
+  }, new Map());
+  return Array.from(stats.values()).map((row) => ({
+    ...row,
+    team: teams.find((team) => team.id === row.teamId)?.name ?? "Без бригады",
+    completionPercent: row.plan > 0 ? Math.round((row.fact / row.plan) * 100) : 0,
+    lag: Math.max(0, row.plan - row.fact),
+    daysCount: row.days.size,
+  }));
+}
+
+export function getEmployeeOutput(filters = {}) {
+  const employees = getEmployees();
+  const standards = getWorkStandards();
+  const reports = filterReports(getDailyWorkReports(), filters);
+  const today = todayIso();
+  const weekStart = new Date();
+  weekStart.setDate(weekStart.getDate() - 6);
+  const weekIso = weekStart.toISOString().slice(0, 10);
+  const byEmployee = reports.reduce((map, row) => {
+    const key = row.employeeId || "team-report";
+    const current = map.get(key) ?? { employeeId: key, teamId: row.teamId, workTypeId: row.workTypeId, todayFact: 0, weekFact: 0, plan: 0, fact: 0, comments: [] };
+    const actual = Number(row.actualQuantity) || 0;
+    current.fact += actual;
+    current.plan += Number(row.plannedQuantity) || 0;
+    if (row.date === today) current.todayFact += actual;
+    if (row.date >= weekIso) current.weekFact += actual;
+    if (row.comment) current.comments.push(row.comment);
+    map.set(key, current);
+    return map;
+  }, new Map());
+  return Array.from(byEmployee.values()).map((row) => ({
+    ...row,
+    employee: employees.find((employee) => employee.id === row.employeeId)?.name ?? "Бригада целиком",
+    workType: standards.find((standard) => standard.id === row.workTypeId)?.workType ?? "—",
+    completionPercent: row.plan > 0 ? Math.round((row.fact / row.plan) * 100) : 0,
+  }));
 }

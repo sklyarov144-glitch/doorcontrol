@@ -480,6 +480,153 @@ textarea {
   font-weight: 850;
 }
 
+.brigade-page {
+  display: grid;
+  gap: 18px;
+}
+
+.brigade-tabs {
+  width: 100%;
+}
+
+.brigade-card {
+  display: grid;
+  gap: 16px;
+  border: 1px solid #dce6f0;
+  border-radius: 24px;
+  padding: 22px;
+  background: #ffffff;
+  box-shadow: 0 18px 44px rgba(20, 38, 62, 0.08);
+}
+
+.brigade-table-wrap {
+  width: 100%;
+  overflow-x: auto;
+}
+
+.brigade-table th,
+.brigade-table td {
+  white-space: nowrap;
+}
+
+.brigade-table tr.is-muted {
+  opacity: 0.55;
+}
+
+.object-plan-form,
+.compact-admin-form {
+  display: grid;
+  gap: 12px;
+  align-items: end;
+}
+
+.object-plan-form {
+  grid-template-columns: repeat(4, minmax(0, 1fr));
+  padding: 16px;
+  border: 1px solid #e1eaf3;
+  border-radius: 18px;
+  background: #f8fbfe;
+}
+
+.object-plan-form .wide {
+  grid-column: span 2;
+}
+
+.compact-admin-form {
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  margin-bottom: 14px;
+}
+
+.compact-admin-form button {
+  grid-column: 1 / -1;
+}
+
+.auto-plan-box {
+  border: 1px solid #dce6f0;
+  border-radius: 14px;
+  padding: 12px 14px;
+  color: #5d6c81;
+  background: #f8fbfe;
+  font-weight: 850;
+}
+
+.auto-plan-box strong {
+  color: var(--brand-red);
+}
+
+.employee-fact-list {
+  display: grid;
+  gap: 10px;
+  padding: 14px;
+  border: 1px solid #e1eaf3;
+  border-radius: 18px;
+  background: #f8fbfe;
+}
+
+.employee-fact-list label {
+  grid-template-columns: minmax(160px, 1fr) 140px;
+  align-items: center;
+}
+
+.brigade-planfact {
+  display: grid;
+  gap: 18px;
+}
+
+.brigade-analytics-grid {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 18px;
+}
+
+.completion-pill {
+  display: inline-grid;
+  place-items: center;
+  min-width: 58px;
+  border-radius: 999px;
+  padding: 6px 10px;
+  font-weight: 950;
+}
+
+.completion-pill.good {
+  color: #147a4b;
+  background: #e6f8ee;
+}
+
+.completion-pill.warn {
+  color: #9b650b;
+  background: #fff4d8;
+}
+
+.completion-pill.bad {
+  color: #a1242f;
+  background: #fde7ea;
+}
+
+.team-list {
+  display: grid;
+  gap: 10px;
+}
+
+.team-list div {
+  display: grid;
+  gap: 3px;
+  border: 1px solid #e1eaf3;
+  border-radius: 14px;
+  padding: 12px;
+  background: #fbfdff;
+}
+
+.team-list strong {
+  color: #172033;
+}
+
+.team-list span {
+  color: #6b778c;
+  font-size: 13px;
+  font-weight: 800;
+}
+
 .form-error {
   border: 1px solid #efb1a8;
   color: #8f2f24;
