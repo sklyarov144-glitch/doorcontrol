@@ -613,7 +613,7 @@ function App() {
           {screen === "today_tasks" && <TodayTasksPage objects={objects} user={user} users={users} onOpen={openProblem} />}
           {screen === "problem_center" && <ProblemCenterPage objects={objects} user={user} users={users} onOpen={openProblem} />}
           {screen === "reports" && <ReportsPage objects={objects} />}
-          {screen === "company_dashboard" && <CompanyDashboard objects={objects} />}
+          {screen === "company_dashboard" && <CompanyDashboard objects={objects} user={user} users={users} onOpen={openProblem} />}
           {["companies", "users", "roles", "itr_team"].includes(screen) && <PlaceholderPage screen={screen} />}
           {screen === "objects" && <ObjectsPage objects={objects} onOpen={goToObject} />}
           {screen === "object" && (
@@ -1471,24 +1471,105 @@ function ProfilePage({ user, onSave }) {
   return <section className="profile-panel"><div className="profile-card"><div className="profile-avatar"><div>{form.avatar ? <img src={form.avatar} alt="Аватар" /> : form.name.slice(0, 1)}</div><label>Загрузить аватар<input type="file" accept="image/*" onChange={(event) => { const file = event.target.files?.[0]; if (!file) return; const reader = new FileReader(); reader.onload = () => update("avatar", String(reader.result)); reader.readAsDataURL(file); }} /></label></div><form onSubmit={(event) => { event.preventDefault(); setError(""); if (form.newPassword && form.oldPassword !== user.password) { setError("Введите текущий пароль, чтобы подтвердить смену пароля"); return; } const { oldPassword, newPassword, ...profile } = form; onSave({ ...profile, password: newPassword ? newPassword : user.password }); setForm((current) => ({ ...current, oldPassword: "", newPassword: "", password: newPassword ? newPassword : user.password })); setSaved(true); }}><div className="profile-grid"><label>Имя<input value={form.name} onChange={(event) => update("name", event.target.value)} /></label><label>Должность<input value={form.position} onChange={(event) => update("position", event.target.value)} /></label><label>Роль<input value={roleLabels[form.role]} readOnly /></label><label>Email<input type="email" value={form.email} onChange={(event) => update("email", event.target.value)} /></label><label>Телефон<input value={form.phone} onChange={(event) => update("phone", event.target.value)} /></label><label className="profile-password">Текущий пароль<input type="password" value={form.oldPassword} onChange={(event) => update("oldPassword", event.target.value)} placeholder="Введите старый пароль" /></label><label className="profile-password">Новый пароль<input type="password" value={form.newPassword} onChange={(event) => update("newPassword", event.target.value)} placeholder="Оставьте пустым, если не меняете" /></label></div><button className="primary-button">Сохранить профиль</button>{error && <div className="form-error">{error}</div>}{saved && <div className="save-notice">Данные пользователя сохранены</div>}</form></div></section>;
 }
 
-function CompanyDashboard({ objects }) {
-  const doors = objects.flatMap((object) => getAllDoors(object));
+function riskLabel(count) {
+  if (count >= 30) return "критично";
+  if (count >= 10) return "под контролем";
+  return "норма";
+}
+
+function CompanyDashboard({ objects, user, users, onOpen }) {
+  const visibleObjects = user.role === "construction_director" ? objects : objects;
+  const doors = visibleObjects.flatMap((object) => getAllDoors(object));
+  const problems = getProblems(visibleObjects);
+  const tasks = calculateTodayTasks(visibleObjects);
+  const userNames = new Map(users.map((item) => [item.id, item.name]));
   const mounted = doors.filter((door) => ["смонтирована", "принято технадзором", "передано по акту"].includes(door.doorStatus)).length;
-  const transferred = doors.filter((door) => door.doorStatus === "передано по акту" || door.storageAct === "передано по акту").length;
   const withoutCustodyAct = doors.filter((door) => door.doorStatus === "смонтирована" && !["передано по акту", "закрыто"].includes(door.storageAct)).length;
   const issues = doors.filter((door) => door.issue === "есть замечание").length;
+  const overdueTasks = tasks.filter((task) => task.dueDate < new Date().toISOString().slice(0, 10) && task.status !== "done").length;
   const readiness = doors.length ? Math.round((mounted / doors.length) * 100) : 0;
-  const problematic = objects.filter((object) => getMetrics(object).issues > 0 || getMetrics(object).openingsOnCorrection > 0).length;
+  const problematicBuildings = new Set(problems.filter((problem) => problem.buildingId).map((problem) => problem.buildingId)).size;
   const cards = [
-    ["Объектов в работе", objects.filter((object) => object.status === "В работе").length],
-    ["Общая готовность", `${readiness}%`],
-    ["Замечаний", issues],
-    ["Дверей смонтировано", mounted],
-    ["Передано по актам", transferred],
-    ["Без актов ОХ", withoutCustodyAct],
-    ["Проблемные объекты", problematic],
+    ["Объектов в работе", visibleObjects.filter((object) => object.status === "В работе").length, "neutral"],
+    ["Общая готовность", `${readiness}%`, "success"],
+    ["Дверей смонтировано", mounted, "success"],
+    ["Смонтировано без акта", withoutCustodyAct, "danger"],
+    ["Открытых замечаний ТН", issues, "danger"],
+    ["Просроченных задач", overdueTasks, "danger"],
+    ["Проблемных корпусов", problematicBuildings, "warning"],
   ];
-  return <section className="company-dashboard"><div className="dashboard-summary"><div><h2>Монтаж по компании</h2><p>Сводные показатели на основе текущих объектов и статусов дверей.</p></div><StatusBadge value="В работе" /></div><div className="dashboard-metrics">{cards.map(([label, value]) => <div className="dashboard-metric" key={label}><span>{label}</span><strong>{value}</strong></div>)}</div><div className="dashboard-progress"><div><span>Общая готовность</span><strong>{readiness}%</strong></div><div className="progress-bar"><span style={{ width: `${readiness}%` }} /></div></div></section>;
+  const objectRows = visibleObjects.map((object) => {
+    const objectDoors = getAllDoors(object);
+    const objectMounted = objectDoors.filter((door) => ["смонтирована", "принято технадзором", "передано по акту"].includes(door.doorStatus)).length;
+    const objectProblems = problems.filter((problem) => problem.objectId === object.id);
+    const objectIssues = objectDoors.filter((door) => door.issue === "есть замечание").length;
+    const objectWithoutActs = objectDoors.filter((door) => door.doorStatus === "смонтирована" && !["передано по акту", "закрыто"].includes(door.storageAct)).length;
+    const objectReadiness = objectDoors.length ? Math.round((objectMounted / objectDoors.length) * 100) : 0;
+    return {
+      object,
+      readiness: objectReadiness,
+      problems: objectProblems.length,
+      issues: objectIssues,
+      withoutActs: objectWithoutActs,
+      risk: riskLabel(objectProblems.length + objectIssues + objectWithoutActs),
+      responsible: userNames.get(object.responsibleId) ?? object.responsibleId ?? "Не назначен",
+    };
+  });
+  const topRisks = [...problems].sort((a, b) => {
+    const weight = { высокий: 0, средний: 1, низкий: 2 };
+    return (weight[a.priority] ?? 2) - (weight[b.priority] ?? 2) || b.days - a.days;
+  }).slice(0, 5);
+  const responsibleRows = users.filter((item) => item.role !== "creator").map((person) => {
+    const ownedObjects = visibleObjects.filter((object) => object.responsibleId === person.id);
+    const ownedProblems = problems.filter((problem) => ownedObjects.some((object) => object.id === problem.objectId) || problem.responsible === person.id || problem.responsible === person.name);
+    const ownedTasks = tasks.filter((task) => task.assignedTo === person.id || task.assignedTo === person.name);
+    return {
+      person,
+      objects: ownedObjects.length,
+      tasks: ownedTasks.length,
+      overdue: ownedTasks.filter((task) => task.dueDate < new Date().toISOString().slice(0, 10) && task.status !== "done").length,
+      issues: ownedProblems.filter((problem) => problem.type === "Замечания ТН").length,
+      withoutActs: ownedProblems.filter((problem) => problem.type === "Смонтировано без акта ОХ").length,
+    };
+  });
+  const planFact = { plan: 420, fact: 356 };
+  const deviation = planFact.fact - planFact.plan;
+  const completion = Math.round((planFact.fact / planFact.plan) * 100);
+
+  return (
+    <section className="executive-dashboard">
+      <div className="executive-hero">
+        <div>
+          <span>Центр управления компанией</span>
+          <h2>Состояние объектов за 30 секунд</h2>
+          <p>Готовность, риски, акты ОХ, замечания ТН, отставания и ответственные собраны на одном управленческом экране.</p>
+        </div>
+        <div className="executive-score">
+          <span>Общая готовность</span>
+          <strong>{readiness}%</strong>
+        </div>
+      </div>
+      <div className="executive-kpi-grid">{cards.map(([label, value, tone]) => <div className={`executive-kpi ${tone}`} key={label}><span>{label}</span><strong>{value}</strong></div>)}</div>
+      <div className="executive-grid">
+        <section className="executive-card wide">
+          <div className="executive-card-title"><h3>Объекты</h3><p>Сводка по каждому объекту и статус риска.</p></div>
+          <div className="executive-table-wrap"><table className="executive-table"><thead><tr><th>Объект</th><th>Корпуса</th><th>Готовность</th><th>Проблем</th><th>Замечаний ТН</th><th>Без актов</th><th>Ответственный директор</th><th>Статус риска</th></tr></thead><tbody>{objectRows.map((row) => <tr key={row.object.id}><td><button onClick={() => onOpen({ objectId: row.object.id })}>{row.object.name}</button></td><td>{row.object.buildings.length}</td><td><div className="mini-progress"><span style={{ width: `${row.readiness}%` }} /></div><b>{row.readiness}%</b></td><td>{row.problems}</td><td>{row.issues}</td><td>{row.withoutActs}</td><td>{row.responsible}</td><td><span className={`risk-pill risk-${row.risk}`}>{row.risk}</span></td></tr>)}</tbody></table></div>
+        </section>
+        <section className="executive-card">
+          <div className="executive-card-title"><h3>Риски</h3><p>Топ-5 зон внимания.</p></div>
+          <div className="risk-list">{topRisks.map((risk) => <button key={risk.id} onClick={() => onOpen(risk)}><strong>{risk.type}</strong><span>{risk.object} / {risk.building}</span><small>{risk.priority} · {risk.days} дн.</small></button>)}</div>
+        </section>
+        <section className="executive-card">
+          <div className="executive-card-title"><h3>План-факт</h3><p>Mock-показатель недели.</p></div>
+          <div className="plan-fact"><div><span>План недели</span><strong>{planFact.plan}</strong></div><div><span>Факт недели</span><strong>{planFact.fact}</strong></div><div><span>Отклонение</span><strong className={deviation < 0 ? "danger-text" : "success-text"}>{deviation}</strong></div><div><span>Выполнение</span><strong>{completion}%</strong></div></div>
+        </section>
+        <section className="executive-card wide">
+          <div className="executive-card-title"><h3>Ответственные</h3><p>Нагрузка и проблемные зоны по людям.</p></div>
+          <div className="executive-table-wrap"><table className="executive-table"><thead><tr><th>ФИО</th><th>Роль</th><th>Объекты</th><th>Задач</th><th>Просрочено</th><th>Замечаний</th><th>Без актов</th></tr></thead><tbody>{responsibleRows.map((row) => <tr key={row.person.id}><td>{row.person.name}</td><td>{roleLabels[row.person.role]}</td><td>{row.objects}</td><td>{row.tasks}</td><td>{row.overdue}</td><td>{row.issues}</td><td>{row.withoutActs}</td></tr>)}</tbody></table></div>
+        </section>
+      </div>
+    </section>
+  );
 }
 
 const matrixDocumentLinks = [
