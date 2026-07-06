@@ -2383,6 +2383,53 @@ textarea {
   margin-bottom: 26px;
 }
 
+.itr-fast-panel {
+  display: grid;
+  gap: 14px;
+  margin: 0 0 24px;
+  padding: 20px;
+  border: 1px solid #dce6f0;
+  border-radius: 22px;
+  background:
+    radial-gradient(circle at 10% 0%, rgba(201, 32, 47, 0.08), transparent 34%),
+    linear-gradient(135deg, #ffffff, #f7f9fc);
+}
+
+.itr-fast-panel h3 {
+  margin: 0 0 4px;
+  color: var(--graphite);
+  font-size: 19px;
+}
+
+.itr-fast-panel p {
+  margin: 0;
+  color: var(--muted);
+  font-weight: 750;
+}
+
+.itr-fast-actions {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(150px, 1fr));
+  gap: 10px;
+}
+
+.itr-fast-actions button {
+  min-height: 48px;
+  border: 1px solid rgba(201, 32, 47, 0.2);
+  border-radius: 15px;
+  background: #ffffff;
+  color: #172033;
+  font-weight: 900;
+  box-shadow: 0 12px 24px rgba(17, 31, 53, 0.06);
+}
+
+.itr-fast-actions button:hover {
+  color: #ffffff;
+  border-color: var(--brand-red);
+  background: var(--brand-red);
+  transform: translateY(-1px);
+}
+
 .detail,
 .select-field {
   min-height: 108px;

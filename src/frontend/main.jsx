@@ -639,6 +639,7 @@ function App() {
       issue: values.tnIssues === "Да" ? "есть замечание" : values.issue,
       storageAct: values.custodyAct === "Да" ? "передано по акту" : values.storageAct,
     };
+    const { quickHistory, ...doorValues } = effectiveValues;
     const nextObjects = objects.map((object) => ({
       ...object,
       buildings: object.buildings.map((building) => ({
@@ -665,10 +666,13 @@ function App() {
             if (door.storageAct !== effectiveValues.storageAct) {
               changed.push(`Акт: ${door.storageAct} -> ${effectiveValues.storageAct}`);
             }
+            if (quickHistory) {
+              changed.push(quickHistory);
+            }
 
             return {
               ...door,
-              ...effectiveValues,
+              ...doorValues,
               mountedAt: effectiveValues.doorStatus === "смонтирована" && !door.mountedAt ? today : effectiveValues.mountedAt ?? door.mountedAt,
               tnAcceptedAt: effectiveValues.doorStatus === "принято технадзором" && !door.tnAcceptedAt ? today : effectiveValues.tnAcceptedAt ?? door.tnAcceptedAt,
               custodyActUploadedAt: (effectiveValues.storageAct === "акт загружен" || effectiveValues.custodyActUrl) && !door.custodyActUploadedAt ? today : effectiveValues.custodyActUploadedAt ?? door.custodyActUploadedAt,
@@ -680,7 +684,7 @@ function App() {
                         id: `${door.id}-${Date.now()}`,
                         text: changed.join("; "),
                         date: new Date().toLocaleString("ru-RU"),
-                        user: "admin",
+                        user: user.name,
                       },
                       ...door.history,
                     ]
@@ -988,6 +992,7 @@ function App() {
               building={selectedBuilding}
               floor={selectedFloor}
               door={selectedDoor}
+              user={user}
               onSave={updateDoor}
               onBack={() => setScreen("floor")}
               onCreateTask={openTaskModal}
@@ -1565,7 +1570,7 @@ function SavedTemplateLayout({ template }) {
   );
 }
 
-function DoorDetails({ object, building, floor, door, onSave, onBack, onCreateTask, canCreateTask }) {
+function DoorDetails({ object, building, floor, door, user, onSave, onBack, onCreateTask, canCreateTask }) {
   const [form, setForm] = useState({
     doorStatus: door.doorStatus,
     openingStatus: door.openingStatus,
@@ -1573,6 +1578,8 @@ function DoorDetails({ object, building, floor, door, onSave, onBack, onCreateTa
     storageAct: door.storageAct,
   });
   const [saved, setSaved] = useState(false);
+  const [actModalOpen, setActModalOpen] = useState(false);
+  const [commentModalOpen, setCommentModalOpen] = useState(false);
 
   React.useEffect(() => {
     setForm({
@@ -1593,6 +1600,44 @@ function DoorDetails({ object, building, floor, door, onSave, onBack, onCreateTa
     event.preventDefault();
     onSave(door.id, form);
     setSaved(true);
+  };
+
+  const saveFastAction = (patch, message) => {
+    const nextForm = {
+      ...form,
+      doorStatus: patch.doorStatus ?? form.doorStatus,
+      openingStatus: patch.openingStatus ?? form.openingStatus,
+      issue: patch.issue ?? form.issue,
+      storageAct: patch.storageAct ?? form.storageAct,
+    };
+    setForm(nextForm);
+    onSave(door.id, { ...nextForm, ...patch, quickHistory: message });
+    setSaved(true);
+  };
+
+  const saveActLink = ({ title, url, comment }) => {
+    const link = {
+      id: `door-act-${door.id}-${Date.now()}`,
+      title: title || "Акт АОХ",
+      url,
+      category: "акт АОХ",
+      comment,
+      createdAt: new Date().toLocaleString("ru-RU"),
+    };
+    saveFastAction(
+      {
+        storageAct: "акт загружен",
+        custodyActUrl: url,
+        documentLinks: [link, ...(door.documentLinks ?? [])],
+      },
+      `Добавлена ссылка на акт АОХ${comment ? `: ${comment}` : ""}`
+    );
+    setActModalOpen(false);
+  };
+
+  const saveComment = (text) => {
+    saveFastAction({}, `Комментарий: ${text}`);
+    setCommentModalOpen(false);
   };
 
   return (
@@ -1640,6 +1685,24 @@ function DoorDetails({ object, building, floor, door, onSave, onBack, onCreateTa
             onChange={(value) => handleChange("storageAct", value)}
           />
         </div>
+        <div className="itr-fast-panel">
+          <div>
+            <h3>Быстрые действия ИТР</h3>
+            <p>Частые операции без переходов и лишних экранов.</p>
+          </div>
+          <div className="itr-fast-actions">
+            <button type="button" onClick={() => saveFastAction({ doorStatus: "доставлена", ordered: "Да", arrived: "Да" }, "Дверь отмечена как пришедшая")}>Пришло</button>
+            <button type="button" onClick={() => saveFastAction({ lifted: "Да" }, "Дверь поднята на этаж")}>Поднято</button>
+            <button type="button" onClick={() => saveFastAction({ doorStatus: "смонтирована", installed: "Да" }, "Дверь смонтирована")}>Смонтировано</button>
+            <button type="button" onClick={() => saveFastAction({ tnTransferredAt: new Date().toISOString().slice(0, 10) }, "Дверь передана ТН")}>Передать ТН</button>
+            <button type="button" onClick={() => saveFastAction({ doorStatus: "принято технадзором", acceptedTN: "Да" }, "Дверь принята ТН")}>Принято ТН</button>
+            <button type="button" onClick={() => setActModalOpen(true)}>Добавить акт ОХ</button>
+            <button type="button" onClick={() => saveFastAction({ storageAct: "передано по акту", custodyAct: "Да" }, "Дверь передана по акту ОХ")}>Передано по акту</button>
+            <button type="button" onClick={() => saveFastAction({ issue: "есть замечание", tnIssues: "Да" }, "Есть замечание ТН")}>Есть замечание ТН</button>
+            <button type="button" onClick={() => saveFastAction({ issue: "устранено", tnIssues: "Нет" }, "Замечание устранено")}>Устранено</button>
+            <button type="button" onClick={() => setCommentModalOpen(true)}>Добавить комментарий</button>
+          </div>
+        </div>
         <div className="form-actions">
           <button className="secondary-button" type="button" onClick={onBack}>
             Назад к плану
@@ -1658,6 +1721,8 @@ function DoorDetails({ object, building, floor, door, onSave, onBack, onCreateTa
           </div>
         )}
       </form>
+      {actModalOpen && <DoorActModal onClose={() => setActModalOpen(false)} onSave={saveActLink} />}
+      {commentModalOpen && <DoorCommentModal onClose={() => setCommentModalOpen(false)} onSave={saveComment} />}
       <aside className="panel history-panel">
         <div className="panel-title">
           <div>
@@ -1676,6 +1741,56 @@ function DoorDetails({ object, building, floor, door, onSave, onBack, onCreateTa
         </div>
       </aside>
     </section>
+  );
+}
+
+function DoorActModal({ onClose, onSave }) {
+  const [form, setForm] = useState({ title: "Акт АОХ", url: "", comment: "" });
+  const update = (field, value) => setForm((current) => ({ ...current, [field]: value }));
+
+  return (
+    <div className="modal-backdrop">
+      <form className="task-modal compact" onSubmit={(event) => { event.preventDefault(); onSave(form); }}>
+        <div className="modal-title">
+          <div>
+            <h2>Добавить акт ОХ</h2>
+            <p>Ссылка сохранится в карточке двери и документах двери.</p>
+          </div>
+          <button type="button" onClick={onClose}>×</button>
+        </div>
+        <label>Название<input value={form.title} onChange={(event) => update("title", event.target.value)} /></label>
+        <label>Ссылка на Яндекс.Диск<input required value={form.url} onChange={(event) => update("url", event.target.value)} placeholder="https://disk.yandex.ru/..." /></label>
+        <label>Комментарий<textarea value={form.comment} onChange={(event) => update("comment", event.target.value)} placeholder="Например: акт подписан, файл загружен" /></label>
+        <div className="form-actions">
+          <button className="secondary-button" type="button" onClick={onClose}>Отмена</button>
+          <button className="primary-button">Сохранить акт</button>
+        </div>
+      </form>
+    </div>
+  );
+}
+
+function DoorCommentModal({ onClose, onSave }) {
+  const [text, setText] = useState("");
+
+  return (
+    <div className="modal-backdrop">
+      <form className="task-modal compact" onSubmit={(event) => { event.preventDefault(); if (text.trim()) onSave(text.trim()); }}>
+        <div className="modal-title">
+          <div>
+            <h2>Комментарий по двери</h2>
+            <p>Комментарий попадёт в историю изменений.</p>
+          </div>
+          <button type="button" onClick={onClose}>×</button>
+        </div>
+        <div className="quick-comments">{["Сделано", "Нет доступа", "Акт загрузил", "Ждём технадзор"].map((item) => <button type="button" key={item} onClick={() => setText(item)}>{item}</button>)}</div>
+        <label>Комментарий<textarea autoFocus value={text} onChange={(event) => setText(event.target.value)} /></label>
+        <div className="form-actions">
+          <button className="secondary-button" type="button" onClick={onClose}>Отмена</button>
+          <button className="primary-button">Добавить</button>
+        </div>
+      </form>
+    </div>
   );
 }
 
