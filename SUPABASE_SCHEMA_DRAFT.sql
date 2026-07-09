@@ -188,9 +188,13 @@ create table if not exists employees (
   id uuid primary key default gen_random_uuid(),
   team_id uuid references teams(id) on delete set null,
   name text not null,
+  "group" text,
+  nationality text,
+  worker_type text not null default 'монтажник',
   position text,
   phone text,
   status text not null default 'active',
+  comment text,
   meta jsonb not null default '{}',
   created_at timestamptz not null default now(),
   updated_at timestamptz not null default now()
@@ -269,4 +273,3 @@ create table if not exists activity_logs (
   payload jsonb not null default '{}',
   created_at timestamptz not null default now()
 );
-

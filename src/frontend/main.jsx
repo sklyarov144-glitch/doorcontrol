@@ -9,6 +9,7 @@ import {
   addNotification,
   addDailyWorkReport,
   addEmployee,
+  addWorkersToTeam,
   addDailyAutoReport,
   addManpowerRequest,
   addObjectWorkPlan,
@@ -29,6 +30,7 @@ import {
   getDelayReasonStats,
   getEmployeeOutput,
   getEmployees,
+  getWorkersByTeam,
   getNotificationsByUser,
   getUnreadNotificationsCount,
   getObjectWorkPlans,
@@ -50,6 +52,10 @@ import {
   saveDoorMatrix,
   saveEmployees,
   saveTeams,
+  updateEmployee,
+  disableEmployee,
+  assignWorkerToTeam,
+  removeWorkerFromTeam,
   rejectManpowerRequest,
   syncAutomaticTasksAndNotifications,
   updateTask,
@@ -405,11 +411,26 @@ function saveObjects(objects) {
 }
 
 const mockUsers = [
-  { id: "creator-1", name: "Создатель", role: "creator", position: "Создатель сайта", email: "creator@gross.ru", phone: "+7 900 100-00-01", avatarUrl: "", status: "active", assignedObjectIds: [], assignedBuildingIds: [], password: "123456" },
+  { id: "creator-1", name: "Создатель системы", role: "creator", position: "Создатель системы", email: "creator@gross.ru", phone: "+7 900 100-00-01", avatarUrl: "", status: "active", assignedObjectIds: [], assignedBuildingIds: [], password: "123456" },
   { id: "head-1", name: "Руководитель компании", role: "company_head", position: "Руководитель компании", email: "head@gross.ru", phone: "+7 900 100-00-02", avatarUrl: "", status: "active", assignedObjectIds: [], assignedBuildingIds: [], password: "123456" },
   { id: "director-1", name: "Директор строительства", role: "construction_director", position: "Директор по строительству", email: "director@gross.ru", phone: "+7 900 100-00-03", avatarUrl: "", status: "active", assignedObjectIds: ["matveevsky-park", "prokshino", "salaryevo-park"], assignedBuildingIds: [], password: "123456" },
   { id: "itr-1", name: "ИТР Матвеевский парк", role: "itr", position: "Инженер ИТР", email: "itr.matveevsky@gross.ru", phone: "+7 900 100-00-04", avatarUrl: "", status: "active", assignedObjectIds: ["matveevsky-park"], assignedBuildingIds: ["matveevsky-park-building-4-1", "matveevsky-park-building-4-2"], password: "123456" },
   { id: "itr-2", name: "ИТР Прокшино", role: "itr", position: "Инженер ИТР", email: "itr.prokshino@gross.ru", phone: "+7 900 100-00-05", avatarUrl: "", status: "active", assignedObjectIds: ["prokshino"], assignedBuildingIds: ["prokshino-building-6-1", "prokshino-building-6-2"], password: "123456" },
+  { id: "user-garanin-sergey", name: "Гаранин Сергей", role: "construction_director", position: "Заместитель директора по строительству", email: "s.garanin@gk-gross.ru", phone: "+7(985)833 35 14", avatarUrl: "", status: "active", assignedObjectIds: ["matveevsky-park", "prokshino"], assignedBuildingIds: [], password: "123456" },
+  { id: "user-tkachenko-artemy", name: "Ткаченко Артемий", role: "construction_director", position: "Директор по строительству", email: "a.tkachenko@gk-gross.ru", phone: "+7 903 042 01 42", avatarUrl: "", status: "active", assignedObjectIds: ["matveevsky-park", "salaryevo-park"], assignedBuildingIds: [], password: "123456" },
+  { id: "user-meshkov-alexander", name: "Мешков Александр", role: "construction_director", position: "Руководитель проектов", email: "a.meshkov@gk-gross.ru", phone: "+7 906 968-99-03", avatarUrl: "", status: "active", assignedObjectIds: ["prokshino"], assignedBuildingIds: [], password: "123456" },
+  { id: "user-kostenko-sergey", name: "Костенко Сергей", role: "itr", position: "Начальник участка", email: "kostenko.sergey@gk-gross.local", phone: "+7 (901) 340-33-76", avatarUrl: "", status: "active", assignedObjectIds: ["matveevsky-park"], assignedBuildingIds: ["matveevsky-park-building-4-1"], password: "123456" },
+  { id: "user-popov-sergey", name: "Попов Сергей", role: "itr", position: "ИТР", email: "gk-gross@yandex.ru", phone: "+7(915) 584 10 97", avatarUrl: "", status: "active", assignedObjectIds: ["matveevsky-park"], assignedBuildingIds: ["matveevsky-park-building-4-2"], password: "123456" },
+  { id: "user-eremin-alexander", name: "Еремин Александр", role: "itr", position: "ИТР", email: "eremin@gk-gross.ru", phone: "+7(905) 703 65 28", avatarUrl: "", status: "active", assignedObjectIds: ["prokshino"], assignedBuildingIds: ["prokshino-building-6-1"], password: "123456" },
+  { id: "user-kuznetsov-alexander", name: "Кузнецов Александр", role: "itr", position: "ИТР", email: "a.kuznetsov@gk-gross.ru", phone: "+7 926 278-03-03", avatarUrl: "", status: "active", assignedObjectIds: ["prokshino"], assignedBuildingIds: ["prokshino-building-6-2"], password: "123456" },
+  { id: "user-sapozhnikov-alexander", name: "Сапожников Александр", role: "itr", position: "ИТР", email: "a.sapozhnikov@gk-gross.ru", phone: "+7 915 342 34 84", avatarUrl: "", status: "active", assignedObjectIds: ["salaryevo-park"], assignedBuildingIds: ["salaryevo-building-1"], password: "123456" },
+  { id: "user-tishin-ivan", name: "Тишин Иван", role: "itr", position: "ИТР", email: "i.tishin@gk-gross.ru", phone: "+7 916 828 13 59", avatarUrl: "", status: "active", assignedObjectIds: ["matveevsky-park"], assignedBuildingIds: ["matveevsky-park-building-4-3"], password: "123456" },
+  { id: "user-sklyarov-ivan", name: "Скляров Иван", role: "itr", position: "ИТР", email: "i.sklyarov@gk-gross.ru", phone: "+7 917 175 43 16", avatarUrl: "", status: "active", assignedObjectIds: ["matveevsky-park"], assignedBuildingIds: [], password: "123456" },
+  { id: "user-yampolsky-dmitry", name: "Ямпольский Дмитрий", role: "itr", position: "ИТР", email: "d.yampolsky@gk-gross.ru", phone: "+7 999 885 99 91", avatarUrl: "", status: "active", assignedObjectIds: ["prokshino"], assignedBuildingIds: [], password: "123456" },
+  { id: "user-razmakhin-gennady", name: "Размахнин Геннадий", role: "itr", position: "ИТР", email: "g.razmakhin@gk-gross.ru", phone: "+7 924 474 64 17", avatarUrl: "", status: "active", assignedObjectIds: ["salaryevo-park"], assignedBuildingIds: [], password: "123456" },
+  { id: "user-sharaev-vladimir", name: "Шараев Владимир", role: "construction_director", position: "Руководитель строительства", email: "v.sharaev@gk-gross.ru", phone: "+7 937 196-13-31", avatarUrl: "", status: "active", assignedObjectIds: ["matveevsky-park"], assignedBuildingIds: [], password: "123456" },
+  { id: "user-zhidkov-nikita", name: "Жидков Никита", role: "itr", position: "ИТР", email: "n.zhidkov@gk-gross.ru", phone: "+7 910 984 61 29", avatarUrl: "", status: "active", assignedObjectIds: ["matveevsky-park"], assignedBuildingIds: [], password: "123456" },
+  { id: "user-fattykhov-renat", name: "Фаттыхов Ренат", role: "itr", position: "ИТР", email: "r.fattykhov@gk-gross.ru", phone: "+7 996 402-84-77", avatarUrl: "", status: "active", assignedObjectIds: ["prokshino"], assignedBuildingIds: [], password: "123456" },
 ];
 
 const roleLabels = {
@@ -2445,6 +2466,8 @@ function UsersPage({ users, objects, currentUser, onSave }) {
   const [editingUser, setEditingUser] = useState(null);
   const visibleUsers = getVisibleUsersForManager(currentUser, users, objects);
   const canCreate = canManageUsers(currentUser);
+  const objectNames = new Map(objects.map((object) => [object.id, object.name]));
+  const buildingNames = new Map(objects.flatMap((object) => object.buildings.map((building) => [building.id, `${object.name} / ${building.name}`])));
   const saveUser = (values) => {
     const prepared = normalizeUser(values);
     const nextUsers = prepared.id && users.some((user) => user.id === prepared.id)
@@ -2457,6 +2480,9 @@ function UsersPage({ users, objects, currentUser, onSave }) {
     dataProvider.users.disable(userId);
     onSave(users.map((user) => user.id === userId ? { ...user, status: "disabled", updatedAt: new Date().toISOString() } : user));
   };
+  const resetPassword = (userId) => {
+    onSave(users.map((user) => user.id === userId ? { ...user, password: "123456", updatedAt: new Date().toISOString() } : user));
+  };
 
   return (
     <section className="users-page">
@@ -2468,27 +2494,25 @@ function UsersPage({ users, objects, currentUser, onSave }) {
         </div>
         {canCreate && <button className="primary-button" onClick={() => setEditingUser({ status: "active", role: "itr", password: "123456", assignedObjectIds: [], assignedBuildingIds: [] })}>Добавить пользователя</button>}
       </div>
-      <div className="users-grid">
-        {visibleUsers.map((user) => (
-          <article className={`user-admin-card ${user.status === "disabled" ? "disabled" : ""}`} key={user.id}>
-            <div className="user-admin-avatar">{user.avatarUrl ? <img src={user.avatarUrl} alt="" /> : user.name.slice(0, 1)}</div>
-            <div>
-              <h3>{user.name}</h3>
-              <p>{user.position}</p>
-              <span>{user.email}</span>
-            </div>
-            <StatusBadge value={user.status === "disabled" ? "отключён" : roleLabels[user.role]} />
-            <div className="user-admin-meta">
-              <span>Объектов: {user.assignedObjectIds?.length || (["creator", "company_head"].includes(user.role) ? "все" : 0)}</span>
-              <span>Корпусов: {user.assignedBuildingIds?.length || "—"}</span>
-              <span>Вход: {user.lastLoginAt ? new Date(user.lastLoginAt).toLocaleString("ru-RU") : "не было"}</span>
-            </div>
-            <div className="task-actions">
-              {canCreate && <button className="secondary-button slim" onClick={() => setEditingUser(user)}>Редактировать</button>}
-              {canCreate && user.id !== currentUser.id && user.status !== "disabled" && <button className="secondary-button slim" onClick={() => disableUser(user.id)}>Отключить</button>}
-            </div>
-          </article>
-        ))}
+      <div className="users-table-wrap">
+        <table className="executive-table users-table">
+          <thead><tr><th>ФИО</th><th>Роль</th><th>Должность</th><th>Email</th><th>Телефон</th><th>Статус</th><th>Объекты</th><th>Корпуса</th><th>Действия</th></tr></thead>
+          <tbody>
+            {visibleUsers.map((user) => (
+              <tr key={user.id} className={user.status === "disabled" ? "is-muted" : ""}>
+                <td><div className="table-user"><span>{user.avatarUrl ? <img src={user.avatarUrl} alt="" /> : user.name.slice(0, 1)}</span><strong>{user.name}</strong></div></td>
+                <td>{roleLabels[user.role]}</td>
+                <td>{user.position}</td>
+                <td>{user.email}</td>
+                <td>{user.phone || "—"}</td>
+                <td><StatusBadge value={user.status === "disabled" ? "отключён" : "active"} /></td>
+                <td>{["creator", "company_head"].includes(user.role) && !user.assignedObjectIds?.length ? "Все" : user.assignedObjectIds?.map((id) => objectNames.get(id)).filter(Boolean).join(", ") || "—"}</td>
+                <td>{user.assignedBuildingIds?.map((id) => buildingNames.get(id)).filter(Boolean).join(", ") || "—"}</td>
+                <td><div className="task-actions">{canCreate && <button className="secondary-button slim" onClick={() => setEditingUser(user)}>Редактировать</button>}{canCreate && <button className="secondary-button slim" onClick={() => resetPassword(user.id)}>Сбросить пароль</button>}{canCreate && user.id !== currentUser.id && user.status !== "disabled" && <button className="secondary-button slim" onClick={() => disableUser(user.id)}>Отключить</button>}</div></td>
+              </tr>
+            ))}
+          </tbody>
+        </table>
       </div>
       {editingUser && <UserEditModal user={editingUser} currentUser={currentUser} objects={objects} onClose={() => setEditingUser(null)} onSave={saveUser} />}
     </section>
@@ -2747,7 +2771,7 @@ function BrigadePlanPage({ objects, user, users }) {
   const activeStandards = standards.filter((item) => item.isActive);
   const plans = getObjectWorkPlans();
   const teams = getTeams();
-  const employees = getEmployees();
+  const workers = getEmployees();
   const reports = getDailyWorkReports();
   const stats = getPlanFactStats();
   const moneyStats = getPlanFactMoneyStats();
@@ -2756,7 +2780,7 @@ function BrigadePlanPage({ objects, user, users }) {
   const buildingNames = new Map(objects.flatMap((object) => object.buildings.map((building) => [building.id, building.name])));
   const standardNames = new Map(standards.map((item) => [item.id, item.workType]));
   const teamNames = new Map(teams.map((item) => [item.id, item.name]));
-  const employeeNames = new Map(employees.map((item) => [item.id, item.name]));
+  const workerNames = new Map(workers.map((item) => [item.id, item.name]));
   const userNames = new Map(users.map((item) => [item.id, item.name]));
   const canEditStandards = ["creator", "company_head"].includes(user.role);
   const canAssignPlan = ["creator", "company_head", "construction_director"].includes(user.role);
@@ -2779,18 +2803,18 @@ function BrigadePlanPage({ objects, user, users }) {
   };
 
   return <section className="brigade-page" key={version}>
-    <div className="tasks-hero"><div><span>План бригад / План-факт работ</span><h2>Контроль выработки по объектам</h2><p>Регламент компании, план по корпусам и ежедневный факт ИТР в одном модуле.</p></div><div className="heading-actions"><button className="primary-button" onClick={() => setFactOpen(true)}>Добавить факт за день</button><button className="secondary-button" onClick={() => setMultiOpen(true)}>Факт по сотрудникам</button></div></div>
-    <div className="task-tabs brigade-tabs">{[["current", "Текущий план"], ["standards", "Регламент работ"], ["object", "План на объект"], ["daily", "Ежедневный факт"], ["fact", "План-факт"], ["ratings", "Рейтинги"], ["auto-report", "Автоотчёт"], ["teams", "Бригады / сотрудники"]].map(([id, label]) => <button key={id} className={tab === id ? "active" : ""} onClick={() => setTab(id)}>{label}</button>)}</div>
+    <div className="tasks-hero"><div><span>План бригад / План-факт работ</span><h2>Контроль выработки по объектам</h2><p>Регламент компании, план по корпусам и ежедневный факт ИТР в одном модуле.</p></div><div className="heading-actions"><button className="primary-button" onClick={() => setFactOpen(true)}>Добавить факт за день</button><button className="secondary-button" onClick={() => setMultiOpen(true)}>Факт по рабочим</button></div></div>
+    <div className="task-tabs brigade-tabs">{[["current", "Текущий план"], ["standards", "Регламент работ"], ["object", "План на объект"], ["daily", "Ежедневный факт"], ["fact", "План-факт"], ["ratings", "Рейтинги"], ["auto-report", "Автоотчёт"], ["teams", "Бригады / рабочие"]].map(([id, label]) => <button key={id} className={tab === id ? "active" : ""} onClick={() => setTab(id)}>{label}</button>)}</div>
     {["current", "standards"].includes(tab) && <div className="brigade-card"><div className="panel-title"><div><h2>{tab === "current" ? "Утверждённый текущий план" : "Регламент работ"}</h2><p>Основа для переноса текущего Excel-плана компании.</p></div>{canEditStandards && <button className="primary-button slim" onClick={() => setStandardEdit({})}>Добавить вид работ</button>}</div><StandardsTable rows={standards} canEdit={canEditStandards} onEdit={setStandardEdit} onDisable={(id) => { disableWorkStandard(id); refresh(); }} /></div>}
     {tab === "object" && <ObjectPlanPanel objects={objects} users={users} standards={activeStandards} teams={teams} plans={plans} canAssign={canAssignPlan} onSave={(values) => { addObjectWorkPlan({ ...values, createdBy: user.id }); refresh(); }} />}
-    {tab === "daily" && <div className="brigade-card"><div className="panel-title"><div><h2>Журнал ежедневного факта</h2><p>Факт по бригадам и сотрудникам.</p></div><button className="primary-button slim" onClick={() => setFactOpen(true)}>Добавить факт</button></div><ReportsTable reports={reports} objectNames={objectNames} buildingNames={buildingNames} standardNames={standardNames} teamNames={teamNames} employeeNames={employeeNames} userNames={userNames} /></div>}
-    {tab === "fact" && <div className="brigade-planfact"><div className="tasks-summary"><div><span>План</span><strong>{stats.plan}</strong></div><div><span>Факт</span><strong>{stats.fact}</strong></div><div className={stats.completionPercent >= 100 ? "success" : stats.completionPercent < 80 ? "danger" : ""}><span>Выполнение</span><strong>{stats.completionPercent}%</strong></div><div><span>Отклонение</span><strong>{stats.deviation}</strong></div><div className="success"><span>Перевыполнение</span><strong>{stats.overrun}</strong></div><div className="danger"><span>Отставание</span><strong>{stats.lag}</strong></div><div><span>Бригад</span><strong>{stats.activeTeams}</strong></div></div><MoneySummary stats={moneyStats} /><div className="brigade-card"><h2>План-факт</h2><ReportsTable reports={stats.reports} objectNames={objectNames} buildingNames={buildingNames} standardNames={standardNames} teamNames={teamNames} employeeNames={employeeNames} userNames={userNames} /></div><DelayReasonsBlock rows={delayStats} /><div className="brigade-analytics-grid"><TeamEfficiencyTable rows={getTeamEfficiency()} objectNames={objectNames} /><EmployeeOutputTable rows={getEmployeeOutput()} teamNames={teamNames} /></div></div>}
+    {tab === "daily" && <div className="brigade-card"><div className="panel-title"><div><h2>Журнал ежедневного факта</h2><p>Факт по бригадам и рабочим. Вносит ИТР, рабочий не получает личный кабинет.</p></div><button className="primary-button slim" onClick={() => setFactOpen(true)}>Добавить факт</button></div><ReportsTable reports={reports} objectNames={objectNames} buildingNames={buildingNames} standardNames={standardNames} teamNames={teamNames} employeeNames={workerNames} userNames={userNames} /></div>}
+    {tab === "fact" && <div className="brigade-planfact"><div className="tasks-summary"><div><span>План</span><strong>{stats.plan}</strong></div><div><span>Факт</span><strong>{stats.fact}</strong></div><div className={stats.completionPercent >= 100 ? "success" : stats.completionPercent < 80 ? "danger" : ""}><span>Выполнение</span><strong>{stats.completionPercent}%</strong></div><div><span>Отклонение</span><strong>{stats.deviation}</strong></div><div className="success"><span>Перевыполнение</span><strong>{stats.overrun}</strong></div><div className="danger"><span>Отставание</span><strong>{stats.lag}</strong></div><div><span>Бригад</span><strong>{stats.activeTeams}</strong></div></div><MoneySummary stats={moneyStats} /><div className="brigade-card"><h2>План-факт</h2><ReportsTable reports={stats.reports} objectNames={objectNames} buildingNames={buildingNames} standardNames={standardNames} teamNames={teamNames} employeeNames={workerNames} userNames={userNames} /></div><DelayReasonsBlock rows={delayStats} /><div className="brigade-analytics-grid"><TeamEfficiencyTable rows={getTeamEfficiency()} objectNames={objectNames} /><EmployeeOutputTable rows={getEmployeeOutput()} teamNames={teamNames} /></div></div>}
     {tab === "ratings" && <div className="brigade-analytics-grid"><TeamRatingTable rows={getTeamRating()} objectNames={objectNames} buildingNames={buildingNames} /><ItrRatingTable rows={getItrRating()} /></div>}
     {tab === "auto-report" && <AutoReportTab objects={objects} users={users} objectNames={objectNames} buildingNames={buildingNames} user={user} />}
-    {tab === "teams" && <TeamsPanel teams={teams} employees={employees} objects={objects} users={users} refresh={refresh} />}
+    {tab === "teams" && <TeamsPanel teams={teams} employees={workers} objects={objects} users={users} refresh={refresh} />}
     {standardEdit && <StandardModal standard={standardEdit} onClose={() => setStandardEdit(null)} onSave={saveStandard} />}
-    {factOpen && <DailyFactModal objects={objects} standards={activeStandards} teams={teams} employees={employees} user={user} onClose={() => setFactOpen(false)} onSave={(values) => { saveFact(values); setFactOpen(false); }} />}
-    {multiOpen && <MultiFactModal objects={objects} standards={activeStandards} teams={teams} employees={employees} user={user} onClose={() => setMultiOpen(false)} onSave={(rows) => { rows.forEach(saveFact); setMultiOpen(false); }} />}
+    {factOpen && <DailyFactModal objects={objects} standards={activeStandards} teams={teams} employees={workers} user={user} onClose={() => setFactOpen(false)} onSave={(values) => { saveFact(values); setFactOpen(false); }} />}
+    {multiOpen && <MultiFactModal objects={objects} standards={activeStandards} teams={teams} employees={workers} user={user} onClose={() => setMultiOpen(false)} onSave={(rows) => { rows.forEach(saveFact); setMultiOpen(false); }} />}
   </section>;
 }
 
@@ -2858,12 +2882,13 @@ function ObjectPlanPanel({ objects, users, standards, teams, plans, canAssign, o
 
 function DailyFactModal({ objects, standards, teams, employees, user, onClose, onSave }) {
   const object = objects[0];
-  const [form, setForm] = useState({ date: new Date().toISOString().slice(0, 10), objectId: object?.id ?? "", buildingId: object?.buildings[0]?.id ?? "", teamId: teams[0]?.id ?? "", employeeId: "", workTypeId: standards[0]?.id ?? "", actualQuantity: 0, delayReason: "", comment: "" });
+  const [form, setForm] = useState({ date: new Date().toISOString().slice(0, 10), objectId: object?.id ?? "", buildingId: object?.buildings[0]?.id ?? "", teamId: teams[0]?.id ?? "", workerId: "", workTypeId: standards[0]?.id ?? "", actualQuantity: 0, delayReason: "", comment: "" });
   const selectedObject = objects.find((item) => item.id === form.objectId) ?? object;
   const standard = standards.find((item) => item.id === form.workTypeId);
   const isBehindPlan = Number(form.actualQuantity) < Number(standard?.dailyPlan ?? 0);
   const update = (field, value) => setForm((current) => field === "objectId" ? { ...current, objectId: value, buildingId: objects.find((item) => item.id === value)?.buildings[0]?.id ?? "" } : { ...current, [field]: value });
-  return <div className="modal-backdrop"><form className="task-modal compact" onSubmit={(event) => { event.preventDefault(); onSave({ ...form, plannedQuantity: standard?.dailyPlan ?? 0, createdBy: user.id }); }}><div className="modal-title"><div><h2>Добавить факт за день</h2><p>Короткая форма для ИТР.</p></div><button type="button" onClick={onClose}>×</button></div><label>Дата<input type="date" value={form.date} onChange={(event) => update("date", event.target.value)} /></label><label>Объект<select value={form.objectId} onChange={(event) => update("objectId", event.target.value)}>{objects.map((item) => <option key={item.id} value={item.id}>{item.name}</option>)}</select></label><label>Корпус<select value={form.buildingId} onChange={(event) => update("buildingId", event.target.value)}>{selectedObject?.buildings.map((building) => <option key={building.id} value={building.id}>{building.name}</option>)}</select></label><label>Бригада<select value={form.teamId} onChange={(event) => update("teamId", event.target.value)}>{teams.map((team) => <option key={team.id} value={team.id}>{team.name}</option>)}</select></label><label>Сотрудник<select value={form.employeeId} onChange={(event) => update("employeeId", event.target.value)}><option value="">Бригада целиком</option>{employees.filter((employee) => employee.teamId === form.teamId).map((employee) => <option key={employee.id} value={employee.id}>{employee.name}</option>)}</select></label><label>Вид работ<select value={form.workTypeId} onChange={(event) => update("workTypeId", event.target.value)}>{standards.map((item) => <option key={item.id} value={item.id}>{item.workType}</option>)}</select></label><div className="auto-plan-box">План: <strong>{standard?.dailyPlan ?? 0} {standard?.unitName}</strong></div><label>Факт<input type="number" value={form.actualQuantity} onChange={(event) => update("actualQuantity", event.target.value)} /></label>{isBehindPlan && <div className="soft-warning">Укажите причину отставания, чтобы руководитель видел, что мешает работе.</div>}<label className={isBehindPlan && !form.delayReason ? "needs-attention" : ""}>Причина отставания<select value={form.delayReason} onChange={(event) => update("delayReason", event.target.value)}><option value="">Не выбрана</option>{delayReasonOptions.map((item) => <option key={item} value={item}>{item}</option>)}</select></label><label>Комментарий<textarea value={form.comment} onChange={(event) => update("comment", event.target.value)} /></label><div className="form-actions"><button className="secondary-button" type="button" onClick={onClose}>Отмена</button><button className="primary-button">Сохранить факт</button></div></form></div>;
+  const teamWorkers = getWorkersByTeam(form.teamId);
+  return <div className="modal-backdrop"><form className="task-modal compact" onSubmit={(event) => { event.preventDefault(); onSave({ ...form, employeeId: form.workerId, plannedQuantity: standard?.dailyPlan ?? 0, createdBy: user.id }); }}><div className="modal-title"><div><h2>Добавить факт за день</h2><p>Короткая форма для ИТР. Рабочий не получает личный кабинет.</p></div><button type="button" onClick={onClose}>×</button></div><label>Дата<input type="date" value={form.date} onChange={(event) => update("date", event.target.value)} /></label><label>Объект<select value={form.objectId} onChange={(event) => update("objectId", event.target.value)}>{objects.map((item) => <option key={item.id} value={item.id}>{item.name}</option>)}</select></label><label>Корпус<select value={form.buildingId} onChange={(event) => update("buildingId", event.target.value)}>{selectedObject?.buildings.map((building) => <option key={building.id} value={building.id}>{building.name}</option>)}</select></label><label>Бригада<select value={form.teamId} onChange={(event) => update("teamId", event.target.value)}>{teams.map((team) => <option key={team.id} value={team.id}>{team.name}</option>)}</select></label><label>Рабочий<select value={form.workerId} onChange={(event) => update("workerId", event.target.value)}><option value="">Бригада целиком</option>{teamWorkers.map((worker) => <option key={worker.id} value={worker.id}>{worker.name} — {worker.workerType}</option>)}</select></label><label>Вид работ<select value={form.workTypeId} onChange={(event) => update("workTypeId", event.target.value)}>{standards.map((item) => <option key={item.id} value={item.id}>{item.workType}</option>)}</select></label><div className="auto-plan-box">План: <strong>{standard?.dailyPlan ?? 0} {standard?.unitName}</strong></div><label>Факт<input type="number" value={form.actualQuantity} onChange={(event) => update("actualQuantity", event.target.value)} /></label>{isBehindPlan && <div className="soft-warning">Укажите причину отставания, чтобы руководитель видел, что мешает работе.</div>}<label className={isBehindPlan && !form.delayReason ? "needs-attention" : ""}>Причина отставания<select value={form.delayReason} onChange={(event) => update("delayReason", event.target.value)}><option value="">Не выбрана</option>{delayReasonOptions.map((item) => <option key={item} value={item}>{item}</option>)}</select></label><label>Комментарий<textarea value={form.comment} onChange={(event) => update("comment", event.target.value)} /></label><div className="form-actions"><button className="secondary-button" type="button" onClick={onClose}>Отмена</button><button className="primary-button">Сохранить факт</button></div></form></div>;
 }
 
 function MultiFactModal({ objects, standards, teams, employees, user, onClose, onSave }) {
@@ -2872,13 +2897,13 @@ function MultiFactModal({ objects, standards, teams, employees, user, onClose, o
   const [facts, setFacts] = useState({});
   const selectedObject = objects.find((item) => item.id === form.objectId) ?? object;
   const standard = standards.find((item) => item.id === form.workTypeId);
-  const teamEmployees = employees.filter((employee) => employee.teamId === form.teamId);
+  const teamEmployees = getWorkersByTeam(form.teamId);
   const update = (field, value) => setForm((current) => field === "objectId" ? { ...current, objectId: value, buildingId: objects.find((item) => item.id === value)?.buildings[0]?.id ?? "" } : { ...current, [field]: value });
-  return <div className="modal-backdrop"><form className="task-modal" onSubmit={(event) => { event.preventDefault(); onSave(teamEmployees.filter((employee) => Number(facts[employee.id]) > 0).map((employee) => ({ ...form, employeeId: employee.id, plannedQuantity: standard?.dailyPlan ?? 0, actualQuantity: Number(facts[employee.id]) || 0, createdBy: user.id }))); }}><div className="modal-title"><div><h2>Факт по сотрудникам</h2><p>Внесите выработку сразу по нескольким сотрудникам.</p></div><button type="button" onClick={onClose}>×</button></div><div className="task-form-grid"><label>Дата<input type="date" value={form.date} onChange={(event) => update("date", event.target.value)} /></label><label>Объект<select value={form.objectId} onChange={(event) => update("objectId", event.target.value)}>{objects.map((item) => <option key={item.id} value={item.id}>{item.name}</option>)}</select></label><label>Корпус<select value={form.buildingId} onChange={(event) => update("buildingId", event.target.value)}>{selectedObject?.buildings.map((building) => <option key={building.id} value={building.id}>{building.name}</option>)}</select></label><label>Бригада<select value={form.teamId} onChange={(event) => update("teamId", event.target.value)}>{teams.map((team) => <option key={team.id} value={team.id}>{team.name}</option>)}</select></label><label className="wide">Вид работ<select value={form.workTypeId} onChange={(event) => update("workTypeId", event.target.value)}>{standards.map((item) => <option key={item.id} value={item.id}>{item.workType}</option>)}</select></label></div><div className="employee-fact-list">{teamEmployees.map((employee) => <label key={employee.id}>{employee.name}<input type="number" value={facts[employee.id] ?? ""} onChange={(event) => setFacts((current) => ({ ...current, [employee.id]: event.target.value }))} placeholder={`План ${standard?.dailyPlan ?? 0}`} /></label>)}</div><div className="form-actions"><button className="secondary-button" type="button" onClick={onClose}>Отмена</button><button className="primary-button">Сохранить</button></div></form></div>;
+  return <div className="modal-backdrop"><form className="task-modal" onSubmit={(event) => { event.preventDefault(); onSave(teamEmployees.filter((worker) => Number(facts[worker.id]) > 0).map((worker) => ({ ...form, workerId: worker.id, employeeId: worker.id, plannedQuantity: standard?.dailyPlan ?? 0, actualQuantity: Number(facts[worker.id]) || 0, createdBy: user.id }))); }}><div className="modal-title"><div><h2>Факт по рабочим</h2><p>Внесите выработку сразу по рабочим выбранной бригады.</p></div><button type="button" onClick={onClose}>×</button></div><div className="task-form-grid"><label>Дата<input type="date" value={form.date} onChange={(event) => update("date", event.target.value)} /></label><label>Объект<select value={form.objectId} onChange={(event) => update("objectId", event.target.value)}>{objects.map((item) => <option key={item.id} value={item.id}>{item.name}</option>)}</select></label><label>Корпус<select value={form.buildingId} onChange={(event) => update("buildingId", event.target.value)}>{selectedObject?.buildings.map((building) => <option key={building.id} value={building.id}>{building.name}</option>)}</select></label><label>Бригада<select value={form.teamId} onChange={(event) => update("teamId", event.target.value)}>{teams.map((team) => <option key={team.id} value={team.id}>{team.name}</option>)}</select></label><label className="wide">Вид работ<select value={form.workTypeId} onChange={(event) => update("workTypeId", event.target.value)}>{standards.map((item) => <option key={item.id} value={item.id}>{item.workType}</option>)}</select></label></div><div className="employee-fact-list">{teamEmployees.map((worker) => <label key={worker.id}>{worker.name}<input type="number" value={facts[worker.id] ?? ""} onChange={(event) => setFacts((current) => ({ ...current, [worker.id]: event.target.value }))} placeholder={`План ${standard?.dailyPlan ?? 0}`} /></label>)}</div><div className="form-actions"><button className="secondary-button" type="button" onClick={onClose}>Отмена</button><button className="primary-button">Сохранить</button></div></form></div>;
 }
 
 function ReportsTable({ reports, objectNames, buildingNames, standardNames, teamNames, employeeNames, userNames }) {
-  return <div className="brigade-table-wrap"><table className="executive-table brigade-table"><thead><tr><th>Дата</th><th>Объект</th><th>Корпус</th><th>Бригада</th><th>Сотрудник</th><th>Вид работ</th><th>План</th><th>Факт</th><th>%</th><th>Откл.</th><th>План, ₽</th><th>Факт, ₽</th><th>Откл., ₽</th><th>Причина</th><th>Комментарий</th><th>Внёс</th></tr></thead><tbody>{reports.map((row) => <tr key={row.id}><td>{row.date}</td><td>{objectNames.get(row.objectId)}</td><td>{buildingNames.get(row.buildingId)}</td><td>{teamNames.get(row.teamId)}</td><td>{employeeNames.get(row.employeeId) ?? "Бригада"}</td><td>{standardNames.get(row.workTypeId)}</td><td>{row.plannedQuantity}</td><td>{row.actualQuantity}</td><td><span className={`completion-pill ${row.completionPercent >= 100 ? "good" : row.completionPercent >= 80 ? "warn" : "bad"}`}>{row.completionPercent}%</span></td><td>{row.deviation}</td><td>{formatRub(row.plannedAmount)}</td><td>{formatRub(row.actualAmount)}</td><td className={row.moneyDeviation < 0 ? "danger-text" : "success-text"}>{formatRub(row.moneyDeviation)}</td><td>{row.delayReason || "—"}</td><td>{row.comment || "—"}</td><td>{userNames.get(row.createdBy) ?? row.createdBy}</td></tr>)}</tbody></table>{reports.length === 0 && <div className="empty-plan">Факты пока не внесены.</div>}</div>;
+  return <div className="brigade-table-wrap"><table className="executive-table brigade-table"><thead><tr><th>Дата</th><th>Объект</th><th>Корпус</th><th>Бригада</th><th>Рабочий</th><th>Вид работ</th><th>План</th><th>Факт</th><th>%</th><th>Откл.</th><th>План, ₽</th><th>Факт, ₽</th><th>Откл., ₽</th><th>Причина</th><th>Комментарий</th><th>Внёс</th></tr></thead><tbody>{reports.map((row) => <tr key={row.id}><td>{row.date}</td><td>{objectNames.get(row.objectId)}</td><td>{buildingNames.get(row.buildingId)}</td><td>{teamNames.get(row.teamId)}</td><td>{employeeNames.get(row.workerId ?? row.employeeId) ?? "Бригада"}</td><td>{standardNames.get(row.workTypeId)}</td><td>{row.plannedQuantity}</td><td>{row.actualQuantity}</td><td><span className={`completion-pill ${row.completionPercent >= 100 ? "good" : row.completionPercent >= 80 ? "warn" : "bad"}`}>{row.completionPercent}%</span></td><td>{row.deviation}</td><td>{formatRub(row.plannedAmount)}</td><td>{formatRub(row.actualAmount)}</td><td className={row.moneyDeviation < 0 ? "danger-text" : "success-text"}>{formatRub(row.moneyDeviation)}</td><td>{row.delayReason || "—"}</td><td>{row.comment || "—"}</td><td>{userNames.get(row.createdBy) ?? row.createdBy}</td></tr>)}</tbody></table>{reports.length === 0 && <div className="empty-plan">Факты пока не внесены.</div>}</div>;
 }
 
 function TeamEfficiencyTable({ rows, objectNames }) {
@@ -2886,14 +2911,49 @@ function TeamEfficiencyTable({ rows, objectNames }) {
 }
 
 function EmployeeOutputTable({ rows, teamNames }) {
-  return <div className="brigade-card"><h2>Выработка сотрудников</h2><table className="executive-table"><thead><tr><th>Сотрудник</th><th>Бригада</th><th>Вид работ</th><th>Факт день</th><th>Факт неделя</th><th>% плана</th><th>Комментарии</th></tr></thead><tbody>{rows.map((row) => <tr key={row.employeeId}><td>{row.employee}</td><td>{teamNames.get(row.teamId)}</td><td>{row.workType}</td><td>{row.todayFact}</td><td>{row.weekFact}</td><td>{row.completionPercent}%</td><td>{row.comments.slice(0, 2).join("; ") || "—"}</td></tr>)}</tbody></table></div>;
+  return <div className="brigade-card"><h2>Выработка рабочих</h2><table className="executive-table"><thead><tr><th>Рабочий</th><th>Бригада</th><th>Вид работ</th><th>Факт день</th><th>Факт неделя</th><th>% плана</th><th>Комментарии</th></tr></thead><tbody>{rows.map((row) => <tr key={row.employeeId}><td>{row.employee}</td><td>{teamNames.get(row.teamId)}</td><td>{row.workType}</td><td>{row.todayFact}</td><td>{row.weekFact}</td><td>{row.completionPercent}%</td><td>{row.comments.slice(0, 2).join("; ") || "—"}</td></tr>)}</tbody></table></div>;
 }
 
 function TeamsPanel({ teams, employees, objects, users, refresh }) {
   const [teamForm, setTeamForm] = useState({ name: "", teamType: "Монтаж", objectId: objects[0]?.id ?? "", buildingId: objects[0]?.buildings[0]?.id ?? "", responsibleItrId: users.find((user) => user.role === "itr")?.id ?? "" });
-  const [employeeForm, setEmployeeForm] = useState({ name: "", role: "Монтажник", teamId: teams[0]?.id ?? "" });
+  const [employeeForm, setEmployeeForm] = useState({ name: "", group: "", nationality: "", workerType: "монтажник", teamId: teams[0]?.id ?? "", phone: "", comment: "" });
   const selectedObject = objects.find((object) => object.id === teamForm.objectId) ?? objects[0];
-  return <div className="brigade-analytics-grid"><div className="brigade-card"><h2>Бригады</h2><form className="compact-admin-form" onSubmit={(event) => { event.preventDefault(); addTeam(teamForm); setTeamForm({ ...teamForm, name: "" }); refresh(); }}><input value={teamForm.name} onChange={(event) => setTeamForm({ ...teamForm, name: event.target.value })} placeholder="Название бригады" /><input value={teamForm.teamType} onChange={(event) => setTeamForm({ ...teamForm, teamType: event.target.value })} placeholder="Тип" /><select value={teamForm.objectId} onChange={(event) => setTeamForm({ ...teamForm, objectId: event.target.value, buildingId: objects.find((object) => object.id === event.target.value)?.buildings[0]?.id ?? "" })}>{objects.map((object) => <option key={object.id} value={object.id}>{object.name}</option>)}</select><select value={teamForm.buildingId} onChange={(event) => setTeamForm({ ...teamForm, buildingId: event.target.value })}>{selectedObject?.buildings.map((building) => <option key={building.id} value={building.id}>{building.name}</option>)}</select><button className="primary-button slim">Добавить бригаду</button></form><div className="team-list">{teams.map((team) => <div key={team.id}><strong>{team.name}</strong><span>{team.teamType} · {employees.filter((employee) => employee.teamId === team.id).length} сотрудников</span></div>)}</div></div><div className="brigade-card"><h2>Сотрудники</h2><form className="compact-admin-form" onSubmit={(event) => { event.preventDefault(); const employee = addEmployee(employeeForm); const nextTeams = getTeams().map((team) => team.id === employeeForm.teamId ? { ...team, members: [...new Set([...(team.members ?? []), employee.id])] } : team); saveTeams(nextTeams); setEmployeeForm({ ...employeeForm, name: "" }); refresh(); }}><input value={employeeForm.name} onChange={(event) => setEmployeeForm({ ...employeeForm, name: event.target.value })} placeholder="ФИО" /><input value={employeeForm.role} onChange={(event) => setEmployeeForm({ ...employeeForm, role: event.target.value })} placeholder="Роль" /><select value={employeeForm.teamId} onChange={(event) => setEmployeeForm({ ...employeeForm, teamId: event.target.value })}>{teams.map((team) => <option key={team.id} value={team.id}>{team.name}</option>)}</select><button className="primary-button slim">Добавить сотрудника</button></form><div className="team-list">{employees.map((employee) => <div key={employee.id}><strong>{employee.name}</strong><span>{employee.role} · {teams.find((team) => team.id === employee.teamId)?.name}</span></div>)}</div></div></div>;
+  const teamStats = new Map(getTeamEfficiency().map((row) => [row.teamId, row]));
+  const assignableWorkers = employees.filter((worker) => worker.status === "active");
+  const addWorkerToTeam = (workerId, teamId) => { assignWorkerToTeam(workerId, teamId); refresh(); };
+  const removeFromTeam = (workerId) => { removeWorkerFromTeam(workerId); refresh(); };
+  const disable = (workerId) => { disableEmployee(workerId); refresh(); };
+  return <div className="brigade-analytics-grid">
+    <div className="brigade-card wide">
+      <h2>Бригады</h2>
+      <form className="compact-admin-form" onSubmit={(event) => { event.preventDefault(); addTeam({ ...teamForm, memberWorkerIds: [] }); setTeamForm({ ...teamForm, name: "" }); refresh(); }}>
+        <input value={teamForm.name} onChange={(event) => setTeamForm({ ...teamForm, name: event.target.value })} placeholder="Название бригады" />
+        <input value={teamForm.teamType} onChange={(event) => setTeamForm({ ...teamForm, teamType: event.target.value })} placeholder="Тип" />
+        <select value={teamForm.objectId} onChange={(event) => setTeamForm({ ...teamForm, objectId: event.target.value, buildingId: objects.find((object) => object.id === event.target.value)?.buildings[0]?.id ?? "" })}>{objects.map((object) => <option key={object.id} value={object.id}>{object.name}</option>)}</select>
+        <select value={teamForm.buildingId} onChange={(event) => setTeamForm({ ...teamForm, buildingId: event.target.value })}>{selectedObject?.buildings.map((building) => <option key={building.id} value={building.id}>{building.name}</option>)}</select>
+        <select value={teamForm.responsibleItrId} onChange={(event) => setTeamForm({ ...teamForm, responsibleItrId: event.target.value })}>{users.filter((user) => user.role === "itr").map((user) => <option key={user.id} value={user.id}>{user.name}</option>)}</select>
+        <button className="primary-button slim">Добавить бригаду</button>
+      </form>
+      <div className="team-cards-grid">{teams.map((team) => {
+        const workers = getWorkersByTeam(team.id);
+        const stats = teamStats.get(team.id);
+        return <article className="team-card" key={team.id}><div><strong>{team.name}</strong><span>{team.teamType} · {objects.find((object) => object.id === team.objectId)?.name ?? "объект не указан"} · {users.find((person) => person.id === team.responsibleItrId)?.name ?? "ИТР не назначен"}</span></div><div className="team-card-metrics"><span>Рабочих: {workers.length}</span><span>План: {stats?.plan ?? 0}</span><span>Факт: {stats?.fact ?? 0}</span><span>Эффективность: {stats?.completionPercent ?? 0}%</span></div><div className="worker-tags">{workers.map((worker) => <button key={worker.id} onClick={() => removeFromTeam(worker.id)} title="Убрать из бригады">{worker.name}</button>)}</div><select onChange={(event) => event.target.value && addWorkerToTeam(event.target.value, team.id)} value=""><option value="">Добавить рабочего в бригаду</option>{assignableWorkers.filter((worker) => !workers.some((item) => item.id === worker.id)).map((worker) => <option key={worker.id} value={worker.id}>{worker.name} — {worker.group}</option>)}</select></article>;
+      })}</div>
+    </div>
+    <div className="brigade-card wide">
+      <h2>Рабочие без личных кабинетов</h2>
+      <p className="card-note">Это монтажники, грузчики и сотрудники бригад. Они не входят в users и не могут войти на сайт.</p>
+      <form className="compact-admin-form" onSubmit={(event) => { event.preventDefault(); const worker = addEmployee(employeeForm); if (employeeForm.teamId) assignWorkerToTeam(worker.id, employeeForm.teamId); setEmployeeForm({ ...employeeForm, name: "", phone: "", comment: "" }); refresh(); }}>
+        <input value={employeeForm.name} onChange={(event) => setEmployeeForm({ ...employeeForm, name: event.target.value })} placeholder="ФИО рабочего" />
+        <input value={employeeForm.group} onChange={(event) => setEmployeeForm({ ...employeeForm, group: event.target.value })} placeholder="Группа" />
+        <input value={employeeForm.nationality} onChange={(event) => setEmployeeForm({ ...employeeForm, nationality: event.target.value })} placeholder="Гражданство" />
+        <select value={employeeForm.workerType} onChange={(event) => setEmployeeForm({ ...employeeForm, workerType: event.target.value })}>{["монтажник", "грузчик", "разнорабочий", "фурнитурщик", "бригадир", "другое"].map((type) => <option key={type}>{type}</option>)}</select>
+        <select value={employeeForm.teamId} onChange={(event) => setEmployeeForm({ ...employeeForm, teamId: event.target.value })}><option value="">Без бригады</option>{teams.map((team) => <option key={team.id} value={team.id}>{team.name}</option>)}</select>
+        <button className="primary-button slim">Добавить рабочего</button>
+      </form>
+      <div className="brigade-table-wrap"><table className="executive-table"><thead><tr><th>ФИО</th><th>Группа</th><th>Гражданство</th><th>Тип</th><th>Бригада</th><th>Статус</th><th>Комментарий</th><th>Действия</th></tr></thead><tbody>{employees.map((worker) => <tr key={worker.id} className={worker.status === "inactive" ? "is-muted" : ""}><td>{worker.name}</td><td>{worker.group || "—"}</td><td>{worker.nationality || "—"}</td><td>{worker.workerType}</td><td>{teams.find((team) => team.id === worker.teamId)?.name ?? "—"}</td><td>{worker.status}</td><td><input className="table-input" value={worker.comment || ""} onChange={(event) => { updateEmployee(worker.id, { comment: event.target.value }); refresh(); }} /></td><td><div className="task-actions"><select value={worker.teamId || ""} onChange={(event) => event.target.value ? addWorkerToTeam(worker.id, event.target.value) : removeFromTeam(worker.id)}><option value="">Без бригады</option>{teams.map((team) => <option key={team.id} value={team.id}>{team.name}</option>)}</select><button className="secondary-button slim" onClick={() => disable(worker.id)}>Отключить</button></div></td></tr>)}</tbody></table></div>
+    </div>
+  </div>;
 }
 
 function riskLabel(count) {

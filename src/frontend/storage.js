@@ -39,17 +39,85 @@ const initialWorkStandards = [
   updatedAt: "2026-06-01T08:00:00.000Z",
 }));
 
-const initialTeams = [
-  { id: "team-1", name: "Бригада Матвеевский 1", teamType: "Монтаж", members: ["employee-1", "employee-2", "employee-3"], objectId: "matveevsky-park", buildingId: "building-4-1", responsibleItrId: "itr-1", isActive: true },
-  { id: "team-2", name: "Бригада Логистика", teamType: "Логистика", members: ["employee-4", "employee-5"], objectId: "matveevsky-park", buildingId: "building-4-2", responsibleItrId: "itr-1", isActive: true },
-];
+const nowSeed = "2026-06-01T08:00:00.000Z";
 
-const initialEmployees = [
-  { id: "employee-1", name: "Иванов Сергей", role: "Монтажник", teamId: "team-1", isActive: true },
-  { id: "employee-2", name: "Петров Алексей", role: "Монтажник", teamId: "team-1", isActive: true },
-  { id: "employee-3", name: "Сидоров Павел", role: "Подсобник", teamId: "team-1", isActive: true },
-  { id: "employee-4", name: "Кузнецов Денис", role: "Грузчик", teamId: "team-2", isActive: true },
-  { id: "employee-5", name: "Орлов Максим", role: "Грузчик", teamId: "team-2", isActive: true },
+const tajikWorkers = [
+  "Алишер Шамсов",
+  "Диловаршо Кодирзода",
+  "Заробшох Кодирзода",
+  "Махмадризо Маманазаров",
+  "Рамазон Махмадзода",
+  "Рахматшо Идибеков",
+  "Маманазаров Сорбон",
+  "Хусейн Маманазаров",
+].map((name, index) => ({
+  id: `worker-tj-${index + 1}`,
+  name,
+  group: "Таджики",
+  nationality: "Таджикистан",
+  workerType: "монтажник",
+  teamId: index < 2 ? "team-mb-1" : index < 4 ? "team-mb-2" : "",
+  phone: "",
+  comment: "",
+  status: "active",
+  createdAt: nowSeed,
+  updatedAt: nowSeed,
+}));
+
+const uzbekWorkers = [
+  "Аброржон Бутаев",
+  "Акром Инатов",
+  "Бахриддин Коржовов",
+  "Бобур Рузимуродов",
+  "Джушкин Зубайдуллаев",
+  "Дильшод Дагаров",
+  "Ильхом Сафаров",
+  "Каримжон Ергашев",
+  "Мансур Рузимуродов",
+  "Муродулла Ергашев",
+  "Муслимбек Чоршанбиев",
+  "Мухаммад Коржовов",
+  "Нурбек Холматов",
+  "Ойбек Ботиров",
+  "Отабек Расулов",
+  "Рахматжон Ражабоев",
+  "Рахмон Ражабоев",
+  "Руслан Рузимуротов",
+  "Саиджон Нормуродов",
+  "Сохибжон Худойбердиев",
+  "Улмасжон Тошмуротов",
+  "Ульмас Турдиев",
+  "Умар Джаникулов",
+  "Фазлиддин Мукумов",
+  "Фаррух Юсупов",
+  "Шерзод Рузимуродов",
+  "Шохрух Холмаматов",
+  "Шоюсуф Диёров",
+  "Шухрат Шобердиев",
+  "Шухрат Омонов",
+  "Шухрат Пардаев",
+  "Юлдаш Нематуллаев",
+].map((name, index) => ({
+  id: `worker-uz-${index + 1}`,
+  name,
+  group: "Узбеки",
+  nationality: "Узбекистан",
+  workerType: "монтажник",
+  teamId: index === 0 ? "team-mb-1" : index === 1 ? "team-mb-2" : index >= 2 && index <= 4 ? "team-mb-3" : index >= 5 && index <= 8 ? "team-mb-4" : "",
+  phone: "",
+  comment: "",
+  status: "active",
+  createdAt: nowSeed,
+  updatedAt: nowSeed,
+}));
+
+const initialEmployees = [...tajikWorkers, ...uzbekWorkers];
+
+const initialTeams = [
+  { id: "team-mb-1", name: "Бригада МБ-1", teamType: "Монтаж", memberWorkerIds: ["worker-tj-1", "worker-tj-2", "worker-uz-1"], members: ["worker-tj-1", "worker-tj-2", "worker-uz-1"], objectId: "matveevsky-park", buildingId: "matveevsky-park-building-4-1", responsibleItrId: "itr-1", isActive: true, createdAt: nowSeed, updatedAt: nowSeed },
+  { id: "team-mb-2", name: "Бригада МБ-2", teamType: "Монтаж", memberWorkerIds: ["worker-tj-3", "worker-tj-4", "worker-uz-2"], members: ["worker-tj-3", "worker-tj-4", "worker-uz-2"], objectId: "matveevsky-park", buildingId: "matveevsky-park-building-4-2", responsibleItrId: "itr-1", isActive: true, createdAt: nowSeed, updatedAt: nowSeed },
+  { id: "team-mb-3", name: "Бригада МБ-3", teamType: "Монтаж", memberWorkerIds: ["worker-uz-3", "worker-uz-4", "worker-uz-6"], members: ["worker-uz-3", "worker-uz-4", "worker-uz-6"], objectId: "prokshino", buildingId: "prokshino-building-6-1", responsibleItrId: "itr-2", isActive: true, createdAt: nowSeed, updatedAt: nowSeed },
+  { id: "team-mb-4", name: "Бригада МБ-4", teamType: "Монтаж", memberWorkerIds: ["worker-uz-7", "worker-uz-8", "worker-uz-9"], members: ["worker-uz-7", "worker-uz-8", "worker-uz-9"], objectId: "salaryevo-park", buildingId: "salaryevo-building-1", responsibleItrId: "itr-2", isActive: true, createdAt: nowSeed, updatedAt: nowSeed },
 ];
 
 export function getDoorMatrix() {
@@ -552,6 +620,10 @@ export function addManpowerRequest(request) {
     directorComment: request.directorComment ?? "",
     approvedLoaders: Number(request.approvedLoaders) || 0,
     approvedInstallers: Number(request.approvedInstallers) || 0,
+    requestedTeamId: request.requestedTeamId ?? request.teamId ?? "",
+    requestedWorkerIds: request.requestedWorkerIds ?? [],
+    approvedTeamId: request.approvedTeamId ?? "",
+    approvedWorkerIds: request.approvedWorkerIds ?? [],
     approvedBy: request.approvedBy ?? "",
     approvedAt: request.approvedAt ?? "",
     createdAt: request.createdAt ?? now,
@@ -850,7 +922,16 @@ export function updateObjectWorkPlan(id, values) {
 }
 
 export function getTeams() {
-  return readStorageList(TEAMS_KEY, initialTeams);
+  const saved = readStorageList(TEAMS_KEY, initialTeams);
+  const savedById = new Map(saved.map((team) => [team.id, team]));
+  const merged = initialTeams.map((team) => ({ ...team, ...(savedById.get(team.id) ?? {}) }));
+  const seedIds = new Set(initialTeams.map((team) => team.id));
+  return [...merged, ...saved.filter((team) => !seedIds.has(team.id))].map((team) => ({
+    ...team,
+    memberWorkerIds: team.memberWorkerIds ?? team.members ?? [],
+    members: team.memberWorkerIds ?? team.members ?? [],
+    isActive: team.isActive ?? true,
+  }));
 }
 
 export function saveTeams(rows) {
@@ -858,13 +939,18 @@ export function saveTeams(rows) {
 }
 
 export function addTeam(values) {
-  const row = { id: `team-${Date.now()}`, members: [], isActive: true, ...values };
+  const memberWorkerIds = values.memberWorkerIds ?? values.members ?? [];
+  const row = stamp({ id: `team-${Date.now()}`, members: memberWorkerIds, memberWorkerIds, isActive: true, ...values });
   saveTeams([row, ...getTeams()]);
   return row;
 }
 
 export function updateTeam(id, values) {
-  const next = getTeams().map((row) => row.id === id ? { ...row, ...values } : row);
+  const next = getTeams().map((row) => {
+    if (row.id !== id) return row;
+    const memberWorkerIds = values.memberWorkerIds ?? values.members ?? row.memberWorkerIds ?? row.members ?? [];
+    return { ...row, ...values, memberWorkerIds, members: memberWorkerIds, updatedAt: new Date().toISOString() };
+  });
   saveTeams(next);
   return next;
 }
@@ -874,27 +960,101 @@ export function disableTeam(id) {
 }
 
 export function getEmployees() {
-  return readStorageList(EMPLOYEES_KEY, initialEmployees);
+  const saved = readStorageList(EMPLOYEES_KEY, initialEmployees);
+  const savedById = new Map(saved.map((worker) => [worker.id, worker]));
+  const merged = initialEmployees.map((worker) => ({ ...worker, ...(savedById.get(worker.id) ?? {}) }));
+  const seedIds = new Set(initialEmployees.map((worker) => worker.id));
+  return [...merged, ...saved.filter((worker) => !seedIds.has(worker.id))].map(normalizeWorker);
 }
 
 export function saveEmployees(rows) {
-  writeStorageList(EMPLOYEES_KEY, rows);
+  writeStorageList(EMPLOYEES_KEY, rows.map(normalizeWorker));
 }
 
 export function addEmployee(values) {
-  const row = { id: `employee-${Date.now()}`, isActive: true, ...values };
+  const row = normalizeWorker(stamp({ id: `worker-${Date.now()}`, status: "active", ...values }));
   saveEmployees([row, ...getEmployees()]);
   return row;
 }
 
 export function updateEmployee(id, values) {
-  const next = getEmployees().map((row) => row.id === id ? { ...row, ...values } : row);
+  const next = getEmployees().map((row) => row.id === id ? normalizeWorker({ ...row, ...values, updatedAt: new Date().toISOString() }) : row);
   saveEmployees(next);
   return next;
 }
 
 export function disableEmployee(id) {
-  return updateEmployee(id, { isActive: false });
+  return updateEmployee(id, { status: "inactive", isActive: false });
+}
+
+function normalizeWorker(worker) {
+  return {
+    id: worker.id,
+    name: worker.name ?? "",
+    group: worker.group ?? "",
+    nationality: worker.nationality ?? "",
+    workerType: worker.workerType ?? worker.role?.toLowerCase() ?? "монтажник",
+    teamId: worker.teamId ?? "",
+    phone: worker.phone ?? "",
+    comment: worker.comment ?? "",
+    status: worker.status ?? (worker.isActive === false ? "inactive" : "active"),
+    isActive: worker.status ? worker.status === "active" : worker.isActive !== false,
+    createdAt: worker.createdAt ?? nowSeed,
+    updatedAt: worker.updatedAt ?? nowSeed,
+  };
+}
+
+export const getWorkers = getEmployees;
+export const saveWorkers = saveEmployees;
+export const addWorker = addEmployee;
+export const updateWorker = updateEmployee;
+export const disableWorker = disableEmployee;
+
+export function getActiveWorkers() {
+  return getWorkers().filter((worker) => worker.status === "active");
+}
+
+export function getWorkersByTeam(teamId) {
+  const team = getTeams().find((item) => item.id === teamId);
+  const teamWorkerIds = new Set(team?.memberWorkerIds ?? team?.members ?? []);
+  return getWorkers().filter((worker) => worker.teamId === teamId || teamWorkerIds.has(worker.id));
+}
+
+export function assignWorkerToTeam(workerId, teamId) {
+  updateEmployee(workerId, { teamId });
+  const nextTeams = getTeams().map((team) => {
+    const memberWorkerIds = new Set(team.memberWorkerIds ?? team.members ?? []);
+    if (team.id === teamId) memberWorkerIds.add(workerId);
+    else memberWorkerIds.delete(workerId);
+    return { ...team, memberWorkerIds: [...memberWorkerIds], members: [...memberWorkerIds], updatedAt: new Date().toISOString() };
+  });
+  saveTeams(nextTeams);
+  return getWorkers().find((worker) => worker.id === workerId);
+}
+
+export function removeWorkerFromTeam(workerId) {
+  updateEmployee(workerId, { teamId: "" });
+  const nextTeams = getTeams().map((team) => {
+    const memberWorkerIds = (team.memberWorkerIds ?? team.members ?? []).filter((id) => id !== workerId);
+    return { ...team, memberWorkerIds, members: memberWorkerIds, updatedAt: new Date().toISOString() };
+  });
+  saveTeams(nextTeams);
+}
+
+export function addWorkersToTeam(teamId, workerIds = []) {
+  workerIds.forEach((workerId) => assignWorkerToTeam(workerId, teamId));
+  return getTeams().find((team) => team.id === teamId);
+}
+
+export function removeWorkerFromTeamByTeam(teamId, workerId) {
+  const worker = getWorkers().find((item) => item.id === workerId);
+  if (worker?.teamId === teamId) updateEmployee(workerId, { teamId: "" });
+  const nextTeams = getTeams().map((team) => {
+    if (team.id !== teamId) return team;
+    const memberWorkerIds = (team.memberWorkerIds ?? team.members ?? []).filter((id) => id !== workerId);
+    return { ...team, memberWorkerIds, members: memberWorkerIds, updatedAt: new Date().toISOString() };
+  });
+  saveTeams(nextTeams);
 }
 
 export function getDailyWorkReports() {
@@ -909,6 +1069,7 @@ export function addDailyWorkReport(values) {
   const planned = Number(values.plannedQuantity) || 0;
   const actual = Number(values.actualQuantity) || 0;
   const money = calculateReportMoney({ ...values, plannedQuantity: planned, actualQuantity: actual });
+  const workerId = values.workerId ?? values.employeeId ?? "";
   const row = stamp({
     id: `daily-report-${Date.now()}-${Math.random().toString(16).slice(2)}`,
     completionPercent: planned > 0 ? Math.round((actual / planned) * 100) : 0,
@@ -918,6 +1079,8 @@ export function addDailyWorkReport(values) {
     actualAmount: money.actualAmount,
     moneyDeviation: money.moneyDeviation,
     ...values,
+    workerId,
+    employeeId: workerId,
     plannedQuantity: planned,
     actualQuantity: actual,
   });
@@ -965,7 +1128,7 @@ function filterReports(reports, filters = {}) {
     if (filters.objectId && row.objectId !== filters.objectId) return false;
     if (filters.buildingId && row.buildingId !== filters.buildingId) return false;
     if (filters.teamId && row.teamId !== filters.teamId) return false;
-    if (filters.employeeId && row.employeeId !== filters.employeeId) return false;
+    if (filters.employeeId && (row.workerId ?? row.employeeId) !== filters.employeeId) return false;
     if (filters.workTypeId && row.workTypeId !== filters.workTypeId) return false;
     if (filters.createdBy && row.createdBy !== filters.createdBy) return false;
     return true;
@@ -1116,7 +1279,7 @@ export function getEmployeeOutput(filters = {}) {
   weekStart.setDate(weekStart.getDate() - 6);
   const weekIso = weekStart.toISOString().slice(0, 10);
   const byEmployee = reports.reduce((map, row) => {
-    const key = row.employeeId || "team-report";
+    const key = row.workerId ?? row.employeeId ?? "team-report";
     const current = map.get(key) ?? { employeeId: key, teamId: row.teamId, workTypeId: row.workTypeId, todayFact: 0, weekFact: 0, plan: 0, fact: 0, comments: [] };
     const actual = Number(row.actualQuantity) || 0;
     current.fact += actual;

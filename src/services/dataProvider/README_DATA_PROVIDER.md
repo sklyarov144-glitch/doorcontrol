@@ -21,6 +21,7 @@ Main groups:
 - `notifications`
 - `documentItems`
 - `teams`
+- `workers`
 - `employees`
 - `workStandards`
 - `objectWorkPlans`
@@ -36,3 +37,7 @@ dataProvider.users.create({ name, email, role });
 dataProvider.users.update(id, values);
 dataProvider.users.disable(id);
 ```
+
+`users` are site accounts: ИТР, руководители, директора and creator. They have login, password, role and access rights.
+
+`workers` are монтажники, грузчики and brigade staff without personal accounts. They are used only in brigades, daily facts, manpower planning and production reports. For backward compatibility the MVP stores workers in the existing `employees` localStorage key too.
