@@ -9,6 +9,7 @@ const TEAMS_KEY = "gross-lean-montage.teams.v1";
 const EMPLOYEES_KEY = "gross-lean-montage.employees.v1";
 const DAILY_WORK_REPORTS_KEY = "gross-lean-montage.daily-work-reports.v1";
 const DAILY_AUTO_REPORTS_KEY = "gross-lean-montage.daily-auto-reports.v1";
+const MANPOWER_REQUESTS_KEY = "gross-lean-montage.manpower-requests.v1";
 const DEFAULT_MATRIX_DOCUMENTS = [
   { building: "Корпус 4.1", url: "https://disk.yandex.ru/" },
   { building: "Корпус 4.2", url: "https://disk.yandex.ru/" },
@@ -518,6 +519,143 @@ export function getNotificationsByUser(user) {
 
 export function getUnreadNotificationsCount(user) {
   return getNotificationsByUser(user).filter((item) => item.status === "unread").length;
+}
+
+export function getManpowerRequests() {
+  try {
+    return JSON.parse(localStorage.getItem(MANPOWER_REQUESTS_KEY)) ?? [];
+  } catch {
+    return [];
+  }
+}
+
+export function saveManpowerRequests(requests) {
+  localStorage.setItem(MANPOWER_REQUESTS_KEY, JSON.stringify(requests));
+}
+
+export function addManpowerRequest(request) {
+  const now = new Date().toISOString();
+  const prepared = {
+    id: request.id ?? `manpower-${Date.now()}`,
+    date: request.date ?? todayIso(),
+    objectId: request.objectId ?? "",
+    buildingId: request.buildingId ?? "",
+    requestedBy: request.requestedBy ?? "",
+    requestedByName: request.requestedByName ?? "",
+    requestedByRole: request.requestedByRole ?? "",
+    loadersRequested: Number(request.loadersRequested) || 0,
+    installersRequested: Number(request.installersRequested) || 0,
+    priority: request.priority ?? "средний",
+    reason: request.reason ?? "монтаж по плану",
+    comment: request.comment ?? "",
+    status: request.status ?? "отправлена",
+    directorComment: request.directorComment ?? "",
+    approvedLoaders: Number(request.approvedLoaders) || 0,
+    approvedInstallers: Number(request.approvedInstallers) || 0,
+    approvedBy: request.approvedBy ?? "",
+    approvedAt: request.approvedAt ?? "",
+    createdAt: request.createdAt ?? now,
+    updatedAt: now,
+    teamId: request.teamId ?? "",
+  };
+  const next = [prepared, ...getManpowerRequests()];
+  saveManpowerRequests(next);
+  return prepared;
+}
+
+export function updateManpowerRequest(requestId, values) {
+  const now = new Date().toISOString();
+  const next = getManpowerRequests().map((request) =>
+    request.id === requestId ? { ...request, ...values, updatedAt: now } : request
+  );
+  saveManpowerRequests(next);
+  return next.find((request) => request.id === requestId);
+}
+
+export function cancelManpowerRequest(requestId) {
+  return updateManpowerRequest(requestId, { status: "отклонена", directorComment: "Заявка отменена ИТР" });
+}
+
+export function approveManpowerRequest(requestId, userId = "") {
+  const request = getManpowerRequests().find((item) => item.id === requestId);
+  if (!request) return null;
+  return updateManpowerRequest(requestId, {
+    status: "утверждена",
+    approvedLoaders: request.loadersRequested,
+    approvedInstallers: request.installersRequested,
+    approvedBy: userId,
+    approvedAt: new Date().toISOString(),
+  });
+}
+
+export function adjustManpowerRequest(requestId, values, userId = "") {
+  return updateManpowerRequest(requestId, {
+    status: "скорректирована",
+    approvedLoaders: Number(values.approvedLoaders) || 0,
+    approvedInstallers: Number(values.approvedInstallers) || 0,
+    directorComment: values.directorComment ?? "",
+    priority: values.priority,
+    approvedBy: userId,
+    approvedAt: new Date().toISOString(),
+  });
+}
+
+export function rejectManpowerRequest(requestId, directorComment = "", userId = "") {
+  return updateManpowerRequest(requestId, {
+    status: "отклонена",
+    directorComment,
+    approvedLoaders: 0,
+    approvedInstallers: 0,
+    approvedBy: userId,
+    approvedAt: new Date().toISOString(),
+  });
+}
+
+export function getManpowerRequestsByDate(date) {
+  return getManpowerRequests().filter((request) => request.date === date);
+}
+
+export function getManpowerRequestsByUser(userId) {
+  return getManpowerRequests().filter((request) => request.requestedBy === userId);
+}
+
+export function getManpowerRequestsByObject(objectId) {
+  return getManpowerRequests().filter((request) => request.objectId === objectId);
+}
+
+export function getWeeklyManpowerPlan(startDate) {
+  const start = new Date(startDate);
+  const days = Array.from({ length: 7 }, (_, index) => {
+    const date = new Date(start);
+    date.setDate(start.getDate() + index);
+    return date.toISOString().slice(0, 10);
+  });
+  const requests = getManpowerRequests().filter((request) => days.includes(request.date));
+  return { days, requests };
+}
+
+export function getManpowerStats(date) {
+  const requests = getManpowerRequestsByDate(date);
+  const approved = requests.filter((request) => ["утверждена", "скорректирована"].includes(request.status));
+  return {
+    total: requests.length,
+    requestedLoaders: requests.reduce((sum, request) => sum + Number(request.loadersRequested || 0), 0),
+    requestedInstallers: requests.reduce((sum, request) => sum + Number(request.installersRequested || 0), 0),
+    approvedLoaders: approved.reduce((sum, request) => sum + Number(request.approvedLoaders || 0), 0),
+    approvedInstallers: approved.reduce((sum, request) => sum + Number(request.approvedInstallers || 0), 0),
+    highPriority: requests.filter((request) => ["высокий", "критичный"].includes(request.priority)).length,
+    unresolved: requests.filter((request) => !["утверждена", "скорректирована", "отклонена"].includes(request.status)).length,
+    approved: approved.length,
+  };
+}
+
+export function getManpowerShortage(date) {
+  const stats = getManpowerStats(date);
+  return {
+    ...stats,
+    loadersShortage: Math.max(0, stats.requestedLoaders - stats.approvedLoaders),
+    installersShortage: Math.max(0, stats.requestedInstallers - stats.approvedInstallers),
+  };
 }
 
 function taskAssigneeForDoor(object, door, users) {

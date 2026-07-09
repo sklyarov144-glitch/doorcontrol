@@ -10,11 +10,19 @@ import {
   addDailyWorkReport,
   addEmployee,
   addDailyAutoReport,
+  addManpowerRequest,
   addObjectWorkPlan,
   addTeam,
   addWorkStandard,
+  adjustManpowerRequest,
+  approveManpowerRequest,
   calculateTodayTasks,
+  cancelManpowerRequest,
   createDoorMatrix,
+  getManpowerRequests,
+  getManpowerShortage,
+  getManpowerStats,
+  getWeeklyManpowerPlan,
   getDoorMatrix,
   getDailyWorkReports,
   getDailyAutoReports,
@@ -42,6 +50,7 @@ import {
   saveDoorMatrix,
   saveEmployees,
   saveTeams,
+  rejectManpowerRequest,
   syncAutomaticTasksAndNotifications,
   updateTask,
   updateTaskStatus,
@@ -89,6 +98,9 @@ const manualTaskTypes = [
 const manualTaskPriorities = ["низкий", "средний", "высокий"];
 const manualTaskStatuses = ["новая", "в работе", "выполнена", "отменена"];
 const taskLinkCategories = ["акт АОХ", "фото", "документ", "прочее"];
+const manpowerPriorities = ["низкий", "средний", "высокий", "критичный"];
+const manpowerReasons = ["монтаж по плану", "срочный объект", "закрытие актов", "замечания ТН", "перенос дверей", "разгрузка", "подъём", "разнос", "не хватает людей", "другое"];
+const manpowerStatuses = ["черновик", "отправлена", "на рассмотрении", "утверждена", "скорректирована", "отклонена"];
 const delayReasonOptions = [
   "Не готов проём",
   "Нет доступа",
@@ -405,6 +417,36 @@ const roleLabels = {
   construction_director: "Директор по строительству",
   itr: "ИТР",
 };
+
+const manpowerDemoObjects = [
+  "СК 25",
+  "СК 18",
+  "Дзен 4",
+  "Дзен 6.1",
+  "БК 5",
+  "БК 6",
+  "Родные кварталы",
+  "Прокшино 7",
+  "Зорге",
+  "Деснаречье 7",
+  "ПИК Яуза",
+  "ПИК Волжский",
+  "Матвеевский парк",
+  "СЦ",
+  "Социалка",
+  "Сервис",
+  "Муха",
+  "Выставкин",
+];
+
+function getManpowerObjectOptions(objects) {
+  const fromObjects = objects.map((object) => ({ id: object.id, name: object.name, buildings: object.buildings ?? [] }));
+  const existingNames = new Set(fromObjects.map((object) => object.name));
+  const demoObjects = manpowerDemoObjects
+    .filter((name) => !existingNames.has(name))
+    .map((name) => ({ id: `manpower-${name.toLowerCase().replaceAll(" ", "-").replaceAll(".", "-")}`, name, buildings: [] }));
+  return [...fromObjects, ...demoObjects];
+}
 
 function loadUsers() {
   try {
@@ -1020,6 +1062,7 @@ function App() {
           )}
           {screen === "documents" && <DocumentsPage />}
           {screen === "brigade_plan" && <BrigadePlanPage objects={objects} user={user} users={users} />}
+          {screen === "manpower" && <ManpowerPage objects={objects} user={user} users={users} onNotify={refreshNotifications} />}
           {screen === "notifications" && (
             <NotificationsPage
               notifications={notifications}
@@ -1205,10 +1248,10 @@ function LoginPage({ onLogin, userPassword }) {
 
 function Sidebar({ role, activeScreen, setScreen, onLogout, taskNoticeCount, collapsed, onToggleCollapsed }) {
   const menus = {
-    creator: [["company_dashboard", "Дашборд"], ["objects", "Объекты"], ["admin", "Админ-панель"], ["problem_center", "Центр проблем"], ["tasks", "Задачи"], ["notifications", "Уведомления"], ["custody_acts", "Акты ОХ"], ["tn_issues", "Замечания ТН"], ["brigade_plan", "План бригад"], ["reports", "Отчёты"], ["documents", "Документы"], ["users", "Пользователи"], ["roles", "Роли"], ["profile", "Личный кабинет"]],
-    company_head: [["company_dashboard", "Дашборд"], ["objects", "Объекты"], ["admin", "Админ-панель"], ["problem_center", "Центр проблем"], ["tasks", "Задачи"], ["notifications", "Уведомления"], ["custody_acts", "Акты ОХ"], ["tn_issues", "Замечания ТН"], ["brigade_plan", "План бригад"], ["reports", "Отчёты"], ["documents", "Документы"], ["users", "Пользователи"], ["profile", "Личный кабинет"]],
-    construction_director: [["company_dashboard", "Дашборд"], ["objects", "Мои объекты"], ["admin", "Админ-панель"], ["problem_center", "Центр проблем"], ["tasks", "Задачи"], ["notifications", "Уведомления"], ["custody_acts", "Акты ОХ"], ["tn_issues", "Замечания ТН"], ["brigade_plan", "План бригад"], ["reports", "Отчёты"], ["documents", "Документы"], ["users", "Пользователи"], ["profile", "Личный кабинет"]],
-    itr: [["tasks", "Мои задачи"], ["objects", "Мои объекты"], ["brigade_plan", "План бригад"], ["documents", "Документы"], ["notifications", "Уведомления"], ["profile", "Личный кабинет"]],
+    creator: [["company_dashboard", "Дашборд"], ["objects", "Объекты"], ["admin", "Админ-панель"], ["problem_center", "Центр проблем"], ["tasks", "Задачи"], ["manpower", "Расстановка"], ["notifications", "Уведомления"], ["custody_acts", "Акты ОХ"], ["tn_issues", "Замечания ТН"], ["brigade_plan", "План бригад"], ["reports", "Отчёты"], ["documents", "Документы"], ["users", "Пользователи"], ["roles", "Роли"], ["profile", "Личный кабинет"]],
+    company_head: [["company_dashboard", "Дашборд"], ["objects", "Объекты"], ["admin", "Админ-панель"], ["problem_center", "Центр проблем"], ["tasks", "Задачи"], ["manpower", "Расстановка"], ["notifications", "Уведомления"], ["custody_acts", "Акты ОХ"], ["tn_issues", "Замечания ТН"], ["brigade_plan", "План бригад"], ["reports", "Отчёты"], ["documents", "Документы"], ["users", "Пользователи"], ["profile", "Личный кабинет"]],
+    construction_director: [["company_dashboard", "Дашборд"], ["objects", "Мои объекты"], ["admin", "Админ-панель"], ["problem_center", "Центр проблем"], ["tasks", "Задачи"], ["manpower", "Расстановка"], ["notifications", "Уведомления"], ["custody_acts", "Акты ОХ"], ["tn_issues", "Замечания ТН"], ["brigade_plan", "План бригад"], ["reports", "Отчёты"], ["documents", "Документы"], ["users", "Пользователи"], ["profile", "Личный кабинет"]],
+    itr: [["tasks", "Мои задачи"], ["objects", "Мои объекты"], ["manpower", "Заявка на людей"], ["brigade_plan", "План бригад"], ["documents", "Документы"], ["notifications", "Уведомления"], ["profile", "Личный кабинет"]],
   };
   const items = menus[role] ?? menus.itr;
 
@@ -1288,6 +1331,7 @@ function Header({
     reports: "Отчёты",
     documents: "Документы",
     brigade_plan: "План бригад",
+    manpower: user.role === "itr" ? "Заявка на людей" : "Расстановка рабочей силы",
     tasks: "Задачи",
     notifications: "Уведомления",
     tn_issues: "Замечания ТН",
@@ -1301,7 +1345,7 @@ function Header({
   return (
     <header className="page-header">
       <div>
-        {!(["admin", "profile", "companies", "users", "roles", "reports", "documents", "brigade_plan", "tasks", "notifications", "tn_issues", "today_tasks", "problem_center", "custody_acts", "company_dashboard", "itr_team"].includes(screen)) && <div className="breadcrumbs">
+        {!(["admin", "profile", "companies", "users", "roles", "reports", "documents", "brigade_plan", "manpower", "tasks", "notifications", "tn_issues", "today_tasks", "problem_center", "custody_acts", "company_dashboard", "itr_team"].includes(screen)) && <div className="breadcrumbs">
           <button onClick={() => setScreen("objects")}>Мои объекты</button>
           {screen !== "objects" && (
             <>
@@ -2303,6 +2347,205 @@ function RangeField({ label, value, min, max, onChange }) {
   return <label className="range-field"><span>{label}<b>{Math.round(value)}</b></span><input type="range" min={min} max={max} value={value} onChange={(event) => onChange(Number(event.target.value))} /></label>;
 }
 
+function isoDateOffset(days = 0) {
+  const date = new Date();
+  date.setDate(date.getDate() + days);
+  return date.toISOString().slice(0, 10);
+}
+
+function formatShortDate(dateIso) {
+  return new Date(dateIso).toLocaleDateString("ru-RU", { weekday: "short", day: "2-digit", month: "2-digit" });
+}
+
+function cssToken(value) {
+  return String(value ?? "").replaceAll(" ", "-");
+}
+
+function ManpowerPage({ objects, user, users, onNotify }) {
+  const [version, setVersion] = useState(0);
+  const [tab, setTab] = useState(user.role === "itr" ? "request" : "requests");
+  const [date, setDate] = useState(isoDateOffset(1));
+  const [filters, setFilters] = useState({ objectId: "", itrId: "", status: "", priority: "" });
+  const [adjustRequest, setAdjustRequest] = useState(null);
+  const objectOptions = getManpowerObjectOptions(objects);
+  const teams = getTeams();
+  const requests = getManpowerRequests();
+  const visibleRequests = requests.filter((request) => {
+    if (user.role === "itr" && request.requestedBy !== user.id) return false;
+    if (request.date !== date) return false;
+    if (filters.objectId && request.objectId !== filters.objectId) return false;
+    if (filters.itrId && request.requestedBy !== filters.itrId) return false;
+    if (filters.status && request.status !== filters.status) return false;
+    if (filters.priority && request.priority !== filters.priority) return false;
+    return true;
+  });
+  const stats = getManpowerStats(date);
+  const shortage = getManpowerShortage(date);
+  const refresh = () => setVersion((value) => value + 1);
+  const objectName = (id) => objectOptions.find((object) => object.id === id)?.name ?? id;
+  const buildingName = (objectId, buildingId) => objectOptions.find((object) => object.id === objectId)?.buildings?.find((building) => building.id === buildingId)?.name ?? "—";
+  const canApprove = ["creator", "company_head", "construction_director"].includes(user.role);
+
+  const notifyUser = (payload) => {
+    addNotification(payload);
+    onNotify?.();
+  };
+
+  const submitRequest = (values) => {
+    const created = addManpowerRequest({ ...values, requestedBy: user.id, requestedByName: user.name, requestedByRole: user.role });
+    notifyUser({
+      type: "заявка на людей",
+      title: "Новая заявка на людей",
+      message: `${user.name}: ${objectName(created.objectId)} на ${created.date}`,
+      priority: created.priority,
+      roleTarget: "construction_director",
+      objectId: created.objectId,
+      buildingId: created.buildingId,
+    });
+    refresh();
+  };
+
+  const approve = (request) => {
+    const updated = approveManpowerRequest(request.id, user.id);
+    notifyUser({
+      type: "расстановка утверждена",
+      title: "Заявка утверждена",
+      message: `${objectName(request.objectId)}: ${updated.approvedLoaders} груз., ${updated.approvedInstallers} монт.`,
+      priority: request.priority,
+      userId: request.requestedBy,
+      objectId: request.objectId,
+      buildingId: request.buildingId,
+    });
+    refresh();
+  };
+
+  const reject = (request) => {
+    const comment = window.prompt("Комментарий директора", request.directorComment || "Нет людей на эту дату") ?? "";
+    const updated = rejectManpowerRequest(request.id, comment, user.id);
+    notifyUser({
+      type: "расстановка отклонена",
+      title: "Заявка отклонена",
+      message: `${objectName(request.objectId)}: ${updated.directorComment || "без комментария"}`,
+      priority: request.priority,
+      userId: request.requestedBy,
+      objectId: request.objectId,
+      buildingId: request.buildingId,
+    });
+    refresh();
+  };
+
+  const adjust = (request, values) => {
+    const updated = adjustManpowerRequest(request.id, values, user.id);
+    notifyUser({
+      type: "расстановка скорректирована",
+      title: "Заявка скорректирована",
+      message: `${objectName(request.objectId)}: утверждено ${updated.approvedLoaders} груз., ${updated.approvedInstallers} монт.`,
+      priority: updated.priority,
+      userId: request.requestedBy,
+      objectId: request.objectId,
+      buildingId: request.buildingId,
+    });
+    setAdjustRequest(null);
+    refresh();
+  };
+
+  const cancel = (request) => {
+    cancelManpowerRequest(request.id);
+    refresh();
+  };
+
+  return (
+    <section className="manpower-page" key={version}>
+      <div className="tasks-hero">
+        <div>
+          <span>{user.role === "itr" ? "Заявка на людей" : "Расстановка рабочей силы"}</span>
+          <h2>{user.role === "itr" ? "Заявка без поездки в офис" : "Заявки ИТР и утверждённый план"}</h2>
+          <p>ИТР заранее просит грузчиков и монтажников, руководитель видит дефицит и утверждает расстановку.</p>
+        </div>
+        <div className="heading-actions">
+          <input className="date-filter" type="date" value={date} onChange={(event) => setDate(event.target.value)} />
+        </div>
+      </div>
+
+      <div className="task-tabs brigade-tabs">
+        {user.role === "itr" && <button className={tab === "request" ? "active" : ""} onClick={() => setTab("request")}>Подать заявку</button>}
+        <button className={tab === "requests" ? "active" : ""} onClick={() => setTab("requests")}>{canApprove ? "Заявки на дату" : "Мои заявки"}</button>
+        <button className={tab === "week" ? "active" : ""} onClick={() => setTab("week")}>План на неделю</button>
+      </div>
+
+      <div className="manpower-kpis">
+        <MetricCard title="Всего заявок" value={stats.total} />
+        <MetricCard title="Запрошено грузчиков" value={stats.requestedLoaders} />
+        <MetricCard title="Запрошено монтажников" value={stats.requestedInstallers} />
+        <MetricCard title="Утверждено грузчиков" value={stats.approvedLoaders} tone="success" />
+        <MetricCard title="Утверждено монтажников" value={stats.approvedInstallers} tone="success" />
+        <MetricCard title="Дефицит людей" value={`${shortage.loadersShortage}/${shortage.installersShortage}`} tone={shortage.loadersShortage + shortage.installersShortage > 0 ? "danger" : "success"} />
+      </div>
+
+      {tab === "request" && user.role === "itr" && <ManpowerRequestForm objects={objectOptions} teams={teams} user={user} onSubmit={submitRequest} />}
+
+      {tab === "requests" && (
+        <div className="brigade-card">
+          <div className="panel-title">
+            <div><h2>{canApprove ? "Заявки ИТР" : "Мои заявки"}</h2><p>Дата, люди, приоритет, решение директора.</p></div>
+          </div>
+          <div className="manpower-filters">
+            <select value={filters.objectId} onChange={(event) => setFilters({ ...filters, objectId: event.target.value })}><option value="">Все объекты</option>{objectOptions.map((object) => <option key={object.id} value={object.id}>{object.name}</option>)}</select>
+            {canApprove && <select value={filters.itrId} onChange={(event) => setFilters({ ...filters, itrId: event.target.value })}><option value="">Все ИТР</option>{users.filter((item) => item.role === "itr").map((item) => <option key={item.id} value={item.id}>{item.name}</option>)}</select>}
+            <select value={filters.status} onChange={(event) => setFilters({ ...filters, status: event.target.value })}><option value="">Все статусы</option>{manpowerStatuses.map((item) => <option key={item}>{item}</option>)}</select>
+            <select value={filters.priority} onChange={(event) => setFilters({ ...filters, priority: event.target.value })}><option value="">Все приоритеты</option>{manpowerPriorities.map((item) => <option key={item}>{item}</option>)}</select>
+          </div>
+          <div className="brigade-table-wrap">
+            <table className="executive-table manpower-table">
+              <thead><tr><th>Объект</th><th>Корпус</th><th>ИТР</th><th>Груз.</th><th>Монт.</th><th>Приоритет</th><th>Причина</th><th>Комментарий ИТР</th><th>Статус</th><th>Утв. груз.</th><th>Утв. монт.</th><th>Комментарий директора</th><th>Действие</th></tr></thead>
+              <tbody>{visibleRequests.map((request) => <tr key={request.id} className={`priority-row priority-${request.priority}`}>
+                <td>{objectName(request.objectId)}</td><td>{buildingName(request.objectId, request.buildingId)}</td><td>{request.requestedByName}</td><td>{request.loadersRequested}</td><td>{request.installersRequested}</td><td><span className={`priority-pill priority-${cssToken(request.priority)}`}>{request.priority}</span></td><td>{request.reason}</td><td>{request.comment || "—"}</td><td><span className={`manpower-status status-${cssToken(request.status)}`}>{request.status}</span></td><td>{request.approvedLoaders || "—"}</td><td>{request.approvedInstallers || "—"}</td><td>{request.directorComment || "—"}</td><td><div className="task-actions">{canApprove ? <><button className="secondary-button slim" onClick={() => approve(request)}>Утвердить</button><button className="secondary-button slim" onClick={() => setAdjustRequest(request)}>Скорректировать</button><button className="secondary-button slim" onClick={() => reject(request)}>Отклонить</button></> : !["утверждена", "скорректирована"].includes(request.status) && <button className="secondary-button slim" onClick={() => cancel(request)}>Отменить</button>}</div></td>
+              </tr>)}</tbody>
+            </table>
+            {visibleRequests.length === 0 && <div className="empty-plan">Заявок на выбранную дату нет.</div>}
+          </div>
+        </div>
+      )}
+
+      {tab === "week" && <ManpowerWeekPlan startDate={date} objects={objectOptions} />}
+      {adjustRequest && <ManpowerAdjustModal request={adjustRequest} objectName={objectName(adjustRequest.objectId)} onClose={() => setAdjustRequest(null)} onSave={(values) => adjust(adjustRequest, values)} />}
+    </section>
+  );
+}
+
+function MetricCard({ title, value, tone = "neutral" }) {
+  return <div className={`executive-kpi ${tone}`}><span>{title}</span><strong>{value}</strong></div>;
+}
+
+function ManpowerRequestForm({ objects, teams, user, onSubmit }) {
+  const [form, setForm] = useState({ date: isoDateOffset(1), objectId: objects[0]?.id ?? "", buildingId: "", loadersRequested: 0, installersRequested: 0, priority: "средний", reason: "монтаж по плану", comment: "", teamId: "" });
+  const selectedObject = objects.find((object) => object.id === form.objectId) ?? objects[0];
+  const update = (field, value) => setForm((current) => field === "objectId" ? { ...current, objectId: value, buildingId: "", teamId: "" } : { ...current, [field]: value });
+  return <form className="brigade-card manpower-request-form" onSubmit={(event) => { event.preventDefault(); onSubmit(form); setForm({ ...form, loadersRequested: 0, installersRequested: 0, comment: "" }); }}><div className="panel-title"><div><h2>Новая заявка</h2><p>{user.name}, укажите сколько людей нужно на объект.</p></div></div><div className="object-plan-form"><label>Дата<input type="date" value={form.date} onChange={(event) => update("date", event.target.value)} /></label><label>Объект<select value={form.objectId} onChange={(event) => update("objectId", event.target.value)}>{objects.map((object) => <option key={object.id} value={object.id}>{object.name}</option>)}</select></label><label>Корпус<select value={form.buildingId} onChange={(event) => update("buildingId", event.target.value)}><option value="">Без корпуса</option>{selectedObject?.buildings?.map((building) => <option key={building.id} value={building.id}>{building.name}</option>)}</select></label><label>Бригада<select value={form.teamId} onChange={(event) => update("teamId", event.target.value)}><option value="">Без бригады</option>{teams.map((team) => <option key={team.id} value={team.id}>{team.name}</option>)}</select></label><label>Грузчики<input type="number" min="0" value={form.loadersRequested} onChange={(event) => update("loadersRequested", event.target.value)} /></label><label>Монтажники<input type="number" min="0" value={form.installersRequested} onChange={(event) => update("installersRequested", event.target.value)} /></label><label>Приоритет<select value={form.priority} onChange={(event) => update("priority", event.target.value)}>{manpowerPriorities.map((item) => <option key={item}>{item}</option>)}</select></label><label>Причина<select value={form.reason} onChange={(event) => update("reason", event.target.value)}>{manpowerReasons.map((item) => <option key={item}>{item}</option>)}</select></label><label className="wide">Комментарий<input value={form.comment} onChange={(event) => update("comment", event.target.value)} placeholder="Почему это важно" /></label><button className="primary-button">Отправить заявку</button></div></form>;
+}
+
+function ManpowerWeekPlan({ startDate, objects }) {
+  const { days, requests } = getWeeklyManpowerPlan(startDate);
+  const rows = objects.map((object) => ({ object, requests: requests.filter((request) => request.objectId === object.id) })).filter((row) => row.requests.length > 0 || ["СК 25", "СК 18", "ПИК Яуза", "Матвеевский парк", "Родные кварталы"].includes(row.object.name));
+  const cell = (objectId, day, type) => {
+    const dayRequests = requests.filter((request) => request.objectId === objectId && request.date === day);
+    const approved = dayRequests.filter((request) => ["утверждена", "скорректирована"].includes(request.status));
+    const value = approved.reduce((sum, request) => sum + Number(type === "loaders" ? request.approvedLoaders : request.approvedInstallers), 0);
+    const requested = dayRequests.reduce((sum, request) => sum + Number(type === "loaders" ? request.loadersRequested : request.installersRequested), 0);
+    const critical = dayRequests.some((request) => request.priority === "критичный");
+    const high = dayRequests.some((request) => request.priority === "высокий");
+    const cut = approved.some((request) => Number(request.approvedLoaders) < Number(request.loadersRequested) || Number(request.approvedInstallers) < Number(request.installersRequested));
+    return <div className={`week-cell ${value ? "approved" : requested ? "pending" : ""} ${critical ? "critical" : high ? "high" : ""}`} title={dayRequests.map((request) => request.comment || request.directorComment).filter(Boolean).join("; ")}><strong>{value || "—"}</strong>{requested > value && <small>из {requested}</small>}{cut && <em>урезано</em>}</div>;
+  };
+  return <div className="brigade-card"><div className="panel-title"><div><h2>План на неделю</h2><p>Объекты по строкам, дни недели и потребность в людях по колонкам.</p></div></div><div className="manpower-week-wrap"><table className="manpower-week-table"><thead><tr><th rowSpan="2">Объект</th>{days.map((day) => <th key={day} colSpan="2">{formatShortDate(day)}</th>)}</tr><tr>{days.flatMap((day) => [<th key={`${day}-l`}>Груз.</th>, <th key={`${day}-i`}>Монт.</th>])}</tr></thead><tbody>{rows.map(({ object }) => <tr key={object.id}><td>{object.name}</td>{days.flatMap((day) => [<td key={`${object.id}-${day}-l`}>{cell(object.id, day, "loaders")}</td>, <td key={`${object.id}-${day}-i`}>{cell(object.id, day, "installers")}</td>])}</tr>)}</tbody></table></div></div>;
+}
+
+function ManpowerAdjustModal({ request, objectName, onClose, onSave }) {
+  const [form, setForm] = useState({ approvedLoaders: request.approvedLoaders || request.loadersRequested, approvedInstallers: request.approvedInstallers || request.installersRequested, directorComment: request.directorComment || "", priority: request.priority });
+  const update = (field, value) => setForm((current) => ({ ...current, [field]: value }));
+  return <div className="modal-backdrop"><form className="task-modal compact" onSubmit={(event) => { event.preventDefault(); onSave(form); }}><div className="modal-title"><div><h2>Скорректировать заявку</h2><p>{objectName}: запрошено {request.loadersRequested} груз. и {request.installersRequested} монт.</p></div><button type="button" onClick={onClose}>×</button></div><label>Утвердить грузчиков<input type="number" min="0" value={form.approvedLoaders} onChange={(event) => update("approvedLoaders", event.target.value)} /></label><label>Утвердить монтажников<input type="number" min="0" value={form.approvedInstallers} onChange={(event) => update("approvedInstallers", event.target.value)} /></label><label>Приоритет<select value={form.priority} onChange={(event) => update("priority", event.target.value)}>{manpowerPriorities.map((item) => <option key={item}>{item}</option>)}</select></label><label>Комментарий директора<textarea value={form.directorComment} onChange={(event) => update("directorComment", event.target.value)} /></label><div className="form-actions"><button className="secondary-button" type="button" onClick={onClose}>Отмена</button><button className="primary-button">Сохранить решение</button></div></form></div>;
+}
+
 function ProfilePage({ user, onSave }) {
   const [form, setForm] = useState({ ...user, oldPassword: "", newPassword: "" });
   const [saved, setSaved] = useState(false);
@@ -2535,6 +2778,13 @@ function CompanyDashboard({ objects, user, users, onOpen }) {
   const planFact = { plan: 420, fact: 356 };
   const deviation = planFact.fact - planFact.plan;
   const completion = Math.round((planFact.fact / planFact.plan) * 100);
+  const tomorrow = isoDateOffset(1);
+  const manpowerTomorrow = getManpowerShortage(tomorrow);
+  const manpowerObjects = getManpowerObjectOptions(objects);
+  const manpowerTomorrowRows = getManpowerRequests()
+    .filter((request) => request.date === tomorrow && (["высокий", "критичный"].includes(request.priority) || Number(request.approvedLoaders) < Number(request.loadersRequested) || Number(request.approvedInstallers) < Number(request.installersRequested)))
+    .slice(0, 5);
+  const manpowerObjectName = (id) => manpowerObjects.find((object) => object.id === id)?.name ?? id;
 
   return (
     <section className="executive-dashboard">
@@ -2562,6 +2812,18 @@ function CompanyDashboard({ objects, user, users, onOpen }) {
         <section className="executive-card">
           <div className="executive-card-title"><h3>План-факт</h3><p>Mock-показатель недели.</p></div>
           <div className="plan-fact"><div><span>План недели</span><strong>{planFact.plan}</strong></div><div><span>Факт недели</span><strong>{planFact.fact}</strong></div><div><span>Отклонение</span><strong className={deviation < 0 ? "danger-text" : "success-text"}>{deviation}</strong></div><div><span>Выполнение</span><strong>{completion}%</strong></div></div>
+        </section>
+        <section className="executive-card">
+          <div className="executive-card-title"><h3>Расстановка на завтра</h3><p>Заявки ИТР и дефицит людей.</p></div>
+          <div className="plan-fact manpower-dashboard">
+            <div><span>Заявок</span><strong>{manpowerTomorrow.total}</strong></div>
+            <div><span>Утверждено</span><strong>{manpowerTomorrow.approved}</strong></div>
+            <div><span>Без решения</span><strong className={manpowerTomorrow.unresolved ? "danger-text" : ""}>{manpowerTomorrow.unresolved}</strong></div>
+            <div><span>Дефицит груз.</span><strong className={manpowerTomorrow.loadersShortage ? "danger-text" : "success-text"}>{manpowerTomorrow.loadersShortage}</strong></div>
+            <div><span>Дефицит монт.</span><strong className={manpowerTomorrow.installersShortage ? "danger-text" : "success-text"}>{manpowerTomorrow.installersShortage}</strong></div>
+            <div><span>Высокий приоритет</span><strong>{manpowerTomorrow.highPriority}</strong></div>
+          </div>
+          <div className="risk-list compact">{manpowerTomorrowRows.map((request) => <button key={request.id}><strong>{manpowerObjectName(request.objectId)}</strong><span>{request.priority} · {request.comment || request.reason}</span><small>запрос {request.loadersRequested}/{request.installersRequested}, утв. {request.approvedLoaders || 0}/{request.approvedInstallers || 0}</small></button>)}{manpowerTomorrowRows.length === 0 && <div className="empty-plan">Рисков по людям на завтра нет.</div>}</div>
         </section>
         <section className="executive-card wide">
           <div className="executive-card-title"><h3>Ответственные</h3><p>Нагрузка и проблемные зоны по людям.</p></div>

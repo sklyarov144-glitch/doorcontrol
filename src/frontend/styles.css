@@ -5863,6 +5863,215 @@ th.matrix-actions-column {
   gap: 8px;
 }
 
+.manpower-page {
+  display: grid;
+  gap: 18px;
+}
+
+.date-filter {
+  min-height: 46px;
+  border: 1px solid var(--line);
+  border-radius: 14px;
+  padding: 0 14px;
+  color: var(--text);
+  background: #ffffff;
+  font: inherit;
+  font-weight: 850;
+}
+
+.manpower-kpis {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(170px, 1fr));
+  gap: 12px;
+}
+
+.manpower-request-form .object-plan-form {
+  grid-template-columns: repeat(auto-fit, minmax(180px, 1fr));
+}
+
+.manpower-filters {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(180px, 1fr));
+  gap: 10px;
+}
+
+.manpower-filters select {
+  min-height: 44px;
+  border: 1px solid var(--line);
+  border-radius: 14px;
+  padding: 0 12px;
+  color: var(--text);
+  background: #f8fafc;
+  font: inherit;
+  font-weight: 800;
+}
+
+.manpower-table th,
+.manpower-table td {
+  max-width: 170px;
+  white-space: normal;
+  overflow-wrap: anywhere;
+}
+
+.priority-pill,
+.manpower-status {
+  display: inline-flex;
+  justify-content: center;
+  min-width: 92px;
+  border-radius: 999px;
+  padding: 7px 10px;
+  font-size: 12px;
+  font-weight: 950;
+}
+
+.priority-низкий {
+  color: #1d4ed8;
+  background: #dbeafe;
+}
+
+.priority-средний {
+  color: #a16207;
+  background: #fef3c7;
+}
+
+.priority-высокий {
+  color: #c2410c;
+  background: #ffedd5;
+}
+
+.priority-критичный {
+  color: #b91c1c;
+  background: #fee2e2;
+}
+
+.status-утверждена {
+  color: #0f8a5f;
+  background: #dcfce7;
+}
+
+.status-скорректирована {
+  color: #8a4f0f;
+  background: #fef3c7;
+}
+
+.status-отклонена {
+  color: #b91c1c;
+  background: #fee2e2;
+}
+
+.status-отправлена,
+.status-на-рассмотрении {
+  color: #1d4ed8;
+  background: #dbeafe;
+}
+
+.priority-row.priority-критичный td:first-child {
+  border-left: 5px solid var(--brand-red);
+}
+
+.priority-row.priority-высокий td:first-child {
+  border-left: 5px solid #f97316;
+}
+
+.manpower-week-wrap {
+  overflow: auto;
+  border: 1px solid var(--line);
+  border-radius: 20px;
+}
+
+.manpower-week-table {
+  width: 100%;
+  min-width: 1120px;
+  border-collapse: separate;
+  border-spacing: 0;
+  background: #ffffff;
+}
+
+.manpower-week-table th,
+.manpower-week-table td {
+  border-right: 1px solid #e5edf5;
+  border-bottom: 1px solid #e5edf5;
+  padding: 10px;
+  color: var(--text);
+  font-size: 13px;
+  font-weight: 850;
+  text-align: center;
+  vertical-align: middle;
+}
+
+.manpower-week-table th {
+  position: sticky;
+  top: 0;
+  z-index: 1;
+  color: #475569;
+  background: #f8fafc;
+  text-transform: uppercase;
+  font-size: 11px;
+}
+
+.manpower-week-table th:first-child,
+.manpower-week-table td:first-child {
+  position: sticky;
+  left: 0;
+  z-index: 2;
+  min-width: 190px;
+  text-align: left;
+  background: #ffffff;
+}
+
+.manpower-week-table th:first-child {
+  z-index: 3;
+  background: #f8fafc;
+}
+
+.week-cell {
+  min-height: 58px;
+  display: grid;
+  place-items: center;
+  gap: 2px;
+  border: 1px solid #d8e3ef;
+  border-radius: 14px;
+  background: #f8fafc;
+}
+
+.week-cell strong {
+  font-size: 18px;
+}
+
+.week-cell small,
+.week-cell em {
+  color: var(--muted);
+  font-size: 11px;
+  font-style: normal;
+  font-weight: 900;
+}
+
+.week-cell.approved {
+  border-color: rgba(15, 138, 95, 0.42);
+  background: #f0fdf4;
+}
+
+.week-cell.pending {
+  border-style: dashed;
+  background: #f8fafc;
+}
+
+.week-cell.high {
+  box-shadow: inset 4px 0 0 #f97316;
+}
+
+.week-cell.critical {
+  box-shadow: inset 4px 0 0 var(--brand-red);
+}
+
+.manpower-dashboard {
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+}
+
+.risk-list.compact {
+  margin-top: 12px;
+}
+
 @media (max-width: 900px) {
   .header-user-control,
   .dashboard-summary {
