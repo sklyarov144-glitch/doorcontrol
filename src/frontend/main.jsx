@@ -476,12 +476,13 @@ function getManpowerObjectOptions(objects) {
 function loadUsers() {
   try {
     const saved = JSON.parse(localStorage.getItem(USERS_STORAGE_KEY)) ?? [];
-    const savedById = new Map(saved.map((user) => [user.id, normalizeUser(user)]));
-    const merged = mockUsers.map((user) => ({ ...normalizeUser(user), ...(savedById.get(user.id) ?? {}) }));
+    const activateUser = (user) => normalizeUser({ ...user, status: "active" });
+    const savedById = new Map(saved.map((user) => [user.id, activateUser(user)]));
+    const merged = mockUsers.map((user) => activateUser({ ...user, ...(savedById.get(user.id) ?? {}) }));
     const mockIds = new Set(mockUsers.map((user) => user.id));
-    return [...merged, ...saved.map(normalizeUser).filter((user) => !mockIds.has(user.id))];
+    return [...merged, ...saved.map(activateUser).filter((user) => !mockIds.has(user.id))];
   } catch {
-    return mockUsers.map(normalizeUser);
+    return mockUsers.map((user) => normalizeUser({ ...user, status: "active" }));
   }
 }
 
