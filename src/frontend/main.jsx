@@ -227,25 +227,40 @@ const baseDoors = [
   },
 ];
 
-const floorOptions = [
-  { id: "parking", label: "Паркинг", type: "service" },
-  ...Array.from({ length: 25 }, (_, index) => {
+function createFloorOptions(count = 25, includeParking = false) {
+  return [
+  ...(includeParking ? [{ id: "parking", label: "Паркинг", type: "service" }] : []),
+  ...Array.from({ length: count }, (_, index) => {
     const number = index + 1;
     return { id: `floor-${number}`, label: String(number), number, type: "floor" };
   }),
   { id: "roof", label: "Кровля", type: "service" },
 ];
+}
 
-function createBuilding(id, name, readinessOffset = 0) {
+function createBuilding(id, name, readinessOffset = 0, options = {}) {
+  const floorsCount = Number(options.floorsCount) || 25;
+  const doorsPerFloor = Number(options.doorsPerFloor) || 6;
+  const floorDoors = baseDoors.slice(0, Math.max(1, Math.min(baseDoors.length, doorsPerFloor + 2)));
+  const now = "2026-06-01T08:00:00.000Z";
   return {
     id,
+    objectId: options.objectId ?? "",
     name,
+    floorsCount,
+    doorsPerFloor,
+    responsibleItrId: options.responsibleItrId ?? "itr-1",
+    assignedTeamIds: options.assignedTeamIds ?? [],
+    status: options.status ?? "в работе",
+    comment: options.comment ?? "",
+    createdAt: options.createdAt ?? now,
+    updatedAt: options.updatedAt ?? now,
     floorTemplate: null,
-    floors: floorOptions.map((floor) => ({
+    floors: createFloorOptions(floorsCount, options.includeParking).map((floor) => ({
       ...floor,
       doors:
         floor.type === "floor"
-          ? baseDoors.map((door) => ({
+          ? floorDoors.map((door) => ({
               ...door,
               id: `${id}-${floor.id}-${door.id}`,
               history: [
@@ -263,29 +278,112 @@ function createBuilding(id, name, readinessOffset = 0) {
   };
 }
 
+function createManagedObject({ id, name, address, developer, description, buildingNames, readinessOffset = 0 }) {
+  const now = "2026-06-01T08:00:00.000Z";
+  return {
+    id,
+    name,
+    address,
+    developer,
+    status: "в работе",
+    responsibleId: "director-1",
+    responsibleDirectorId: "director-1",
+    responsibleItrIds: ["itr-1"],
+    description,
+    startDate: "2026-06-01",
+    plannedEndDate: "2026-12-30",
+    createdAt: now,
+    updatedAt: now,
+    isActive: true,
+    buildings: buildingNames.map((namePart, index) =>
+      createBuilding(`${id}-building-${String(namePart).replaceAll(".", "-")}`, `Корпус ${namePart}`, readinessOffset - index * 3, {
+        objectId: id,
+        floorsCount: index % 2 === 0 ? 25 : 18,
+        doorsPerFloor: 6,
+        responsibleItrId: "itr-1",
+        assignedTeamIds: index === 0 ? ["team-1"] : [],
+      })
+    ),
+  };
+}
+
 function createInitialObjects() {
   return [
-    {
-      id: "object-north",
-      name: "ЖК Матвеевский парк",
-      address: "Очаково-Матвеевское, ближайшая станция метро «Аминьевская»",
-      status: "В работе",
-      responsibleId: "itr-1",
-      buildings: [
-        createBuilding("building-1", "Корпус 1", 0),
-        createBuilding("building-2", "Корпус 2", -18),
-        createBuilding("building-4-1", "Корпус 4.1", -8),
-        createBuilding("building-4-2", "Корпус 4.2", -12),
-        createBuilding("building-4-3", "Корпус 4.3", -5),
-      ],
-    },
+    createManagedObject({ id: "matveevsky-park", name: "ЖК Матвеевский парк", address: "Очаково-Матвеевское, ближайшая станция метро «Аминьевская»", developer: "ПИК", description: "Флагманский объект для демонстрации монтажного контура.", buildingNames: ["4.1", "4.2", "4.3", "4.7", "4.8"] }),
+    createManagedObject({ id: "salaryevo-park", name: "ЖК Саларьево парк", address: "Новая Москва, метро «Саларьево»", developer: "ПИК", description: "Монтаж дверей по очередям заселения.", buildingNames: ["1.1", "1.2", "2.1"], readinessOffset: -12 }),
+    createManagedObject({ id: "prokshino", name: "ЖК Прокшино", address: "Новая Москва, метро «Прокшино»", developer: "А101", description: "Объект с несколькими активными корпусами.", buildingNames: ["6.1", "6.2", "7.1"], readinessOffset: -20 }),
+    createManagedObject({ id: "buninskie-allei", name: "ЖК Бунинские аллеи", address: "Новая Москва, Бунинские луга", developer: "ГК Самолет", description: "Объект в подготовке к массовому монтажу.", buildingNames: ["1", "2", "3"], readinessOffset: -28 }),
+    createManagedObject({ id: "rodnye-kvartaly", name: "Родные кварталы", address: "адрес уточняется", developer: "ГРОСС Партнёр", description: "Перспективный объект в планировании.", buildingNames: ["1.1", "1.2", "2.1"], readinessOffset: -35 }),
+    createManagedObject({ id: "yauza", name: "ЖК Яуза", address: "Москва, район Яуза", developer: "ГРОСС Партнёр", description: "Компактный объект для пилотного контроля.", buildingNames: ["1", "2"], readinessOffset: -18 }),
   ];
+}
+
+function normalizeBuilding(building, objectId) {
+  const floorCount = building.floorsCount ?? building.floors?.filter((floor) => floor.type === "floor").length ?? 25;
+  return {
+    objectId,
+    floorsCount: floorCount,
+    doorsPerFloor: building.doorsPerFloor ?? 6,
+    responsibleItrId: building.responsibleItrId ?? "itr-1",
+    assignedTeamIds: building.assignedTeamIds ?? [],
+    status: building.status ?? "в работе",
+    comment: building.comment ?? "",
+    createdAt: building.createdAt ?? "2026-06-01T08:00:00.000Z",
+    updatedAt: building.updatedAt ?? new Date().toISOString(),
+    ...building,
+  };
+}
+
+function normalizeObject(object) {
+  const now = new Date().toISOString();
+  const normalizedId = object.id === "object-north" ? "matveevsky-park" : object.id;
+  return {
+    id: normalizedId,
+    name: object.name,
+    address: object.address ?? "адрес уточняется",
+    developer: object.developer ?? "ГРОСС Партнёр",
+    status: String(object.status ?? "в работе").toLowerCase() === "в работе" ? "в работе" : object.status ?? "в работе",
+    responsibleId: object.responsibleId ?? object.responsibleDirectorId ?? "director-1",
+    responsibleDirectorId: object.responsibleDirectorId ?? object.responsibleId ?? "director-1",
+    responsibleItrIds: object.responsibleItrIds ?? ["itr-1"],
+    description: object.description ?? "Внутренний объект монтажного контроля.",
+    startDate: object.startDate ?? "2026-06-01",
+    plannedEndDate: object.plannedEndDate ?? "2026-12-30",
+    createdAt: object.createdAt ?? "2026-06-01T08:00:00.000Z",
+    updatedAt: object.updatedAt ?? now,
+    isActive: object.isActive ?? object.status !== "архив",
+    ...object,
+    id: normalizedId,
+    buildings: (object.buildings ?? []).map((building) => normalizeBuilding(building, normalizedId)),
+  };
+}
+
+function mergeInitialObjects(savedObjects) {
+  const normalizedSaved = (savedObjects ?? []).map(normalizeObject);
+  const byName = new Map(normalizedSaved.map((object) => [object.name, object]));
+  const byId = new Map(normalizedSaved.map((object) => [object.id, object]));
+  const merged = createInitialObjects().map((defaultObject) => {
+    const saved = byId.get(defaultObject.id) ?? byName.get(defaultObject.name);
+    if (!saved) return defaultObject;
+    const savedBuildingNames = new Set((saved.buildings ?? []).map((building) => building.name));
+    return {
+      ...defaultObject,
+      ...saved,
+      buildings: [
+        ...(saved.buildings ?? []),
+        ...defaultObject.buildings.filter((building) => !savedBuildingNames.has(building.name)),
+      ].map((building) => normalizeBuilding(building, saved.id)),
+    };
+  });
+  const defaultIds = new Set(merged.map((object) => object.id));
+  const defaultNames = new Set(merged.map((object) => object.name));
+  return [...merged, ...normalizedSaved.filter((object) => !defaultIds.has(object.id) && !defaultNames.has(object.name))];
 }
 
 function loadObjects() {
   try {
     const saved = localStorage.getItem(STORAGE_KEY);
-    return saved ? JSON.parse(saved) : createInitialObjects();
+    return saved ? mergeInitialObjects(JSON.parse(saved)) : createInitialObjects();
   } catch {
     return createInitialObjects();
   }
@@ -424,6 +522,7 @@ function App() {
   const [taskContext, setTaskContext] = useState(null);
   const [notificationVersion, setNotificationVersion] = useState(0);
   const [actNotificationTask, setActNotificationTask] = useState(null);
+  const [sidebarCollapsed, setSidebarCollapsed] = useState(false);
 
   const selectedObject = useMemo(
     () => objects.find((object) => object.id === selectedObjectId) ?? objects[0],
@@ -851,8 +950,16 @@ function App() {
   }
 
   return (
-    <div className="app-shell">
-      <Sidebar role={user.role} activeScreen={screen} setScreen={navigate} onLogout={() => setIsLoggedIn(false)} taskNoticeCount={taskNoticeCount} />
+    <div className={`app-shell ${sidebarCollapsed ? "sidebar-collapsed" : ""}`}>
+      <Sidebar
+        role={user.role}
+        activeScreen={screen}
+        setScreen={navigate}
+        onLogout={() => setIsLoggedIn(false)}
+        taskNoticeCount={taskNoticeCount}
+        collapsed={sidebarCollapsed}
+        onToggleCollapsed={() => setSidebarCollapsed((value) => !value)}
+      />
       <main className="content">
         <Header
           screen={screen}
@@ -961,7 +1068,19 @@ function App() {
           {["companies", "users", "roles", "itr_team"].includes(screen) && <PlaceholderPage screen={screen} />}
           {screen === "objects" && <ObjectsPage objects={objects} onOpen={goToObject} />}
           {screen === "object" && (
-            <ObjectPage object={selectedObject} onOpenBuilding={goToBuilding} onCreateTask={openTaskModal} canCreateTask={canCreateManualTask} />
+            <ObjectPage
+              object={selectedObject}
+              objects={objects}
+              users={users}
+              user={user}
+              onOpenBuilding={goToBuilding}
+              onCreateTask={openTaskModal}
+              canCreateTask={canCreateManualTask}
+              onChange={(nextObjects) => {
+                setObjects(nextObjects);
+                saveObjects(nextObjects);
+              }}
+            />
           )}
           {screen === "building" && selectedBuilding && (
             <section className="building-dashboard">
@@ -1085,19 +1204,24 @@ function LoginPage({ onLogin, userPassword }) {
   );
 }
 
-function Sidebar({ role, activeScreen, setScreen, onLogout, taskNoticeCount }) {
+function Sidebar({ role, activeScreen, setScreen, onLogout, taskNoticeCount, collapsed, onToggleCollapsed }) {
   const menus = {
-    creator: [["company_dashboard", "Дашборд"], ["objects", "Объекты"], ["problem_center", "Центр проблем"], ["tasks", "Задачи"], ["notifications", "Уведомления"], ["custody_acts", "Акты ОХ"], ["tn_issues", "Замечания ТН"], ["brigade_plan", "План бригад"], ["documents", "Документы"], ["users", "Пользователи"], ["roles", "Роли"], ["profile", "Личный кабинет"]],
-    company_head: [["company_dashboard", "Дашборд"], ["objects", "Объекты"], ["problem_center", "Центр проблем"], ["tasks", "Задачи"], ["notifications", "Уведомления"], ["custody_acts", "Акты ОХ"], ["tn_issues", "Замечания ТН"], ["brigade_plan", "План бригад"], ["documents", "Документы"], ["users", "Пользователи"], ["profile", "Личный кабинет"]],
-    construction_director: [["company_dashboard", "Дашборд"], ["objects", "Мои объекты"], ["problem_center", "Центр проблем"], ["tasks", "Задачи"], ["notifications", "Уведомления"], ["custody_acts", "Акты ОХ"], ["tn_issues", "Замечания ТН"], ["brigade_plan", "План бригад"], ["documents", "Документы"], ["users", "Пользователи"], ["profile", "Личный кабинет"]],
+    creator: [["company_dashboard", "Дашборд"], ["objects", "Объекты"], ["admin", "Админ-панель"], ["problem_center", "Центр проблем"], ["tasks", "Задачи"], ["notifications", "Уведомления"], ["custody_acts", "Акты ОХ"], ["tn_issues", "Замечания ТН"], ["brigade_plan", "План бригад"], ["reports", "Отчёты"], ["documents", "Документы"], ["users", "Пользователи"], ["roles", "Роли"], ["profile", "Личный кабинет"]],
+    company_head: [["company_dashboard", "Дашборд"], ["objects", "Объекты"], ["admin", "Админ-панель"], ["problem_center", "Центр проблем"], ["tasks", "Задачи"], ["notifications", "Уведомления"], ["custody_acts", "Акты ОХ"], ["tn_issues", "Замечания ТН"], ["brigade_plan", "План бригад"], ["reports", "Отчёты"], ["documents", "Документы"], ["users", "Пользователи"], ["profile", "Личный кабинет"]],
+    construction_director: [["company_dashboard", "Дашборд"], ["objects", "Мои объекты"], ["admin", "Админ-панель"], ["problem_center", "Центр проблем"], ["tasks", "Задачи"], ["notifications", "Уведомления"], ["custody_acts", "Акты ОХ"], ["tn_issues", "Замечания ТН"], ["brigade_plan", "План бригад"], ["reports", "Отчёты"], ["documents", "Документы"], ["users", "Пользователи"], ["profile", "Личный кабинет"]],
     itr: [["tasks", "Мои задачи"], ["objects", "Мои объекты"], ["brigade_plan", "План бригад"], ["documents", "Документы"], ["notifications", "Уведомления"], ["profile", "Личный кабинет"]],
   };
   const items = menus[role] ?? menus.itr;
 
   return (
-    <aside className="sidebar">
+    <aside className={`sidebar ${collapsed ? "collapsed" : ""}`}>
       <div>
-        <BrandMark />
+        <div className="sidebar-topline">
+          <BrandMark />
+          <button className="sidebar-toggle" type="button" onClick={onToggleCollapsed} aria-label={collapsed ? "Развернуть меню" : "Скрыть меню"}>
+            {collapsed ? "›" : "‹"}
+          </button>
+        </div>
         <div className="brand-subtitle">Цифровое управление монтажом</div>
         <nav className="nav">
           {items.map(([id, label]) => (
@@ -1105,7 +1229,9 @@ function Sidebar({ role, activeScreen, setScreen, onLogout, taskNoticeCount }) {
               className={activeScreen === id ? "active" : ""}
               key={id}
               onClick={() => setScreen(id)}
+              title={label}
             >
+              {collapsed && <b>{label.slice(0, 1)}</b>}
               <span>{label}</span>
               {id === "tasks" && taskNoticeCount > 0 && <em>{taskNoticeCount}</em>}
             </button>
@@ -1113,8 +1239,8 @@ function Sidebar({ role, activeScreen, setScreen, onLogout, taskNoticeCount }) {
         </nav>
         {taskNoticeCount > 0 && <div className="sidebar-task-indicator">Новые задачи: {taskNoticeCount}</div>}
       </div>
-      <button className="ghost-button" onClick={onLogout}>
-        Выйти
+      <button className="ghost-button" onClick={onLogout} title="Выйти">
+        {collapsed ? "↩" : "Выйти"}
       </button>
     </aside>
   );
@@ -1319,21 +1445,88 @@ function ObjectCard({ object, onOpen }) {
   );
 }
 
-function ObjectPage({ object, onOpenBuilding, onCreateTask, canCreateTask }) {
+function ObjectPage({ object, objects, users, user, onOpenBuilding, onCreateTask, canCreateTask, onChange }) {
+  const [objectEditOpen, setObjectEditOpen] = useState(false);
+  const [buildingEdit, setBuildingEdit] = useState(null);
+  const canManageObject =
+    ["creator", "company_head"].includes(user.role) ||
+    (user.role === "construction_director" && [object.responsibleDirectorId, object.responsibleId].includes(user.id));
+  const activeBuildings = object.buildings.filter((building) => building.status !== "архив");
+  const updateObject = (values) => {
+    const nextObjects = objects.map((item) =>
+      item.id === object.id
+        ? {
+            ...item,
+            ...values,
+            responsibleId: values.responsibleDirectorId,
+            updatedAt: new Date().toISOString(),
+          }
+        : item
+    );
+    onChange(nextObjects);
+    setObjectEditOpen(false);
+  };
+  const saveBuilding = (values) => {
+    const now = new Date().toISOString();
+    const floorCount = Math.max(1, Number(values.floorsCount) || 1);
+    const normalizedName = `Корпус ${String(values.name).replace(/^Корпус\s*/i, "")}`;
+    const existingFloors = values.floors ?? [];
+    const adjustedFloors = [
+      ...Array.from({ length: floorCount }, (_, index) => {
+        const id = `floor-${index + 1}`;
+        return existingFloors.find((floor) => floor.id === id) ?? { id, label: String(index + 1), number: index + 1, type: "floor", doors: [] };
+      }),
+      ...(existingFloors.some((floor) => floor.id === "roof") ? [existingFloors.find((floor) => floor.id === "roof")] : [{ id: "roof", label: "Кровля", type: "service", doors: [] }]),
+    ].filter(Boolean);
+    const building = values.id
+      ? { ...values, name: normalizedName, floors: adjustedFloors, floorsCount: floorCount, doorsPerFloor: Number(values.doorsPerFloor) || 0, updatedAt: now }
+      : createBuilding(`building-${Date.now()}`, normalizedName, 0, {
+          objectId: object.id,
+          floorsCount: floorCount,
+          doorsPerFloor: Number(values.doorsPerFloor) || 6,
+          responsibleItrId: values.responsibleItrId,
+          assignedTeamIds: values.assignedTeamIds,
+          status: values.status,
+          comment: values.comment,
+          createdAt: now,
+          updatedAt: now,
+        });
+    const nextObjects = objects.map((item) => {
+      if (item.id !== object.id) return item;
+      return {
+        ...item,
+        buildings: values.id
+          ? item.buildings.map((current) => current.id === values.id ? { ...current, ...building } : current)
+          : [...item.buildings, building],
+        updatedAt: now,
+      };
+    });
+    onChange(nextObjects);
+    setBuildingEdit(null);
+  };
+
   return (
     <section className="visual-panel">
       <div className="view-heading">
         <div>
           <h2>{object.name}</h2>
-          <p>Выберите корпус, чтобы перейти к визуализации этажей.</p>
+          <p>{object.address} · {object.developer ?? "застройщик уточняется"}</p>
         </div>
         <div className="heading-actions">
           <StatusBadge value={object.status} />
+          {canManageObject && <button className="secondary-button slim" onClick={() => setObjectEditOpen(true)}>Редактировать объект</button>}
+          {canManageObject && <button className="primary-button slim" onClick={() => setBuildingEdit({})}>Добавить корпус</button>}
           {canCreateTask && <button className="secondary-button slim" onClick={() => onCreateTask({ objectId: object.id })}>Поставить задачу</button>}
         </div>
       </div>
+      <div className="object-management-strip">
+        <div><span>Ответственный директор</span><strong>{users.find((item) => item.id === object.responsibleDirectorId)?.name ?? "Не назначен"}</strong></div>
+        <div><span>ИТР</span><strong>{(object.responsibleItrIds ?? []).map((id) => users.find((item) => item.id === id)?.name).filter(Boolean).join(", ") || "Не назначены"}</strong></div>
+        <div><span>План окончания</span><strong>{object.plannedEndDate ?? "не задан"}</strong></div>
+        <div><span>Описание</span><strong>{object.description ?? "—"}</strong></div>
+      </div>
       <div className="building-grid">
-        {object.buildings.map((building) => (
+        {activeBuildings.map((building) => (
           <button
             className="building-card"
             key={building.id}
@@ -1341,22 +1534,103 @@ function ObjectPage({ object, onOpenBuilding, onCreateTask, canCreateTask }) {
             onClick={() => onOpenBuilding(building.id)}
           >
             <div className="mini-building" aria-hidden="true">
-              <span />
-              <span />
-              <span />
+              <i />
+              <i />
+              <i />
+              <i />
             </div>
             <div>
               <strong>{building.name}</strong>
               <p>{building.floors.filter((floor) => floor.type === "floor").length} этажей</p>
+              <small>{users.find((item) => item.id === building.responsibleItrId)?.name ?? "ИТР не назначен"}</small>
             </div>
-            <StatusBadge value={`Готовность ${getBuildingReadiness(building)}%`} />
+            <div className="building-card-actions">
+              <StatusBadge value={`Готовность ${getBuildingReadiness(building)}%`} />
+              {canManageObject && <span onClick={(event) => { event.stopPropagation(); setBuildingEdit(building); }}>Редактировать</span>}
+            </div>
           </button>
         ))}
-        {object.buildings.length === 0 && (
+        {activeBuildings.length === 0 && (
           <div className="empty-plan">Корпуса ещё не добавлены администратором.</div>
         )}
       </div>
+      {objectEditOpen && <ObjectEditModal object={object} users={users} onClose={() => setObjectEditOpen(false)} onSave={updateObject} />}
+      {buildingEdit && <BuildingEditModal building={buildingEdit} users={users} teams={getTeams()} onClose={() => setBuildingEdit(null)} onSave={saveBuilding} />}
     </section>
+  );
+}
+
+function ObjectEditModal({ object, users, onClose, onSave }) {
+  const [form, setForm] = useState({
+    name: object.name,
+    address: object.address ?? "",
+    developer: object.developer ?? "",
+    status: object.status ?? "в работе",
+    responsibleDirectorId: object.responsibleDirectorId ?? object.responsibleId ?? "",
+    responsibleItrIds: object.responsibleItrIds ?? [],
+    startDate: object.startDate ?? "",
+    plannedEndDate: object.plannedEndDate ?? "",
+    description: object.description ?? "",
+    isActive: object.isActive ?? true,
+  });
+  const update = (field, value) => setForm((current) => ({ ...current, [field]: value }));
+  const toggleItr = (id) => update("responsibleItrIds", form.responsibleItrIds.includes(id) ? form.responsibleItrIds.filter((item) => item !== id) : [...form.responsibleItrIds, id]);
+  return (
+    <div className="modal-backdrop">
+      <form className="task-modal" onSubmit={(event) => { event.preventDefault(); onSave(form); }}>
+        <div className="modal-title"><div><h2>Редактировать объект</h2><p>Управленческие параметры объекта.</p></div><button type="button" onClick={onClose}>×</button></div>
+        <div className="task-form-grid">
+          <label>Название<input value={form.name} onChange={(event) => update("name", event.target.value)} /></label>
+          <label>Адрес<input value={form.address} onChange={(event) => update("address", event.target.value)} /></label>
+          <label>Застройщик / заказчик<input value={form.developer} onChange={(event) => update("developer", event.target.value)} /></label>
+          <label>Статус<select value={form.status} onChange={(event) => update("status", event.target.value)}>{["подготовка", "в работе", "приостановлен", "завершён", "архив"].map((item) => <option key={item}>{item}</option>)}</select></label>
+          <label>Ответственный директор<select value={form.responsibleDirectorId} onChange={(event) => update("responsibleDirectorId", event.target.value)}>{users.filter((item) => item.role === "construction_director").map((item) => <option key={item.id} value={item.id}>{item.name}</option>)}</select></label>
+          <label>Дата начала<input type="date" value={form.startDate} onChange={(event) => update("startDate", event.target.value)} /></label>
+          <label>План окончания<input type="date" value={form.plannedEndDate} onChange={(event) => update("plannedEndDate", event.target.value)} /></label>
+          <label>Активность<select value={form.isActive ? "active" : "archive"} onChange={(event) => update("isActive", event.target.value === "active")}><option value="active">Активен</option><option value="archive">Архивный</option></select></label>
+          <label className="wide">Описание<textarea value={form.description} onChange={(event) => update("description", event.target.value)} /></label>
+        </div>
+        <div className="checkbox-grid">
+          {users.filter((item) => item.role === "itr").map((item) => <label key={item.id}><input type="checkbox" checked={form.responsibleItrIds.includes(item.id)} onChange={() => toggleItr(item.id)} />{item.name}</label>)}
+        </div>
+        <div className="form-actions"><button className="secondary-button" type="button" onClick={onClose}>Отмена</button><button className="primary-button">Сохранить объект</button></div>
+      </form>
+    </div>
+  );
+}
+
+function BuildingEditModal({ building, users, teams, onClose, onSave }) {
+  const [form, setForm] = useState({
+    id: building.id,
+    floors: building.floors,
+    name: building.name?.replace(/^Корпус\s*/i, "") ?? "",
+    floorsCount: building.floorsCount ?? building.floors?.filter((floor) => floor.type === "floor").length ?? 25,
+    doorsPerFloor: building.doorsPerFloor ?? 6,
+    responsibleItrId: building.responsibleItrId ?? "itr-1",
+    assignedTeamIds: building.assignedTeamIds ?? [],
+    status: building.status ?? "в работе",
+    comment: building.comment ?? "",
+  });
+  const update = (field, value) => setForm((current) => ({ ...current, [field]: value }));
+  const toggleTeam = (id) => update("assignedTeamIds", form.assignedTeamIds.includes(id) ? form.assignedTeamIds.filter((item) => item !== id) : [...form.assignedTeamIds, id]);
+  return (
+    <div className="modal-backdrop">
+      <form className="task-modal" onSubmit={(event) => { event.preventDefault(); onSave(form); }}>
+        <div className="modal-title"><div><h2>{form.id ? "Редактировать корпус" : "Добавить корпус"}</h2><p>Этажность, ИТР и бригады корпуса.</p></div><button type="button" onClick={onClose}>×</button></div>
+        <div className="task-form-grid">
+          <label>Корпус<input value={form.name} onChange={(event) => update("name", event.target.value)} placeholder="4.1" /></label>
+          <label>Количество этажей<input type="number" min="1" value={form.floorsCount} onChange={(event) => update("floorsCount", event.target.value)} /></label>
+          <label>Дверей на этаже<input type="number" min="1" value={form.doorsPerFloor} onChange={(event) => update("doorsPerFloor", event.target.value)} /></label>
+          <label>Ответственный ИТР<select value={form.responsibleItrId} onChange={(event) => update("responsibleItrId", event.target.value)}>{users.filter((item) => item.role === "itr").map((item) => <option key={item.id} value={item.id}>{item.name}</option>)}</select></label>
+          <label>Статус<select value={form.status} onChange={(event) => update("status", event.target.value)}>{["подготовка", "в работе", "проблемный", "завершён", "архив"].map((item) => <option key={item}>{item}</option>)}</select></label>
+          <label className="wide">Комментарий<textarea value={form.comment} onChange={(event) => update("comment", event.target.value)} /></label>
+        </div>
+        <div className="checkbox-grid">
+          {teams.map((team) => <label key={team.id}><input type="checkbox" checked={form.assignedTeamIds.includes(team.id)} onChange={() => toggleTeam(team.id)} />{team.name}</label>)}
+        </div>
+        <div className="form-actions"><button className="secondary-button" type="button" onClick={onClose}>Отмена</button><button className="primary-button">Сохранить корпус</button></div>
+      </form>
+    </div>
   );
 }
 

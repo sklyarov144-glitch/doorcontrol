@@ -779,6 +779,11 @@ textarea {
   min-height: 100vh;
   display: grid;
   grid-template-columns: 286px minmax(0, 1fr);
+  transition: grid-template-columns 0.22s ease;
+}
+
+.app-shell.sidebar-collapsed {
+  grid-template-columns: 86px minmax(0, 1fr);
 }
 
 .sidebar {
@@ -792,6 +797,83 @@ textarea {
     linear-gradient(180deg, rgba(11, 23, 42, 0.96), rgba(8, 17, 32, 0.98)),
     var(--navy);
   box-shadow: 12px 0 34px rgba(10, 21, 38, 0.12);
+  transition: padding 0.22s ease;
+}
+
+.sidebar-topline {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 12px;
+}
+
+.sidebar-toggle {
+  width: 34px;
+  height: 34px;
+  flex: 0 0 auto;
+  border: 1px solid rgba(255, 255, 255, 0.13);
+  border-radius: 12px;
+  color: #ffffff;
+  background: rgba(255, 255, 255, 0.08);
+  font-size: 24px;
+  line-height: 1;
+}
+
+.sidebar.collapsed {
+  align-items: center;
+  padding: 20px 12px;
+}
+
+.sidebar.collapsed .sidebar-topline {
+  display: grid;
+  justify-items: center;
+}
+
+.sidebar.collapsed .brand-lockup {
+  justify-content: center;
+}
+
+.sidebar.collapsed .brand-lockup > div,
+.sidebar.collapsed .brand-subtitle,
+.sidebar.collapsed .sidebar-task-indicator,
+.sidebar.collapsed .nav button span {
+  display: none;
+}
+
+.sidebar.collapsed .company-mark {
+  width: 34px;
+  height: 34px;
+}
+
+.sidebar.collapsed .nav {
+  margin-top: 22px;
+}
+
+.sidebar.collapsed .nav button,
+.sidebar.collapsed .ghost-button {
+  width: 56px;
+  min-height: 52px;
+  display: grid;
+  place-items: center;
+  padding: 0;
+  text-align: center;
+}
+
+.sidebar.collapsed .nav button b {
+  display: inline-grid;
+  place-items: center;
+  width: 30px;
+  height: 30px;
+  border-radius: 10px;
+  color: #ffffff;
+  background: rgba(255, 255, 255, 0.08);
+  font-size: 15px;
+}
+
+.sidebar.collapsed .nav button em {
+  position: absolute;
+  right: -6px;
+  top: -6px;
 }
 
 .nav {
