@@ -5959,10 +5959,52 @@ th.matrix-actions-column {
   background: #fee2e2;
 }
 
+.status-подана,
 .status-отправлена,
 .status-на-рассмотрении {
   color: #1d4ed8;
   background: #dbeafe;
+}
+
+.status-черновик {
+  color: #475569;
+  background: #e2e8f0;
+}
+
+.status-отменена {
+  color: #64748b;
+  background: #f1f5f9;
+}
+
+.approved-manpower-box {
+  display: grid;
+  gap: 8px;
+  border: 1px solid #dbeafe;
+  border-radius: 16px;
+  padding: 12px;
+  color: #172033;
+  background: linear-gradient(135deg, #f8fbff, #eef6ff);
+}
+
+.approved-manpower-box > span {
+  color: #60708a;
+  font-size: 12px;
+  font-weight: 950;
+  text-transform: uppercase;
+}
+
+.approved-manpower-row {
+  display: grid;
+  gap: 2px;
+  border-radius: 12px;
+  padding: 10px 12px;
+  background: #ffffff;
+  box-shadow: 0 8px 20px rgba(11, 23, 42, 0.08);
+}
+
+.approved-manpower-row small {
+  color: #6b778c;
+  font-weight: 850;
 }
 
 .priority-row.priority-критичный td:first-child {

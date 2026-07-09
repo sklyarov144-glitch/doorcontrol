@@ -12,6 +12,7 @@ import {
   addWorkersToTeam,
   addDailyAutoReport,
   addManpowerRequest,
+  updateManpowerRequest,
   addObjectWorkPlan,
   addTeam,
   addWorkStandard,
@@ -21,8 +22,9 @@ import {
   cancelManpowerRequest,
   createDoorMatrix,
   getManpowerRequests,
-  getManpowerShortage,
   getManpowerStats,
+  getManpowerSummaryByDate,
+  getDailyItrManpowerTask,
   getWeeklyManpowerPlan,
   getDoorMatrix,
   getDailyWorkReports,
@@ -52,6 +54,7 @@ import {
   saveDoorMatrix,
   saveEmployees,
   saveTeams,
+  submitManpowerRequest,
   updateEmployee,
   disableEmployee,
   assignWorkerToTeam,
@@ -105,17 +108,17 @@ const manualTaskPriorities = ["низкий", "средний", "высокий"
 const manualTaskStatuses = ["новая", "в работе", "выполнена", "отменена"];
 const taskLinkCategories = ["акт АОХ", "фото", "документ", "прочее"];
 const manpowerPriorities = ["низкий", "средний", "высокий", "критичный"];
-const manpowerReasons = ["монтаж по плану", "срочный объект", "закрытие актов", "замечания ТН", "перенос дверей", "разгрузка", "подъём", "разнос", "не хватает людей", "другое"];
-const manpowerStatuses = ["черновик", "отправлена", "на рассмотрении", "утверждена", "скорректирована", "отклонена"];
+const manpowerReasons = ["монтаж дверей", "разгрузка", "подъём дверей", "разнос дверей", "установка фурнитуры", "устранение замечаний", "подготовка проёмов", "прочее"];
+const manpowerStatuses = ["черновик", "подана", "на рассмотрении", "утверждена", "скорректирована", "отклонена", "отменена"];
 const delayReasonOptions = [
   "Не готов проём",
   "Нет доступа",
-  "Нет дверей на этаже",
   "Не подняты двери",
   "Нет фурнитуры",
-  "Не было бригады",
   "Замечания ТН",
   "Ожидание заказчика",
+  "Не вышла бригада",
+  "Погодные условия",
   "Другое",
 ];
 
@@ -1366,7 +1369,7 @@ function Sidebar({ role, activeScreen, setScreen, onLogout, taskNoticeCount, col
     creator: [["company_dashboard", "Дашборд"], ["objects", "Объекты"], ["admin", "Админ-панель"], ["problem_center", "Центр проблем"], ["tasks", "Задачи"], ["manpower", "Расстановка"], ["notifications", "Уведомления"], ["custody_acts", "Акты ОХ"], ["tn_issues", "Замечания ТН"], ["brigade_plan", "План бригад"], ["reports", "Отчёты"], ["documents", "Документы"], ["users", "Пользователи"], ["roles", "Роли"], ["profile", "Личный кабинет"]],
     company_head: [["company_dashboard", "Дашборд"], ["objects", "Объекты"], ["admin", "Админ-панель"], ["problem_center", "Центр проблем"], ["tasks", "Задачи"], ["manpower", "Расстановка"], ["notifications", "Уведомления"], ["custody_acts", "Акты ОХ"], ["tn_issues", "Замечания ТН"], ["brigade_plan", "План бригад"], ["reports", "Отчёты"], ["documents", "Документы"], ["users", "Пользователи"], ["profile", "Личный кабинет"]],
     construction_director: [["company_dashboard", "Дашборд"], ["objects", "Мои объекты"], ["admin", "Админ-панель"], ["problem_center", "Центр проблем"], ["tasks", "Задачи"], ["manpower", "Расстановка"], ["notifications", "Уведомления"], ["custody_acts", "Акты ОХ"], ["tn_issues", "Замечания ТН"], ["brigade_plan", "План бригад"], ["reports", "Отчёты"], ["documents", "Документы"], ["users", "Пользователи"], ["profile", "Личный кабинет"]],
-    itr: [["tasks", "Мои задачи"], ["objects", "Мои объекты"], ["manpower", "Заявка на людей"], ["brigade_plan", "План бригад"], ["documents", "Документы"], ["notifications", "Уведомления"], ["profile", "Личный кабинет"]],
+    itr: [["tasks", "Мои задачи"], ["objects", "Мои объекты"], ["manpower", "Заявка на рабочих"], ["brigade_plan", "План бригад"], ["documents", "Документы"], ["notifications", "Уведомления"], ["profile", "Личный кабинет"]],
   };
   const items = menus[role] ?? menus.itr;
 
@@ -1446,7 +1449,7 @@ function Header({
     reports: "Отчёты",
     documents: "Документы",
     brigade_plan: "План бригад",
-    manpower: user.role === "itr" ? "Заявка на людей" : "Расстановка рабочей силы",
+    manpower: user.role === "itr" ? "Заявка на рабочих" : "Расстановка рабочей силы",
     tasks: "Задачи",
     notifications: "Уведомления",
     tn_issues: "Замечания ТН",
@@ -2571,20 +2574,20 @@ function ManpowerPage({ objects, user, users, onNotify }) {
   const [date, setDate] = useState(isoDateOffset(1));
   const [filters, setFilters] = useState({ objectId: "", itrId: "", status: "", priority: "" });
   const [adjustRequest, setAdjustRequest] = useState(null);
+  const [editRequest, setEditRequest] = useState(null);
+  const [weekDetails, setWeekDetails] = useState(null);
   const objectOptions = getManpowerObjectOptions(objects);
-  const teams = getTeams();
   const requests = getManpowerRequests();
   const visibleRequests = requests.filter((request) => {
-    if (user.role === "itr" && request.requestedBy !== user.id) return false;
-    if (request.date !== date) return false;
+    if ((request.targetDate ?? request.date) !== date) return false;
     if (filters.objectId && request.objectId !== filters.objectId) return false;
     if (filters.itrId && request.requestedBy !== filters.itrId) return false;
     if (filters.status && request.status !== filters.status) return false;
     if (filters.priority && request.priority !== filters.priority) return false;
     return true;
   });
-  const stats = getManpowerStats(date);
-  const shortage = getManpowerShortage(date);
+  const stats = getManpowerSummaryByDate(date);
+  const dailyTask = getDailyItrManpowerTask(user.id);
   const refresh = () => setVersion((value) => value + 1);
   const objectName = (id) => objectOptions.find((object) => object.id === id)?.name ?? id;
   const buildingName = (objectId, buildingId) => objectOptions.find((object) => object.id === objectId)?.buildings?.find((building) => building.id === buildingId)?.name ?? "—";
@@ -2595,17 +2598,21 @@ function ManpowerPage({ objects, user, users, onNotify }) {
     onNotify?.();
   };
 
-  const submitRequest = (values) => {
-    const created = addManpowerRequest({ ...values, requestedBy: user.id, requestedByName: user.name, requestedByRole: user.role });
-    notifyUser({
-      type: "заявка на людей",
-      title: "Новая заявка на людей",
-      message: `${user.name}: ${objectName(created.objectId)} на ${created.date}`,
-      priority: created.priority,
-      roleTarget: "construction_director",
-      objectId: created.objectId,
-      buildingId: created.buildingId,
-    });
+  const saveRequest = (values, status = "подана") => {
+    const payload = { ...values, status, requestedBy: user.id, requestedByName: user.name, requestedByRole: user.role };
+    const created = values.id ? updateManpowerRequest(values.id, payload) : addManpowerRequest(payload);
+    if (status === "подана") {
+      notifyUser({
+        type: "заявка на рабочих",
+        title: "ИТР подал заявку на рабочих",
+        message: `${user.name}: ${objectName(created.objectId)} на ${created.targetDate ?? created.date}`,
+        priority: created.priority,
+        roleTarget: "construction_director",
+        objectId: created.objectId,
+        buildingId: created.buildingId,
+      });
+    }
+    setEditRequest(null);
     refresh();
   };
 
@@ -2614,7 +2621,7 @@ function ManpowerPage({ objects, user, users, onNotify }) {
     notifyUser({
       type: "расстановка утверждена",
       title: "Заявка утверждена",
-      message: `${objectName(request.objectId)}: ${updated.approvedLoaders} груз., ${updated.approvedInstallers} монт.`,
+      message: `${objectName(request.objectId)}: утверждено ${updated.approvedLoaders} груз. и ${updated.approvedInstallers} монт.`,
       priority: request.priority,
       userId: request.requestedBy,
       objectId: request.objectId,
@@ -2624,7 +2631,7 @@ function ManpowerPage({ objects, user, users, onNotify }) {
   };
 
   const reject = (request) => {
-    const comment = window.prompt("Комментарий директора", request.directorComment || "Нет людей на эту дату") ?? "";
+    const comment = window.prompt("Комментарий директора", request.directorComment || "Решение директора") ?? "";
     const updated = rejectManpowerRequest(request.id, comment, user.id);
     notifyUser({
       type: "расстановка отклонена",
@@ -2643,7 +2650,7 @@ function ManpowerPage({ objects, user, users, onNotify }) {
     notifyUser({
       type: "расстановка скорректирована",
       title: "Заявка скорректирована",
-      message: `${objectName(request.objectId)}: утверждено ${updated.approvedLoaders} груз., ${updated.approvedInstallers} монт.`,
+      message: `${objectName(request.objectId)}: скорректировано директором, утверждено ${updated.approvedLoaders} груз. и ${updated.approvedInstallers} монт.`,
       priority: updated.priority,
       userId: request.requestedBy,
       objectId: request.objectId,
@@ -2653,18 +2660,26 @@ function ManpowerPage({ objects, user, users, onNotify }) {
     refresh();
   };
 
+  const commentRequest = (request) => {
+    const comment = window.prompt("Комментарий директора", request.directorComment || "") ?? request.directorComment ?? "";
+    updateManpowerRequest(request.id, { directorComment: comment, status: request.status === "подана" ? "на рассмотрении" : request.status });
+    refresh();
+  };
+
   const cancel = (request) => {
     cancelManpowerRequest(request.id);
     refresh();
   };
+  const canEditRequest = (request) => request.requestedBy === user.id && !["утверждена", "скорректирована", "отклонена"].includes(request.status);
+  const finalRows = visibleRequests.filter((request) => ["утверждена", "скорректирована"].includes(request.status));
 
   return (
     <section className="manpower-page" key={version}>
       <div className="tasks-hero">
         <div>
-          <span>{user.role === "itr" ? "Заявка на людей" : "Расстановка рабочей силы"}</span>
-          <h2>{user.role === "itr" ? "Заявка без поездки в офис" : "Заявки ИТР и утверждённый план"}</h2>
-          <p>ИТР заранее просит грузчиков и монтажников, руководитель видит дефицит и утверждает расстановку.</p>
+          <span>{user.role === "itr" ? "Заявка на рабочих" : "Расстановка рабочей силы"}</span>
+          <h2>{user.role === "itr" ? "Заявка на рабочих на завтра" : "Заявки ИТР и итоговый график"}</h2>
+          <p>ИТР подают потребность до 15:00, директор утверждает итоговую расстановку на следующий день.</p>
         </div>
         <div className="heading-actions">
           <input className="date-filter" type="date" value={date} onChange={(event) => setDate(event.target.value)} />
@@ -2673,25 +2688,29 @@ function ManpowerPage({ objects, user, users, onNotify }) {
 
       <div className="task-tabs brigade-tabs">
         {user.role === "itr" && <button className={tab === "request" ? "active" : ""} onClick={() => setTab("request")}>Подать заявку</button>}
-        <button className={tab === "requests" ? "active" : ""} onClick={() => setTab("requests")}>{canApprove ? "Заявки на дату" : "Мои заявки"}</button>
+        <button className={tab === "requests" ? "active" : ""} onClick={() => setTab("requests")}>{canApprove ? "Утверждение расстановки" : "Общая таблица заявок"}</button>
+        <button className={tab === "final" ? "active" : ""} onClick={() => setTab("final")}>Итоговый график</button>
         <button className={tab === "week" ? "active" : ""} onClick={() => setTab("week")}>План на неделю</button>
       </div>
 
       <div className="manpower-kpis">
         <MetricCard title="Всего заявок" value={stats.total} />
+        <MetricCard title="Без решения" value={stats.unresolved} tone={stats.unresolved ? "warning" : "neutral"} />
+        <MetricCard title="Утверждено" value={stats.approved} tone="success" />
+        <MetricCard title="Скорректировано" value={stats.adjusted} tone="warning" />
+        <MetricCard title="Отклонено" value={stats.rejected} />
         <MetricCard title="Запрошено грузчиков" value={stats.requestedLoaders} />
         <MetricCard title="Запрошено монтажников" value={stats.requestedInstallers} />
         <MetricCard title="Утверждено грузчиков" value={stats.approvedLoaders} tone="success" />
         <MetricCard title="Утверждено монтажников" value={stats.approvedInstallers} tone="success" />
-        <MetricCard title="Дефицит людей" value={`${shortage.loadersShortage}/${shortage.installersShortage}`} tone={shortage.loadersShortage + shortage.installersShortage > 0 ? "danger" : "success"} />
       </div>
 
-      {tab === "request" && user.role === "itr" && <ManpowerRequestForm objects={objectOptions} teams={teams} user={user} onSubmit={submitRequest} />}
+      {tab === "request" && user.role === "itr" && <><ManpowerDailyTask task={dailyTask} onOpen={() => setEditRequest({})} /><ManpowerRequestForm objects={objectOptions} user={user} request={editRequest} onSave={saveRequest} onClose={() => setEditRequest(null)} /></>}
 
       {tab === "requests" && (
         <div className="brigade-card">
           <div className="panel-title">
-            <div><h2>{canApprove ? "Заявки ИТР" : "Мои заявки"}</h2><p>Дата, люди, приоритет, решение директора.</p></div>
+            <div><h2>{canApprove ? "Утверждение расстановки" : "Общая таблица заявок"}</h2><p>Все заявки на выбранную дату: объект, объём, приоритет и решение директора.</p></div>
           </div>
           <div className="manpower-filters">
             <select value={filters.objectId} onChange={(event) => setFilters({ ...filters, objectId: event.target.value })}><option value="">Все объекты</option>{objectOptions.map((object) => <option key={object.id} value={object.id}>{object.name}</option>)}</select>
@@ -2701,9 +2720,9 @@ function ManpowerPage({ objects, user, users, onNotify }) {
           </div>
           <div className="brigade-table-wrap">
             <table className="executive-table manpower-table">
-              <thead><tr><th>Объект</th><th>Корпус</th><th>ИТР</th><th>Груз.</th><th>Монт.</th><th>Приоритет</th><th>Причина</th><th>Комментарий ИТР</th><th>Статус</th><th>Утв. груз.</th><th>Утв. монт.</th><th>Комментарий директора</th><th>Действие</th></tr></thead>
+              <thead><tr><th>Дата</th><th>Объект</th><th>Корпус</th><th>ИТР</th><th>Вид работ</th><th>Дверей</th><th>Груз. запрос</th><th>Монт. запрос</th><th>Приоритет</th><th>Комментарий ИТР</th><th>Статус</th><th>Решение</th><th>Утв. груз.</th><th>Утв. монт.</th><th>Комментарий директора</th><th>Действие</th></tr></thead>
               <tbody>{visibleRequests.map((request) => <tr key={request.id} className={`priority-row priority-${request.priority}`}>
-                <td>{objectName(request.objectId)}</td><td>{buildingName(request.objectId, request.buildingId)}</td><td>{request.requestedByName}</td><td>{request.loadersRequested}</td><td>{request.installersRequested}</td><td><span className={`priority-pill priority-${cssToken(request.priority)}`}>{request.priority}</span></td><td>{request.reason}</td><td>{request.comment || "—"}</td><td><span className={`manpower-status status-${cssToken(request.status)}`}>{request.status}</span></td><td>{request.approvedLoaders || "—"}</td><td>{request.approvedInstallers || "—"}</td><td>{request.directorComment || "—"}</td><td><div className="task-actions">{canApprove ? <><button className="secondary-button slim" onClick={() => approve(request)}>Утвердить</button><button className="secondary-button slim" onClick={() => setAdjustRequest(request)}>Скорректировать</button><button className="secondary-button slim" onClick={() => reject(request)}>Отклонить</button></> : !["утверждена", "скорректирована"].includes(request.status) && <button className="secondary-button slim" onClick={() => cancel(request)}>Отменить</button>}</div></td>
+                <td>{request.targetDate ?? request.date}</td><td>{objectName(request.objectId)}</td><td>{buildingName(request.objectId, request.buildingId)}</td><td>{request.requestedByName}</td><td>{request.workType ?? request.reason}</td><td>{request.doorsPlanned || "—"}</td><td>{request.loadersRequested}</td><td>{request.installersRequested}</td><td><span className={`priority-pill priority-${cssToken(request.priority)}`}>{request.priority}</span></td><td>{request.comment || request.workVolume || "—"}</td><td><span className={`manpower-status status-${cssToken(request.status)}`}>{request.status}</span></td><td>{request.directorDecision ?? "без решения"}</td><td>{request.approvedLoaders || "—"}</td><td>{request.approvedInstallers || "—"}</td><td>{request.directorComment || "—"}</td><td><div className="task-actions">{canApprove ? <><button className="secondary-button slim" onClick={() => approve(request)}>Утвердить как запрошено</button><button className="secondary-button slim" onClick={() => setAdjustRequest(request)}>Скорректировать</button><button className="secondary-button slim" onClick={() => reject(request)}>Отклонить</button><button className="secondary-button slim" onClick={() => commentRequest(request)}>Комментарий</button></> : canEditRequest(request) ? <><button className="secondary-button slim" onClick={() => { setEditRequest(request); setTab("request"); }}>Редактировать</button><button className="secondary-button slim" onClick={() => cancel(request)}>Отменить</button></> : "Просмотр"}</div></td>
               </tr>)}</tbody>
             </table>
             {visibleRequests.length === 0 && <div className="empty-plan">Заявок на выбранную дату нет.</div>}
@@ -2711,8 +2730,10 @@ function ManpowerPage({ objects, user, users, onNotify }) {
         </div>
       )}
 
-      {tab === "week" && <ManpowerWeekPlan startDate={date} objects={objectOptions} />}
+      {tab === "final" && <ManpowerFinalSchedule requests={finalRows} objectName={objectName} buildingName={buildingName} />}
+      {tab === "week" && <ManpowerWeekPlan startDate={date} objects={objectOptions} onDetails={setWeekDetails} />}
       {adjustRequest && <ManpowerAdjustModal request={adjustRequest} objectName={objectName(adjustRequest.objectId)} onClose={() => setAdjustRequest(null)} onSave={(values) => adjust(adjustRequest, values)} />}
+      {weekDetails && <ManpowerWeekDetails details={weekDetails} objectName={objectName} buildingName={buildingName} onClose={() => setWeekDetails(null)} />}
     </section>
   );
 }
@@ -2721,27 +2742,39 @@ function MetricCard({ title, value, tone = "neutral" }) {
   return <div className={`executive-kpi ${tone}`}><span>{title}</span><strong>{value}</strong></div>;
 }
 
-function ManpowerRequestForm({ objects, teams, user, onSubmit }) {
-  const [form, setForm] = useState({ date: isoDateOffset(1), objectId: objects[0]?.id ?? "", buildingId: "", loadersRequested: 0, installersRequested: 0, priority: "средний", reason: "монтаж по плану", comment: "", teamId: "" });
-  const selectedObject = objects.find((object) => object.id === form.objectId) ?? objects[0];
-  const update = (field, value) => setForm((current) => field === "objectId" ? { ...current, objectId: value, buildingId: "", teamId: "" } : { ...current, [field]: value });
-  return <form className="brigade-card manpower-request-form" onSubmit={(event) => { event.preventDefault(); onSubmit(form); setForm({ ...form, loadersRequested: 0, installersRequested: 0, comment: "" }); }}><div className="panel-title"><div><h2>Новая заявка</h2><p>{user.name}, укажите сколько людей нужно на объект.</p></div></div><div className="object-plan-form"><label>Дата<input type="date" value={form.date} onChange={(event) => update("date", event.target.value)} /></label><label>Объект<select value={form.objectId} onChange={(event) => update("objectId", event.target.value)}>{objects.map((object) => <option key={object.id} value={object.id}>{object.name}</option>)}</select></label><label>Корпус<select value={form.buildingId} onChange={(event) => update("buildingId", event.target.value)}><option value="">Без корпуса</option>{selectedObject?.buildings?.map((building) => <option key={building.id} value={building.id}>{building.name}</option>)}</select></label><label>Бригада<select value={form.teamId} onChange={(event) => update("teamId", event.target.value)}><option value="">Без бригады</option>{teams.map((team) => <option key={team.id} value={team.id}>{team.name}</option>)}</select></label><label>Грузчики<input type="number" min="0" value={form.loadersRequested} onChange={(event) => update("loadersRequested", event.target.value)} /></label><label>Монтажники<input type="number" min="0" value={form.installersRequested} onChange={(event) => update("installersRequested", event.target.value)} /></label><label>Приоритет<select value={form.priority} onChange={(event) => update("priority", event.target.value)}>{manpowerPriorities.map((item) => <option key={item}>{item}</option>)}</select></label><label>Причина<select value={form.reason} onChange={(event) => update("reason", event.target.value)}>{manpowerReasons.map((item) => <option key={item}>{item}</option>)}</select></label><label className="wide">Комментарий<input value={form.comment} onChange={(event) => update("comment", event.target.value)} placeholder="Почему это важно" /></label><button className="primary-button">Отправить заявку</button></div></form>;
+function ManpowerDailyTask({ task, onOpen }) {
+  return <div className={`manpower-daily-task status-${cssToken(task.status)}`}><div><strong>{task.title}</strong><span>Срок: {task.dueText} · статус: {task.status}</span></div><button className="primary-button slim" onClick={onOpen}>Подать заявку</button></div>;
 }
 
-function ManpowerWeekPlan({ startDate, objects }) {
+const manpowerWorkTypes = ["монтаж дверей", "разгрузка", "подъём дверей", "разнос дверей", "установка фурнитуры", "устранение замечаний", "подготовка проёмов", "прочее"];
+
+function ManpowerRequestForm({ objects, user, request, onSave, onClose }) {
+  const [form, setForm] = useState({ id: request?.id ?? "", targetDate: request?.targetDate ?? request?.date ?? isoDateOffset(1), objectId: request?.objectId ?? objects[0]?.id ?? "", buildingId: request?.buildingId ?? "", workType: request?.workType ?? "монтаж дверей", doorsPlanned: request?.doorsPlanned ?? 0, workVolume: request?.workVolume ?? "", loadersRequested: request?.loadersRequested ?? 0, installersRequested: request?.installersRequested ?? 0, priority: request?.priority ?? "средний", comment: request?.comment ?? "" });
+  const selectedObject = objects.find((object) => object.id === form.objectId) ?? objects[0];
+  const update = (field, value) => setForm((current) => field === "objectId" ? { ...current, objectId: value, buildingId: "", teamId: "" } : { ...current, [field]: value });
+  return <form className="brigade-card manpower-request-form" onSubmit={(event) => { event.preventDefault(); onSave(form, "подана"); }}><div className="panel-title"><div><h2>{form.id ? "Редактировать заявку" : "Новая заявка"}</h2><p>{user.name}, укажите потребность на выбранный объект.</p></div>{form.id && <button className="secondary-button slim" type="button" onClick={onClose}>Закрыть</button>}</div><div className="object-plan-form"><label>Дата, на которую нужны рабочие<input type="date" value={form.targetDate} onChange={(event) => update("targetDate", event.target.value)} /></label><label>Объект<select value={form.objectId} onChange={(event) => update("objectId", event.target.value)}>{objects.map((object) => <option key={object.id} value={object.id}>{object.name}</option>)}</select></label><label>Корпус<select value={form.buildingId} onChange={(event) => update("buildingId", event.target.value)}><option value="">Без корпуса</option>{selectedObject?.buildings?.map((building) => <option key={building.id} value={building.id}>{building.name}</option>)}</select></label><label>Вид работ<select value={form.workType} onChange={(event) => update("workType", event.target.value)}>{manpowerWorkTypes.map((item) => <option key={item}>{item}</option>)}</select></label><label>Количество дверей<input type="number" min="0" value={form.doorsPlanned} onChange={(event) => update("doorsPlanned", event.target.value)} /></label><label>Грузчики<input type="number" min="0" value={form.loadersRequested} onChange={(event) => update("loadersRequested", event.target.value)} /></label><label>Монтажники<input type="number" min="0" value={form.installersRequested} onChange={(event) => update("installersRequested", event.target.value)} /></label><label>Приоритет<select value={form.priority} onChange={(event) => update("priority", event.target.value)}>{manpowerPriorities.map((item) => <option key={item}>{item}</option>)}</select></label><label className="wide">Объём / комментарий по объёму<input value={form.workVolume} onChange={(event) => update("workVolume", event.target.value)} placeholder="Например: 18 дверей, корпус 4.1, этажи 8-10" /></label><label className="wide">Комментарий ИТР<input value={form.comment} onChange={(event) => update("comment", event.target.value)} placeholder="Что важно знать директору" /></label><button className="secondary-button" type="button" onClick={() => onSave(form, "черновик")}>Сохранить черновик</button><button className="primary-button">Подать заявку</button></div></form>;
+}
+
+function ManpowerFinalSchedule({ requests, objectName, buildingName }) {
+  return <div className="brigade-card"><div className="panel-title"><div><h2>Итоговый график</h2><p>Только утверждённые и скорректированные заявки.</p></div></div><div className="brigade-table-wrap"><table className="executive-table manpower-table"><thead><tr><th>Дата</th><th>Объект</th><th>Корпус</th><th>ИТР</th><th>Вид работ</th><th>Дверей</th><th>Грузчики утверждено</th><th>Монтажники утверждено</th><th>Комментарий директора</th><th>Статус</th></tr></thead><tbody>{requests.map((request) => <tr key={request.id}><td>{request.targetDate ?? request.date}</td><td>{objectName(request.objectId)}</td><td>{buildingName(request.objectId, request.buildingId)}</td><td>{request.requestedByName}</td><td>{request.workType ?? request.reason}</td><td>{request.doorsPlanned || "—"}</td><td>{request.approvedLoaders}</td><td>{request.approvedInstallers}</td><td>{request.directorComment || "—"}</td><td>{request.status}</td></tr>)}</tbody></table>{requests.length === 0 && <div className="empty-plan">Итоговый график на выбранную дату пока пуст.</div>}</div></div>;
+}
+
+function ManpowerWeekPlan({ startDate, objects, onDetails }) {
   const { days, requests } = getWeeklyManpowerPlan(startDate);
   const rows = objects.map((object) => ({ object, requests: requests.filter((request) => request.objectId === object.id) })).filter((row) => row.requests.length > 0 || ["СК 25", "СК 18", "ПИК Яуза", "Матвеевский парк", "Родные кварталы"].includes(row.object.name));
-  const cell = (objectId, day, type) => {
-    const dayRequests = requests.filter((request) => request.objectId === objectId && request.date === day);
+  const cell = (object, day) => {
+    const dayRequests = requests.filter((request) => request.objectId === object.id && (request.targetDate ?? request.date) === day);
     const approved = dayRequests.filter((request) => ["утверждена", "скорректирована"].includes(request.status));
-    const value = approved.reduce((sum, request) => sum + Number(type === "loaders" ? request.approvedLoaders : request.approvedInstallers), 0);
-    const requested = dayRequests.reduce((sum, request) => sum + Number(type === "loaders" ? request.loadersRequested : request.installersRequested), 0);
-    const critical = dayRequests.some((request) => request.priority === "критичный");
-    const high = dayRequests.some((request) => request.priority === "высокий");
-    const cut = approved.some((request) => Number(request.approvedLoaders) < Number(request.loadersRequested) || Number(request.approvedInstallers) < Number(request.installersRequested));
-    return <div className={`week-cell ${value ? "approved" : requested ? "pending" : ""} ${critical ? "critical" : high ? "high" : ""}`} title={dayRequests.map((request) => request.comment || request.directorComment).filter(Boolean).join("; ")}><strong>{value || "—"}</strong>{requested > value && <small>из {requested}</small>}{cut && <em>урезано</em>}</div>;
+    const loaders = approved.reduce((sum, request) => sum + Number(request.approvedLoaders || 0), 0);
+    const installers = approved.reduce((sum, request) => sum + Number(request.approvedInstallers || 0), 0);
+    const top = dayRequests.find((request) => request.priority === "критичный") ?? dayRequests.find((request) => request.priority === "высокий") ?? dayRequests[0];
+    return <button className={`week-cell ${approved.length ? "approved" : dayRequests.length ? "pending" : ""} ${top?.priority === "критичный" ? "critical" : top?.priority === "высокий" ? "high" : ""}`} onClick={() => dayRequests.length && onDetails({ object, day, requests: dayRequests })}><strong>{dayRequests.length ? `Г: ${loaders} / М: ${installers}` : "—"}</strong>{top && <small>{top.workType ?? top.reason}</small>}{top?.doorsPlanned ? <small>{top.doorsPlanned} дверей</small> : null}{top && <em>{top.priority}</em>}</button>;
   };
-  return <div className="brigade-card"><div className="panel-title"><div><h2>План на неделю</h2><p>Объекты по строкам, дни недели и потребность в людях по колонкам.</p></div></div><div className="manpower-week-wrap"><table className="manpower-week-table"><thead><tr><th rowSpan="2">Объект</th>{days.map((day) => <th key={day} colSpan="2">{formatShortDate(day)}</th>)}</tr><tr>{days.flatMap((day) => [<th key={`${day}-l`}>Груз.</th>, <th key={`${day}-i`}>Монт.</th>])}</tr></thead><tbody>{rows.map(({ object }) => <tr key={object.id}><td>{object.name}</td>{days.flatMap((day) => [<td key={`${object.id}-${day}-l`}>{cell(object.id, day, "loaders")}</td>, <td key={`${object.id}-${day}-i`}>{cell(object.id, day, "installers")}</td>])}</tr>)}</tbody></table></div></div>;
+  return <div className="brigade-card"><div className="panel-title"><div><h2>План на неделю</h2><p>Excel-подобный вид утверждённой расстановки по объектам и дням.</p></div></div><div className="manpower-week-wrap"><table className="manpower-week-table"><thead><tr><th>Объект</th>{days.map((day) => <th key={day}>{formatShortDate(day)}</th>)}</tr></thead><tbody>{rows.map(({ object }) => <tr key={object.id}><td>{object.name}</td>{days.map((day) => <td key={`${object.id}-${day}`}>{cell(object, day)}</td>)}</tr>)}</tbody></table></div></div>;
+}
+
+function ManpowerWeekDetails({ details, objectName, buildingName, onClose }) {
+  return <div className="modal-backdrop"><div className="task-modal"><div className="modal-title"><div><h2>{details.object.name} / {details.day}</h2><p>Детали заявок на дату.</p></div><button type="button" onClick={onClose}>×</button></div><div className="brigade-table-wrap"><table className="executive-table"><thead><tr><th>Объект</th><th>Корпус</th><th>ИТР</th><th>Вид работ</th><th>Дверей</th><th>Груз.</th><th>Монт.</th><th>Статус</th></tr></thead><tbody>{details.requests.map((request) => <tr key={request.id}><td>{objectName(request.objectId)}</td><td>{buildingName(request.objectId, request.buildingId)}</td><td>{request.requestedByName}</td><td>{request.workType}</td><td>{request.doorsPlanned || "—"}</td><td>{request.approvedLoaders || request.loadersRequested}</td><td>{request.approvedInstallers || request.installersRequested}</td><td>{request.status}</td></tr>)}</tbody></table></div></div></div>;
 }
 
 function ManpowerAdjustModal({ request, objectName, onClose, onSave }) {
@@ -2888,7 +2921,13 @@ function DailyFactModal({ objects, standards, teams, employees, user, onClose, o
   const isBehindPlan = Number(form.actualQuantity) < Number(standard?.dailyPlan ?? 0);
   const update = (field, value) => setForm((current) => field === "objectId" ? { ...current, objectId: value, buildingId: objects.find((item) => item.id === value)?.buildings[0]?.id ?? "" } : { ...current, [field]: value });
   const teamWorkers = getWorkersByTeam(form.teamId);
-  return <div className="modal-backdrop"><form className="task-modal compact" onSubmit={(event) => { event.preventDefault(); onSave({ ...form, employeeId: form.workerId, plannedQuantity: standard?.dailyPlan ?? 0, createdBy: user.id }); }}><div className="modal-title"><div><h2>Добавить факт за день</h2><p>Короткая форма для ИТР. Рабочий не получает личный кабинет.</p></div><button type="button" onClick={onClose}>×</button></div><label>Дата<input type="date" value={form.date} onChange={(event) => update("date", event.target.value)} /></label><label>Объект<select value={form.objectId} onChange={(event) => update("objectId", event.target.value)}>{objects.map((item) => <option key={item.id} value={item.id}>{item.name}</option>)}</select></label><label>Корпус<select value={form.buildingId} onChange={(event) => update("buildingId", event.target.value)}>{selectedObject?.buildings.map((building) => <option key={building.id} value={building.id}>{building.name}</option>)}</select></label><label>Бригада<select value={form.teamId} onChange={(event) => update("teamId", event.target.value)}>{teams.map((team) => <option key={team.id} value={team.id}>{team.name}</option>)}</select></label><label>Рабочий<select value={form.workerId} onChange={(event) => update("workerId", event.target.value)}><option value="">Бригада целиком</option>{teamWorkers.map((worker) => <option key={worker.id} value={worker.id}>{worker.name} — {worker.workerType}</option>)}</select></label><label>Вид работ<select value={form.workTypeId} onChange={(event) => update("workTypeId", event.target.value)}>{standards.map((item) => <option key={item.id} value={item.id}>{item.workType}</option>)}</select></label><div className="auto-plan-box">План: <strong>{standard?.dailyPlan ?? 0} {standard?.unitName}</strong></div><label>Факт<input type="number" value={form.actualQuantity} onChange={(event) => update("actualQuantity", event.target.value)} /></label>{isBehindPlan && <div className="soft-warning">Укажите причину отставания, чтобы руководитель видел, что мешает работе.</div>}<label className={isBehindPlan && !form.delayReason ? "needs-attention" : ""}>Причина отставания<select value={form.delayReason} onChange={(event) => update("delayReason", event.target.value)}><option value="">Не выбрана</option>{delayReasonOptions.map((item) => <option key={item} value={item}>{item}</option>)}</select></label><label>Комментарий<textarea value={form.comment} onChange={(event) => update("comment", event.target.value)} /></label><div className="form-actions"><button className="secondary-button" type="button" onClick={onClose}>Отмена</button><button className="primary-button">Сохранить факт</button></div></form></div>;
+  const approvedSchedule = getManpowerRequests().filter((request) =>
+    (request.targetDate ?? request.date) === form.date &&
+    request.objectId === form.objectId &&
+    request.buildingId === form.buildingId &&
+    ["утверждена", "скорректирована"].includes(request.status)
+  );
+  return <div className="modal-backdrop"><form className="task-modal compact" onSubmit={(event) => { event.preventDefault(); onSave({ ...form, employeeId: form.workerId, plannedQuantity: standard?.dailyPlan ?? 0, createdBy: user.id }); }}><div className="modal-title"><div><h2>Добавить факт за день</h2><p>Короткая форма для ИТР. Рабочий не получает личный кабинет.</p></div><button type="button" onClick={onClose}>×</button></div><label>Дата<input type="date" value={form.date} onChange={(event) => update("date", event.target.value)} /></label><label>Объект<select value={form.objectId} onChange={(event) => update("objectId", event.target.value)}>{objects.map((item) => <option key={item.id} value={item.id}>{item.name}</option>)}</select></label><label>Корпус<select value={form.buildingId} onChange={(event) => update("buildingId", event.target.value)}>{selectedObject?.buildings.map((building) => <option key={building.id} value={building.id}>{building.name}</option>)}</select></label><label>Бригада<select value={form.teamId} onChange={(event) => update("teamId", event.target.value)}>{teams.map((team) => <option key={team.id} value={team.id}>{team.name}</option>)}</select></label><label>Рабочий<select value={form.workerId} onChange={(event) => update("workerId", event.target.value)}><option value="">Бригада целиком</option>{teamWorkers.map((worker) => <option key={worker.id} value={worker.id}>{worker.name} — {worker.workerType}</option>)}</select></label>{approvedSchedule.length > 0 && <div className="approved-manpower-box"><span>Утверждённая расстановка на выбранный день</span>{approvedSchedule.map((request) => <div className="approved-manpower-row" key={request.id}><strong>{request.workType}</strong><small>{request.approvedLoaders ?? request.loadersRequested ?? 0} грузч. / {request.approvedInstallers ?? request.installersRequested ?? 0} монт. · {request.doorsPlanned ?? 0} дверей · {request.status}</small></div>)}</div>}<label>Вид работ<select value={form.workTypeId} onChange={(event) => update("workTypeId", event.target.value)}>{standards.map((item) => <option key={item.id} value={item.id}>{item.workType}</option>)}</select></label><div className="auto-plan-box">План: <strong>{standard?.dailyPlan ?? 0} {standard?.unitName}</strong></div><label>Факт<input type="number" value={form.actualQuantity} onChange={(event) => update("actualQuantity", event.target.value)} /></label>{isBehindPlan && <div className="soft-warning">Укажите причину отставания, чтобы руководитель видел, что мешает работе.</div>}<label className={isBehindPlan && !form.delayReason ? "needs-attention" : ""}>Причина отставания<select value={form.delayReason} onChange={(event) => update("delayReason", event.target.value)}><option value="">Не выбрана</option>{delayReasonOptions.map((item) => <option key={item} value={item}>{item}</option>)}</select></label><label>Комментарий<textarea value={form.comment} onChange={(event) => update("comment", event.target.value)} /></label><div className="form-actions"><button className="secondary-button" type="button" onClick={onClose}>Отмена</button><button className="primary-button">Сохранить факт</button></div></form></div>;
 }
 
 function MultiFactModal({ objects, standards, teams, employees, user, onClose, onSave }) {
@@ -3021,10 +3060,10 @@ function CompanyDashboard({ objects, user, users, onOpen }) {
   const deviation = planFact.fact - planFact.plan;
   const completion = Math.round((planFact.fact / planFact.plan) * 100);
   const tomorrow = isoDateOffset(1);
-  const manpowerTomorrow = getManpowerShortage(tomorrow);
+  const manpowerTomorrow = getManpowerSummaryByDate(tomorrow);
   const manpowerObjects = getManpowerObjectOptions(objects);
   const manpowerTomorrowRows = getManpowerRequests()
-    .filter((request) => request.date === tomorrow && (["высокий", "критичный"].includes(request.priority) || Number(request.approvedLoaders) < Number(request.loadersRequested) || Number(request.approvedInstallers) < Number(request.installersRequested)))
+    .filter((request) => (request.targetDate ?? request.date) === tomorrow)
     .slice(0, 5);
   const manpowerObjectName = (id) => manpowerObjects.find((object) => object.id === id)?.name ?? id;
 
@@ -3056,16 +3095,18 @@ function CompanyDashboard({ objects, user, users, onOpen }) {
           <div className="plan-fact"><div><span>План недели</span><strong>{planFact.plan}</strong></div><div><span>Факт недели</span><strong>{planFact.fact}</strong></div><div><span>Отклонение</span><strong className={deviation < 0 ? "danger-text" : "success-text"}>{deviation}</strong></div><div><span>Выполнение</span><strong>{completion}%</strong></div></div>
         </section>
         <section className="executive-card">
-          <div className="executive-card-title"><h3>Расстановка на завтра</h3><p>Заявки ИТР и дефицит людей.</p></div>
+          <div className="executive-card-title"><h3>Расстановка на завтра</h3><p>Заявки ИТР, решения директора и итоговые количества.</p></div>
           <div className="plan-fact manpower-dashboard">
             <div><span>Заявок</span><strong>{manpowerTomorrow.total}</strong></div>
             <div><span>Утверждено</span><strong>{manpowerTomorrow.approved}</strong></div>
             <div><span>Без решения</span><strong className={manpowerTomorrow.unresolved ? "danger-text" : ""}>{manpowerTomorrow.unresolved}</strong></div>
-            <div><span>Дефицит груз.</span><strong className={manpowerTomorrow.loadersShortage ? "danger-text" : "success-text"}>{manpowerTomorrow.loadersShortage}</strong></div>
-            <div><span>Дефицит монт.</span><strong className={manpowerTomorrow.installersShortage ? "danger-text" : "success-text"}>{manpowerTomorrow.installersShortage}</strong></div>
-            <div><span>Высокий приоритет</span><strong>{manpowerTomorrow.highPriority}</strong></div>
+            <div><span>Скорректировано</span><strong>{manpowerTomorrow.adjusted}</strong></div>
+            <div><span>Запрошено груз.</span><strong>{manpowerTomorrow.requestedLoaders}</strong></div>
+            <div><span>Утверждено груз.</span><strong>{manpowerTomorrow.approvedLoaders}</strong></div>
+            <div><span>Запрошено монт.</span><strong>{manpowerTomorrow.requestedInstallers}</strong></div>
+            <div><span>Утверждено монт.</span><strong>{manpowerTomorrow.approvedInstallers}</strong></div>
           </div>
-          <div className="risk-list compact">{manpowerTomorrowRows.map((request) => <button key={request.id}><strong>{manpowerObjectName(request.objectId)}</strong><span>{request.priority} · {request.comment || request.reason}</span><small>запрос {request.loadersRequested}/{request.installersRequested}, утв. {request.approvedLoaders || 0}/{request.approvedInstallers || 0}</small></button>)}{manpowerTomorrowRows.length === 0 && <div className="empty-plan">Рисков по людям на завтра нет.</div>}</div>
+          <div className="risk-list compact">{manpowerTomorrowRows.map((request) => <button key={request.id}><strong>{manpowerObjectName(request.objectId)}</strong><span>{request.requestedByName} · {request.workType ?? request.reason} · {request.priority}</span><small>дверей {request.doorsPlanned || "—"} · запрос {request.loadersRequested}/{request.installersRequested} · утверждено {request.approvedLoaders || 0}/{request.approvedInstallers || 0}</small></button>)}{manpowerTomorrowRows.length === 0 && <div className="empty-plan">Заявок на завтра пока нет.</div>}</div>
         </section>
         <section className="executive-card wide">
           <div className="executive-card-title"><h3>Ответственные</h3><p>Нагрузка и проблемные зоны по людям.</p></div>
