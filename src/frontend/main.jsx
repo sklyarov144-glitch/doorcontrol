@@ -338,6 +338,7 @@ function normalizeObject(object) {
   const now = new Date().toISOString();
   const normalizedId = object.id === "object-north" ? "matveevsky-park" : object.id;
   return {
+    ...object,
     id: normalizedId,
     name: object.name,
     address: object.address ?? "адрес уточняется",
@@ -352,8 +353,6 @@ function normalizeObject(object) {
     createdAt: object.createdAt ?? "2026-06-01T08:00:00.000Z",
     updatedAt: object.updatedAt ?? now,
     isActive: object.isActive ?? object.status !== "архив",
-    ...object,
-    id: normalizedId,
     buildings: (object.buildings ?? []).map((building) => normalizeBuilding(building, normalizedId)),
   };
 }
