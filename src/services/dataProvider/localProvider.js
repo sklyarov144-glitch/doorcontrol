@@ -1,0 +1,84 @@
+const keys = {
+  users: "gross-lean-montage.users.v1",
+  objects: "gross-lean-montage.visual.mvp.v7",
+  tasks: "gross-lean-montage.manual-tasks.v1",
+  notifications: "gross-lean-montage.notifications.v1",
+  documentItems: "gross-lean-montage.matrix-documents.v1",
+  teams: "gross-lean-montage.teams.v1",
+  employees: "gross-lean-montage.employees.v1",
+  workStandards: "gross-lean-montage.work-standards.v1",
+  objectWorkPlans: "gross-lean-montage.object-work-plans.v1",
+  dailyWorkReports: "gross-lean-montage.daily-work-reports.v1",
+  manpowerRequests: "gross-lean-montage.manpower-requests.v1",
+  activityLogs: "gross-lean-montage.activity-logs.v1",
+};
+
+function readCollection(key) {
+  try {
+    return JSON.parse(localStorage.getItem(key)) ?? [];
+  } catch {
+    return [];
+  }
+}
+
+function writeCollection(key, rows) {
+  localStorage.setItem(key, JSON.stringify(rows));
+  return rows;
+}
+
+function makeCrud(key, idPrefix) {
+  return {
+    getAll: () => readCollection(key),
+    getById: (id) => readCollection(key).find((item) => item.id === id) ?? null,
+    create: (data) => {
+      const now = new Date().toISOString();
+      const item = {
+        id: data.id ?? `${idPrefix}-${Date.now()}`,
+        ...data,
+        createdAt: data.createdAt ?? now,
+        updatedAt: now,
+      };
+      writeCollection(key, [item, ...readCollection(key)]);
+      return item;
+    },
+    update: (id, data) => {
+      const now = new Date().toISOString();
+      const next = readCollection(key).map((item) =>
+        item.id === id ? { ...item, ...data, updatedAt: now } : item
+      );
+      writeCollection(key, next);
+      return next.find((item) => item.id === id) ?? null;
+    },
+    disable: (id) => {
+      const now = new Date().toISOString();
+      const next = readCollection(key).map((item) =>
+        item.id === id ? { ...item, status: "disabled", isActive: false, updatedAt: now } : item
+      );
+      writeCollection(key, next);
+      return next.find((item) => item.id === id) ?? null;
+    },
+  };
+}
+
+export const localProvider = {
+  users: makeCrud(keys.users, "user"),
+  objects: makeCrud(keys.objects, "object"),
+  buildings: {
+    getAll: () => readCollection(keys.objects).flatMap((object) => object.buildings ?? []),
+    getById: (id) => readCollection(keys.objects).flatMap((object) => object.buildings ?? []).find((building) => building.id === id) ?? null,
+  },
+  doors: {
+    getAll: () => readCollection(keys.objects).flatMap((object) => (object.buildings ?? []).flatMap((building) => (building.floors ?? []).flatMap((floor) => floor.doors ?? []))),
+    getById: (id) => localProvider.doors.getAll().find((door) => door.id === id) ?? null,
+  },
+  tasks: makeCrud(keys.tasks, "task"),
+  notifications: makeCrud(keys.notifications, "notification"),
+  documentItems: makeCrud(keys.documentItems, "document"),
+  teams: makeCrud(keys.teams, "team"),
+  employees: makeCrud(keys.employees, "employee"),
+  workStandards: makeCrud(keys.workStandards, "standard"),
+  objectWorkPlans: makeCrud(keys.objectWorkPlans, "work-plan"),
+  dailyWorkReports: makeCrud(keys.dailyWorkReports, "daily-report"),
+  manpowerRequests: makeCrud(keys.manpowerRequests, "manpower"),
+  activityLogs: makeCrud(keys.activityLogs, "activity"),
+};

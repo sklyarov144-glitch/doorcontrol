@@ -57,13 +57,13 @@ import {
   updateWorkStandard,
   disableWorkStandard,
 } from "./storage";
+import { dataProvider } from "../services/dataProvider";
 import "./styles.css";
 
 const STORAGE_KEY = "gross-lean-montage.visual.mvp.v7";
 const USERS_STORAGE_KEY = "gross-lean-montage.users.v1";
 const CURRENT_USER_KEY = "gross-lean-montage.current-user.v1";
 const MATRIX_DOCUMENTS_KEY = "gross-lean-montage.matrix-documents.v1";
-const ADMIN_PASSWORD = "123456";
 
 const doorStatusOptions = [
   "не начато",
@@ -405,10 +405,11 @@ function saveObjects(objects) {
 }
 
 const mockUsers = [
-  { id: "creator-1", name: "Иван", role: "creator", position: "Создатель сайта", email: "ivan@gross.ru", phone: "+7 900 100-00-01", avatar: "", password: "123456" },
-  { id: "head-1", name: "Руководитель", role: "company_head", position: "Руководитель компании", email: "head@gross.ru", phone: "+7 900 100-00-02", avatar: "", password: "123456" },
-  { id: "director-1", name: "Директор строительства", role: "construction_director", position: "Директор по строительству", email: "director@gross.ru", phone: "+7 900 100-00-03", avatar: "", password: "123456" },
-  { id: "itr-1", name: "ИТР", role: "itr", position: "Инженер ИТР", email: "itr@gross.ru", phone: "+7 900 100-00-04", avatar: "", password: "123456" },
+  { id: "creator-1", name: "Создатель", role: "creator", position: "Создатель сайта", email: "creator@gross.ru", phone: "+7 900 100-00-01", avatarUrl: "", status: "active", assignedObjectIds: [], assignedBuildingIds: [], password: "123456" },
+  { id: "head-1", name: "Руководитель компании", role: "company_head", position: "Руководитель компании", email: "head@gross.ru", phone: "+7 900 100-00-02", avatarUrl: "", status: "active", assignedObjectIds: [], assignedBuildingIds: [], password: "123456" },
+  { id: "director-1", name: "Директор строительства", role: "construction_director", position: "Директор по строительству", email: "director@gross.ru", phone: "+7 900 100-00-03", avatarUrl: "", status: "active", assignedObjectIds: ["matveevsky-park", "prokshino", "salaryevo-park"], assignedBuildingIds: [], password: "123456" },
+  { id: "itr-1", name: "ИТР Матвеевский парк", role: "itr", position: "Инженер ИТР", email: "itr.matveevsky@gross.ru", phone: "+7 900 100-00-04", avatarUrl: "", status: "active", assignedObjectIds: ["matveevsky-park"], assignedBuildingIds: ["matveevsky-park-building-4-1", "matveevsky-park-building-4-2"], password: "123456" },
+  { id: "itr-2", name: "ИТР Прокшино", role: "itr", position: "Инженер ИТР", email: "itr.prokshino@gross.ru", phone: "+7 900 100-00-05", avatarUrl: "", status: "active", assignedObjectIds: ["prokshino"], assignedBuildingIds: ["prokshino-building-6-1", "prokshino-building-6-2"], password: "123456" },
 ];
 
 const roleLabels = {
@@ -450,10 +451,80 @@ function getManpowerObjectOptions(objects) {
 
 function loadUsers() {
   try {
-    return JSON.parse(localStorage.getItem(USERS_STORAGE_KEY)) ?? mockUsers;
+    const saved = JSON.parse(localStorage.getItem(USERS_STORAGE_KEY)) ?? [];
+    const savedById = new Map(saved.map((user) => [user.id, normalizeUser(user)]));
+    const merged = mockUsers.map((user) => ({ ...normalizeUser(user), ...(savedById.get(user.id) ?? {}) }));
+    const mockIds = new Set(mockUsers.map((user) => user.id));
+    return [...merged, ...saved.map(normalizeUser).filter((user) => !mockIds.has(user.id))];
   } catch {
-    return mockUsers;
+    return mockUsers.map(normalizeUser);
   }
+}
+
+function normalizeUser(user) {
+  const now = "2026-06-01T08:00:00.000Z";
+  return {
+    id: user.id,
+    name: user.name,
+    email: user.email ?? "",
+    phone: user.phone ?? "",
+    role: user.role ?? "itr",
+    position: user.position ?? "",
+    avatarUrl: user.avatarUrl ?? user.avatar ?? "",
+    avatar: user.avatarUrl ?? user.avatar ?? "",
+    status: user.status ?? "active",
+    assignedObjectIds: user.assignedObjectIds ?? [],
+    assignedBuildingIds: user.assignedBuildingIds ?? [],
+    createdAt: user.createdAt ?? now,
+    updatedAt: user.updatedAt ?? now,
+    lastLoginAt: user.lastLoginAt ?? "",
+    password: user.password ?? "123456",
+  };
+}
+
+function saveUsers(users) {
+  localStorage.setItem(USERS_STORAGE_KEY, JSON.stringify(users.map(normalizeUser)));
+}
+
+function canManageUsers(user) {
+  return ["creator", "company_head", "construction_director"].includes(user.role);
+}
+
+function canAssignRole(managerRole, targetRole) {
+  if (managerRole === "creator") return true;
+  if (managerRole === "company_head") return ["company_head", "construction_director", "itr"].includes(targetRole);
+  if (managerRole === "construction_director") return targetRole === "itr";
+  return false;
+}
+
+function getVisibleUsersForManager(currentUser, users, objects) {
+  if (["creator", "company_head"].includes(currentUser.role)) return users;
+  if (currentUser.role === "construction_director") {
+    const ownObjectIds = new Set(objects.filter((object) => [object.responsibleDirectorId, object.responsibleId].includes(currentUser.id) || currentUser.assignedObjectIds?.includes(object.id)).map((object) => object.id));
+    return users.filter((user) => user.id === currentUser.id || user.role === "itr" && user.assignedObjectIds?.some((id) => ownObjectIds.has(id)));
+  }
+  return users.filter((user) => user.id === currentUser.id);
+}
+
+function getVisibleObjectsForUser(user, objects) {
+  if (!user || ["creator", "company_head"].includes(user.role)) return objects;
+  if (user.role === "construction_director") {
+    return objects.filter((object) => [object.responsibleDirectorId, object.responsibleId].includes(user.id) || user.assignedObjectIds?.includes(object.id));
+  }
+  if (user.role === "itr") {
+    return objects
+      .map((object) => ({
+        ...object,
+        buildings: object.buildings.filter((building) =>
+          user.assignedObjectIds?.includes(object.id) ||
+          user.assignedBuildingIds?.includes(building.id) ||
+          object.responsibleItrIds?.includes(user.id) ||
+          building.responsibleItrId === user.id
+        ),
+      }))
+      .filter((object) => user.assignedObjectIds?.includes(object.id) || object.buildings.length > 0);
+  }
+  return objects;
 }
 
 function getAllDoors(object) {
@@ -564,10 +635,11 @@ function App() {
   const [notificationVersion, setNotificationVersion] = useState(0);
   const [actNotificationTask, setActNotificationTask] = useState(null);
   const [sidebarCollapsed, setSidebarCollapsed] = useState(false);
+  const visibleObjects = useMemo(() => getVisibleObjectsForUser(user, objects), [user, objects]);
 
   const selectedObject = useMemo(
-    () => objects.find((object) => object.id === selectedObjectId) ?? objects[0],
-    [objects, selectedObjectId]
+    () => visibleObjects.find((object) => object.id === selectedObjectId) ?? visibleObjects[0] ?? objects[0],
+    [visibleObjects, objects, selectedObjectId]
   );
   const selectedBuilding = useMemo(
     () =>
@@ -899,7 +971,7 @@ function App() {
   };
 
   const goToObject = (objectId) => {
-    const nextObject = objects.find((object) => object.id === objectId) ?? objects[0];
+    const nextObject = visibleObjects.find((object) => object.id === objectId) ?? visibleObjects[0] ?? objects[0];
     setSelectedObjectId(nextObject.id);
     setSelectedBuildingId(nextObject.buildings[0]?.id ?? "");
     setScreen("object");
@@ -986,8 +1058,22 @@ function App() {
 
   const defaultScreenForRole = (role) => role === "itr" ? "tasks" : "company_dashboard";
 
+  const loginUser = (email, password) => {
+    const nextUser = users.find((item) => item.email.toLowerCase() === email.toLowerCase().trim() && item.password === password);
+    if (!nextUser) return { ok: false, message: "Неверный email или пароль" };
+    if (nextUser.status === "disabled") return { ok: false, message: "Пользователь отключён" };
+    const updated = users.map((item) => item.id === nextUser.id ? { ...item, lastLoginAt: new Date().toISOString(), updatedAt: new Date().toISOString() } : item);
+    setUsers(updated);
+    saveUsers(updated);
+    setCurrentUserId(nextUser.id);
+    localStorage.setItem(CURRENT_USER_KEY, nextUser.id);
+    setScreen(defaultScreenForRole(nextUser.role));
+    setIsLoggedIn(true);
+    return { ok: true };
+  };
+
   if (!isLoggedIn) {
-    return <LoginPage userPassword={user.password} onLogin={() => { setScreen(defaultScreenForRole(user.role)); setIsLoggedIn(true); }} />;
+    return <LoginPage users={users} onLogin={loginUser} />;
   }
 
   return (
@@ -1053,16 +1139,17 @@ function App() {
           {screen === "profile" && (
             <ProfilePage
               user={user}
+              objects={objects}
               onSave={(nextUser) => {
                 const nextUsers = users.map((item) => item.id === nextUser.id ? nextUser : item);
                 setUsers(nextUsers);
-                localStorage.setItem(USERS_STORAGE_KEY, JSON.stringify(nextUsers));
+                saveUsers(nextUsers);
               }}
             />
           )}
           {screen === "documents" && <DocumentsPage />}
-          {screen === "brigade_plan" && <BrigadePlanPage objects={objects} user={user} users={users} />}
-          {screen === "manpower" && <ManpowerPage objects={objects} user={user} users={users} onNotify={refreshNotifications} />}
+          {screen === "brigade_plan" && <BrigadePlanPage objects={visibleObjects} user={user} users={users} />}
+          {screen === "manpower" && <ManpowerPage objects={visibleObjects} user={user} users={users} onNotify={refreshNotifications} />}
           {screen === "notifications" && (
             <NotificationsPage
               notifications={notifications}
@@ -1091,7 +1178,7 @@ function App() {
           {screen === "tasks" && (
             <ManualTasksPage
               tasks={manualTasks}
-              objects={objects}
+              objects={visibleObjects}
               user={user}
               users={users}
               onOpen={openProblem}
@@ -1101,14 +1188,15 @@ function App() {
               onAddLink={linkManualTask}
             />
           )}
-          {screen === "custody_acts" && <CustodyActsPage objects={objects} user={user} users={users} onOpen={openProblem} onUpdateAct={updateCustodyAct} />}
-          {screen === "tn_issues" && <TnIssuesPage objects={objects} user={user} users={users} onOpen={openProblem} />}
-          {screen === "today_tasks" && <TodayTasksPage objects={objects} user={user} users={users} onOpen={openProblem} />}
-          {screen === "problem_center" && <ProblemCenterPage objects={objects} user={user} users={users} onOpen={openProblem} onCreateTask={openTaskModal} />}
-          {screen === "reports" && <ReportsPage objects={objects} />}
-          {screen === "company_dashboard" && <CompanyDashboard objects={objects} user={user} users={users} onOpen={openProblem} />}
-          {["companies", "users", "roles", "itr_team"].includes(screen) && <PlaceholderPage screen={screen} />}
-          {screen === "objects" && <ObjectsPage objects={objects} onOpen={goToObject} />}
+          {screen === "custody_acts" && <CustodyActsPage objects={visibleObjects} user={user} users={users} onOpen={openProblem} onUpdateAct={updateCustodyAct} />}
+          {screen === "tn_issues" && <TnIssuesPage objects={visibleObjects} user={user} users={users} onOpen={openProblem} />}
+          {screen === "today_tasks" && <TodayTasksPage objects={visibleObjects} user={user} users={users} onOpen={openProblem} />}
+          {screen === "problem_center" && <ProblemCenterPage objects={visibleObjects} user={user} users={users} onOpen={openProblem} onCreateTask={openTaskModal} />}
+          {screen === "reports" && <ReportsPage objects={visibleObjects} />}
+          {screen === "company_dashboard" && <CompanyDashboard objects={visibleObjects} user={user} users={users} onOpen={openProblem} />}
+          {screen === "users" && <UsersPage users={users} objects={objects} currentUser={user} onSave={(nextUsers) => { setUsers(nextUsers); saveUsers(nextUsers); }} />}
+          {["companies", "roles", "itr_team"].includes(screen) && <PlaceholderPage screen={screen} />}
+          {screen === "objects" && <ObjectsPage objects={visibleObjects} onOpen={goToObject} />}
           {screen === "object" && (
             <ObjectPage
               object={selectedObject}
@@ -1189,10 +1277,11 @@ function App() {
   );
 }
 
-function LoginPage({ onLogin, userPassword }) {
-  const [login, setLogin] = useState("");
+function LoginPage({ users, onLogin }) {
+  const [email, setEmail] = useState("creator@gross.ru");
   const [password, setPassword] = useState("");
   const [error, setError] = useState("");
+  const activeUsers = users.filter((user) => user.status !== "disabled");
 
   return (
     <main className="login-page">
@@ -1209,24 +1298,29 @@ function LoginPage({ onLogin, userPassword }) {
           className="login-form"
           onSubmit={(event) => {
             event.preventDefault();
-            if (login === "admin" && password === (userPassword || ADMIN_PASSWORD)) {
+            const result = onLogin(email, password);
+            if (result.ok) {
               setError("");
-              onLogin();
               return;
             }
-
-            setError("Неверный логин или пароль");
+            setError(result.message);
           }}
         >
           <label>
-            Логин
+            Email
             <input
-              type="text"
+              type="email"
               autoComplete="username"
-              value={login}
-              onChange={(event) => setLogin(event.target.value)}
-              placeholder="admin"
+              value={email}
+              onChange={(event) => setEmail(event.target.value)}
+              placeholder="creator@gross.ru"
             />
+          </label>
+          <label>
+            Демо-пользователь
+            <select value={email} onChange={(event) => setEmail(event.target.value)}>
+              {activeUsers.map((user) => <option key={user.id} value={user.email}>{user.name} — {roleLabels[user.role]}</option>)}
+            </select>
           </label>
           <label>
             Пароль
@@ -1386,7 +1480,7 @@ function Header({
           onOpenPage={onOpenNotificationsPage}
         />
         <div className="user-chip"><strong>{user.name}</strong><span>{roleLabels[user.role]}</span></div>
-        <select aria-label="Текущий пользователь" value={user.id} onChange={(event) => onUserChange(event.target.value)}>{users.map((item) => <option key={item.id} value={item.id}>{item.name} — {roleLabels[item.role]}</option>)}</select>
+        <select aria-label="Текущий пользователь" value={user.id} onChange={(event) => onUserChange(event.target.value)}>{users.filter((item) => item.status !== "disabled").map((item) => <option key={item.id} value={item.id}>{item.name} — {roleLabels[item.role]}</option>)}</select>
       </div>
     </header>
   );
@@ -2347,6 +2441,92 @@ function RangeField({ label, value, min, max, onChange }) {
   return <label className="range-field"><span>{label}<b>{Math.round(value)}</b></span><input type="range" min={min} max={max} value={value} onChange={(event) => onChange(Number(event.target.value))} /></label>;
 }
 
+function UsersPage({ users, objects, currentUser, onSave }) {
+  const [editingUser, setEditingUser] = useState(null);
+  const visibleUsers = getVisibleUsersForManager(currentUser, users, objects);
+  const canCreate = canManageUsers(currentUser);
+  const saveUser = (values) => {
+    const prepared = normalizeUser(values);
+    const nextUsers = prepared.id && users.some((user) => user.id === prepared.id)
+      ? users.map((user) => user.id === prepared.id ? dataProvider.users.update(prepared.id, prepared) ?? prepared : user)
+      : [dataProvider.users.create({ ...prepared, id: prepared.id || `user-${Date.now()}` }), ...users];
+    onSave(nextUsers.map(normalizeUser));
+    setEditingUser(null);
+  };
+  const disableUser = (userId) => {
+    dataProvider.users.disable(userId);
+    onSave(users.map((user) => user.id === userId ? { ...user, status: "disabled", updatedAt: new Date().toISOString() } : user));
+  };
+
+  return (
+    <section className="users-page">
+      <div className="tasks-hero">
+        <div>
+          <span>Пользователи и доступы</span>
+          <h2>Команда, роли и назначения</h2>
+          <p>Создание пользователей, назначение объектов и подготовка к серверной авторизации.</p>
+        </div>
+        {canCreate && <button className="primary-button" onClick={() => setEditingUser({ status: "active", role: "itr", password: "123456", assignedObjectIds: [], assignedBuildingIds: [] })}>Добавить пользователя</button>}
+      </div>
+      <div className="users-grid">
+        {visibleUsers.map((user) => (
+          <article className={`user-admin-card ${user.status === "disabled" ? "disabled" : ""}`} key={user.id}>
+            <div className="user-admin-avatar">{user.avatarUrl ? <img src={user.avatarUrl} alt="" /> : user.name.slice(0, 1)}</div>
+            <div>
+              <h3>{user.name}</h3>
+              <p>{user.position}</p>
+              <span>{user.email}</span>
+            </div>
+            <StatusBadge value={user.status === "disabled" ? "отключён" : roleLabels[user.role]} />
+            <div className="user-admin-meta">
+              <span>Объектов: {user.assignedObjectIds?.length || (["creator", "company_head"].includes(user.role) ? "все" : 0)}</span>
+              <span>Корпусов: {user.assignedBuildingIds?.length || "—"}</span>
+              <span>Вход: {user.lastLoginAt ? new Date(user.lastLoginAt).toLocaleString("ru-RU") : "не было"}</span>
+            </div>
+            <div className="task-actions">
+              {canCreate && <button className="secondary-button slim" onClick={() => setEditingUser(user)}>Редактировать</button>}
+              {canCreate && user.id !== currentUser.id && user.status !== "disabled" && <button className="secondary-button slim" onClick={() => disableUser(user.id)}>Отключить</button>}
+            </div>
+          </article>
+        ))}
+      </div>
+      {editingUser && <UserEditModal user={editingUser} currentUser={currentUser} objects={objects} onClose={() => setEditingUser(null)} onSave={saveUser} />}
+    </section>
+  );
+}
+
+function UserEditModal({ user, currentUser, objects, onClose, onSave }) {
+  const [form, setForm] = useState(normalizeUser({ ...user, id: user.id ?? `user-${Date.now()}`, name: user.name ?? "", email: user.email ?? "", phone: user.phone ?? "", position: user.position ?? "", role: user.role ?? "itr" }));
+  const update = (field, value) => setForm((current) => ({ ...current, [field]: value }));
+  const allowedRoles = ["creator", "company_head"].includes(currentUser.role)
+    ? (currentUser.role === "creator" ? ["creator", "company_head", "construction_director", "itr"] : ["company_head", "construction_director", "itr"])
+    : ["itr"];
+  const buildings = objects.flatMap((object) => object.buildings.map((building) => ({ ...building, objectName: object.name })));
+  const toggle = (field, id) => update(field, form[field].includes(id) ? form[field].filter((item) => item !== id) : [...form[field], id]);
+
+  return (
+    <div className="modal-backdrop">
+      <form className="task-modal user-edit-modal" onSubmit={(event) => { event.preventDefault(); if (!canAssignRole(currentUser.role, form.role)) return; onSave(form); }}>
+        <div className="modal-title"><div><h2>{user.name ? "Редактировать пользователя" : "Добавить пользователя"}</h2><p>Роль, контакты и назначения.</p></div><button type="button" onClick={onClose}>×</button></div>
+        <div className="task-form-grid">
+          <label>ФИО<input value={form.name} onChange={(event) => update("name", event.target.value)} required /></label>
+          <label>Email<input type="email" value={form.email} onChange={(event) => update("email", event.target.value)} required /></label>
+          <label>Телефон<input value={form.phone} onChange={(event) => update("phone", event.target.value)} /></label>
+          <label>Должность<input value={form.position} onChange={(event) => update("position", event.target.value)} /></label>
+          <label>Роль<select value={form.role} onChange={(event) => update("role", event.target.value)}>{allowedRoles.map((role) => <option key={role} value={role}>{roleLabels[role]}</option>)}</select></label>
+          <label>Статус<select value={form.status} onChange={(event) => update("status", event.target.value)}><option value="active">active</option><option value="disabled">disabled</option></select></label>
+          <label>Временный пароль<input value={form.password} onChange={(event) => update("password", event.target.value)} /></label>
+        </div>
+        <h3 className="modal-subtitle">Назначенные объекты</h3>
+        <div className="checkbox-grid">{objects.map((object) => <label key={object.id}><input type="checkbox" checked={form.assignedObjectIds.includes(object.id)} onChange={() => toggle("assignedObjectIds", object.id)} />{object.name}</label>)}</div>
+        <h3 className="modal-subtitle">Назначенные корпуса</h3>
+        <div className="checkbox-grid">{buildings.map((building) => <label key={building.id}><input type="checkbox" checked={form.assignedBuildingIds.includes(building.id)} onChange={() => toggle("assignedBuildingIds", building.id)} />{building.objectName} / {building.name}</label>)}</div>
+        <div className="form-actions"><button className="secondary-button" type="button" onClick={onClose}>Отмена</button><button className="primary-button">Сохранить пользователя</button></div>
+      </form>
+    </div>
+  );
+}
+
 function isoDateOffset(days = 0) {
   const date = new Date();
   date.setDate(date.getDate() + days);
@@ -2546,12 +2726,14 @@ function ManpowerAdjustModal({ request, objectName, onClose, onSave }) {
   return <div className="modal-backdrop"><form className="task-modal compact" onSubmit={(event) => { event.preventDefault(); onSave(form); }}><div className="modal-title"><div><h2>Скорректировать заявку</h2><p>{objectName}: запрошено {request.loadersRequested} груз. и {request.installersRequested} монт.</p></div><button type="button" onClick={onClose}>×</button></div><label>Утвердить грузчиков<input type="number" min="0" value={form.approvedLoaders} onChange={(event) => update("approvedLoaders", event.target.value)} /></label><label>Утвердить монтажников<input type="number" min="0" value={form.approvedInstallers} onChange={(event) => update("approvedInstallers", event.target.value)} /></label><label>Приоритет<select value={form.priority} onChange={(event) => update("priority", event.target.value)}>{manpowerPriorities.map((item) => <option key={item}>{item}</option>)}</select></label><label>Комментарий директора<textarea value={form.directorComment} onChange={(event) => update("directorComment", event.target.value)} /></label><div className="form-actions"><button className="secondary-button" type="button" onClick={onClose}>Отмена</button><button className="primary-button">Сохранить решение</button></div></form></div>;
 }
 
-function ProfilePage({ user, onSave }) {
+function ProfilePage({ user, objects, onSave }) {
   const [form, setForm] = useState({ ...user, oldPassword: "", newPassword: "" });
   const [saved, setSaved] = useState(false);
   const [error, setError] = useState("");
   const update = (field, value) => { setForm((current) => ({ ...current, [field]: value })); setSaved(false); };
-  return <section className="profile-panel"><div className="profile-card"><div className="profile-avatar"><div>{form.avatar ? <img src={form.avatar} alt="Аватар" /> : form.name.slice(0, 1)}</div><label>Загрузить аватар<input type="file" accept="image/*" onChange={(event) => { const file = event.target.files?.[0]; if (!file) return; const reader = new FileReader(); reader.onload = () => update("avatar", String(reader.result)); reader.readAsDataURL(file); }} /></label></div><form onSubmit={(event) => { event.preventDefault(); setError(""); if (form.newPassword && form.oldPassword !== user.password) { setError("Введите текущий пароль, чтобы подтвердить смену пароля"); return; } const { oldPassword, newPassword, ...profile } = form; onSave({ ...profile, password: newPassword ? newPassword : user.password }); setForm((current) => ({ ...current, oldPassword: "", newPassword: "", password: newPassword ? newPassword : user.password })); setSaved(true); }}><div className="profile-grid"><label>Имя<input value={form.name} onChange={(event) => update("name", event.target.value)} /></label><label>Должность<input value={form.position} onChange={(event) => update("position", event.target.value)} /></label><label>Роль<input value={roleLabels[form.role]} readOnly /></label><label>Email<input type="email" value={form.email} onChange={(event) => update("email", event.target.value)} /></label><label>Телефон<input value={form.phone} onChange={(event) => update("phone", event.target.value)} /></label><label className="profile-password">Текущий пароль<input type="password" value={form.oldPassword} onChange={(event) => update("oldPassword", event.target.value)} placeholder="Введите старый пароль" /></label><label className="profile-password">Новый пароль<input type="password" value={form.newPassword} onChange={(event) => update("newPassword", event.target.value)} placeholder="Оставьте пустым, если не меняете" /></label></div><button className="primary-button">Сохранить профиль</button>{error && <div className="form-error">{error}</div>}{saved && <div className="save-notice">Данные пользователя сохранены</div>}</form></div></section>;
+  const assignedObjects = objects.filter((object) => form.assignedObjectIds?.includes(object.id));
+  const assignedBuildings = objects.flatMap((object) => object.buildings.map((building) => ({ ...building, objectName: object.name }))).filter((building) => form.assignedBuildingIds?.includes(building.id));
+  return <section className="profile-panel"><div className="profile-card"><div className="profile-avatar"><div>{form.avatarUrl ? <img src={form.avatarUrl} alt="Аватар" /> : form.name.slice(0, 1)}</div><label>Загрузить аватар<input type="file" accept="image/*" onChange={(event) => { const file = event.target.files?.[0]; if (!file) return; const reader = new FileReader(); reader.onload = () => update("avatarUrl", String(reader.result)); reader.readAsDataURL(file); }} /></label></div><form onSubmit={(event) => { event.preventDefault(); setError(""); if (form.newPassword && form.oldPassword !== user.password) { setError("Введите текущий пароль, чтобы подтвердить смену пароля"); return; } const { oldPassword, newPassword, ...profile } = form; onSave(normalizeUser({ ...profile, password: newPassword ? newPassword : user.password })); setForm((current) => ({ ...current, oldPassword: "", newPassword: "", password: newPassword ? newPassword : user.password })); setSaved(true); }}><div className="profile-grid"><label>ФИО<input value={form.name} onChange={(event) => update("name", event.target.value)} /></label><label>Должность<input value={form.position} readOnly /></label><label>Роль<input value={roleLabels[form.role]} readOnly /></label><label>Email<input type="email" value={form.email} onChange={(event) => update("email", event.target.value)} /></label><label>Телефон<input value={form.phone} onChange={(event) => update("phone", event.target.value)} /></label><label>Статус<input value={form.status} readOnly /></label><label className="profile-password">Текущий пароль<input type="password" value={form.oldPassword} onChange={(event) => update("oldPassword", event.target.value)} placeholder="Введите старый пароль" /></label><label className="profile-password">Новый пароль<input type="password" value={form.newPassword} onChange={(event) => update("newPassword", event.target.value)} placeholder="Оставьте пустым, если не меняете" /></label></div><div className="profile-assignments"><div><span>Назначенные объекты</span><strong>{assignedObjects.map((object) => object.name).join(", ") || "Все / не ограничено"}</strong></div><div><span>Назначенные корпуса</span><strong>{assignedBuildings.map((building) => `${building.objectName} / ${building.name}`).join(", ") || "Не указаны"}</strong></div></div><button className="primary-button">Сохранить профиль</button>{error && <div className="form-error">{error}</div>}{saved && <div className="save-notice">Данные пользователя сохранены</div>}</form></div></section>;
 }
 
 function BrigadePlanPage({ objects, user, users }) {
