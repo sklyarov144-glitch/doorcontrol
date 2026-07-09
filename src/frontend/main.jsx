@@ -1,7 +1,7 @@
 import React, { useMemo, useState } from "react";
 import { createRoot } from "react-dom/client";
 import matveevskyParkImage from "./assets/matveevsky-park.png";
-import workerMascot from "./assets/gross-worker-mascot.png";
+import loginDoorHero from "./assets/login-door-hero.png";
 import {
   addTask,
   addTaskComment,
@@ -1314,8 +1314,8 @@ function LoginPage({ users, onLogin }) {
           <BrandMark variant="login" />
           <h1>ГРОСС Бережливый Монтаж</h1>
           <p>Цифровое управление монтажом</p>
-          <div className="login-worker-preview" aria-hidden="true">
-            <img src={workerMascot} alt="" />
+          <div className="login-hero-preview" aria-hidden="true">
+            <img src={loginDoorHero} alt="" />
           </div>
         </div>
         <form
