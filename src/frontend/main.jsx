@@ -508,7 +508,7 @@ function normalizeUser(user) {
 }
 
 function saveUsers(users) {
-  localStorage.setItem(USERS_STORAGE_KEY, JSON.stringify(users.map(normalizeUser)));
+  localStorage.setItem(USERS_STORAGE_KEY, JSON.stringify(users.map((user) => normalizeUser({ ...user, status: "active" }))));
 }
 
 function canManageUsers(user) {
@@ -1086,7 +1086,6 @@ function App() {
   const loginUser = (email, password) => {
     const nextUser = users.find((item) => item.email.toLowerCase() === email.toLowerCase().trim() && item.password === password);
     if (!nextUser) return { ok: false, message: "Неверный email или пароль" };
-    if (nextUser.status === "disabled") return { ok: false, message: "Пользователь отключён" };
     const updated = users.map((item) => item.id === nextUser.id ? { ...item, lastLoginAt: new Date().toISOString(), updatedAt: new Date().toISOString() } : item);
     setUsers(updated);
     saveUsers(updated);
@@ -1306,7 +1305,7 @@ function LoginPage({ users, onLogin }) {
   const [email, setEmail] = useState("creator@gross.ru");
   const [password, setPassword] = useState("");
   const [error, setError] = useState("");
-  const activeUsers = users.filter((user) => user.status !== "disabled");
+  const activeUsers = users;
 
   return (
     <main className="login-page">
@@ -1505,7 +1504,7 @@ function Header({
           onOpenPage={onOpenNotificationsPage}
         />
         <div className="user-chip"><strong>{user.name}</strong><span>{roleLabels[user.role]}</span></div>
-        <select aria-label="Текущий пользователь" value={user.id} onChange={(event) => onUserChange(event.target.value)}>{users.filter((item) => item.status !== "disabled").map((item) => <option key={item.id} value={item.id}>{item.name} — {roleLabels[item.role]}</option>)}</select>
+        <select aria-label="Текущий пользователь" value={user.id} onChange={(event) => onUserChange(event.target.value)}>{users.map((item) => <option key={item.id} value={item.id}>{item.name} — {roleLabels[item.role]}</option>)}</select>
       </div>
     </header>
   );
@@ -2473,16 +2472,12 @@ function UsersPage({ users, objects, currentUser, onSave }) {
   const objectNames = new Map(objects.map((object) => [object.id, object.name]));
   const buildingNames = new Map(objects.flatMap((object) => object.buildings.map((building) => [building.id, `${object.name} / ${building.name}`])));
   const saveUser = (values) => {
-    const prepared = normalizeUser(values);
+    const prepared = normalizeUser({ ...values, status: "active" });
     const nextUsers = prepared.id && users.some((user) => user.id === prepared.id)
       ? users.map((user) => user.id === prepared.id ? dataProvider.users.update(prepared.id, prepared) ?? prepared : user)
       : [dataProvider.users.create({ ...prepared, id: prepared.id || `user-${Date.now()}` }), ...users];
-    onSave(nextUsers.map(normalizeUser));
+    onSave(nextUsers.map((user) => normalizeUser({ ...user, status: "active" })));
     setEditingUser(null);
-  };
-  const disableUser = (userId) => {
-    dataProvider.users.disable(userId);
-    onSave(users.map((user) => user.id === userId ? { ...user, status: "disabled", updatedAt: new Date().toISOString() } : user));
   };
   const resetPassword = (userId) => {
     onSave(users.map((user) => user.id === userId ? { ...user, password: "123456", updatedAt: new Date().toISOString() } : user));
@@ -2503,16 +2498,16 @@ function UsersPage({ users, objects, currentUser, onSave }) {
           <thead><tr><th>ФИО</th><th>Роль</th><th>Должность</th><th>Email</th><th>Телефон</th><th>Статус</th><th>Объекты</th><th>Корпуса</th><th>Действия</th></tr></thead>
           <tbody>
             {visibleUsers.map((user) => (
-              <tr key={user.id} className={user.status === "disabled" ? "is-muted" : ""}>
+              <tr key={user.id}>
                 <td><div className="table-user"><span>{user.avatarUrl ? <img src={user.avatarUrl} alt="" /> : user.name.slice(0, 1)}</span><strong>{user.name}</strong></div></td>
                 <td>{roleLabels[user.role]}</td>
                 <td>{user.position}</td>
                 <td>{user.email}</td>
                 <td>{user.phone || "—"}</td>
-                <td><StatusBadge value={user.status === "disabled" ? "отключён" : "active"} /></td>
+                <td><StatusBadge value="active" /></td>
                 <td>{["creator", "company_head"].includes(user.role) && !user.assignedObjectIds?.length ? "Все" : user.assignedObjectIds?.map((id) => objectNames.get(id)).filter(Boolean).join(", ") || "—"}</td>
                 <td>{user.assignedBuildingIds?.map((id) => buildingNames.get(id)).filter(Boolean).join(", ") || "—"}</td>
-                <td><div className="task-actions">{canCreate && <button className="secondary-button slim" onClick={() => setEditingUser(user)}>Редактировать</button>}{canCreate && <button className="secondary-button slim" onClick={() => resetPassword(user.id)}>Сбросить пароль</button>}{canCreate && user.id !== currentUser.id && user.status !== "disabled" && <button className="secondary-button slim" onClick={() => disableUser(user.id)}>Отключить</button>}</div></td>
+                <td><div className="task-actions">{canCreate && <button className="secondary-button slim" onClick={() => setEditingUser(user)}>Редактировать</button>}{canCreate && <button className="secondary-button slim" onClick={() => resetPassword(user.id)}>Сбросить пароль</button>}</div></td>
               </tr>
             ))}
           </tbody>
@@ -2542,7 +2537,7 @@ function UserEditModal({ user, currentUser, objects, onClose, onSave }) {
           <label>Телефон<input value={form.phone} onChange={(event) => update("phone", event.target.value)} /></label>
           <label>Должность<input value={form.position} onChange={(event) => update("position", event.target.value)} /></label>
           <label>Роль<select value={form.role} onChange={(event) => update("role", event.target.value)}>{allowedRoles.map((role) => <option key={role} value={role}>{roleLabels[role]}</option>)}</select></label>
-          <label>Статус<select value={form.status} onChange={(event) => update("status", event.target.value)}><option value="active">active</option><option value="disabled">disabled</option></select></label>
+          <label>Статус<input value="active" readOnly /></label>
           <label>Временный пароль<input value={form.password} onChange={(event) => update("password", event.target.value)} /></label>
         </div>
         <h3 className="modal-subtitle">Назначенные объекты</h3>
