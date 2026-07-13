@@ -117,6 +117,13 @@ export const localProvider = {
   dailyWorkReports: makeCrud(keys.dailyWorkReports, "daily-report"),
   manpowerRequests: makeCrud(keys.manpowerRequests, "manpower"),
   activityLogs: makeCrud(keys.activityLogs, "activity"),
+  contracts: makeCrud("gross-lean-montage.contracts.v1", "contract"),
+  budgetItems: makeCrud("gross-lean-montage.budget-items.v1", "budget"),
+  financialTransactions: makeCrud("gross-lean-montage.financial-transactions.v1", "transaction"),
+  analytics: {
+    getDeliverySummary: () => [],
+    getFinancialSummary: () => [],
+  },
   operations: {
     syncOverdueTasks: () => 0,
   },

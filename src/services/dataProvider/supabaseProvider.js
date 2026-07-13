@@ -302,6 +302,17 @@ export const supabaseProvider = {
   objectWorkPlans: makeCrud("object_work_plans"),
   dailyWorkReports: makeCrud("daily_work_reports"),
   manpowerRequests: makeCrud("manpower_requests"),
+  contracts: makeCrud("contracts"),
+  budgetItems: makeCrud("budget_items"),
+  financialTransactions: makeCrud("financial_transactions"),
+  analytics: {
+    async getDeliverySummary() {
+      return unwrap(await requireSupabase().from("object_delivery_summary").select("*").order("name"));
+    },
+    async getFinancialSummary() {
+      return unwrap(await requireSupabase().from("object_financial_summary").select("*").order("name"));
+    },
+  },
   activityLogs: makeCrud("activity_logs"),
   operations: {
     async syncOverdueTasks() {

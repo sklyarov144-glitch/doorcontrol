@@ -6389,3 +6389,17 @@ th.matrix-actions-column {
   color: #fff;
   font-size: 18px;
 }
+.finance-page {
+  display: grid;
+  gap: 20px;
+}
+
+.positive-value {
+  color: #087a55;
+  font-weight: 800;
+}
+
+.negative-value {
+  color: #c9202f;
+  font-weight: 800;
+}

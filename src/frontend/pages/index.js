@@ -16,3 +16,4 @@ export { default as UsersPage } from "./UsersPage";
 export { default as ProfilePage } from "./ProfilePage";
 export { default as AdminPage } from "./AdminPage";
 export { default as ReportsPage } from "./ReportsPage";
+export { default as FinancePage } from "./FinancePage";

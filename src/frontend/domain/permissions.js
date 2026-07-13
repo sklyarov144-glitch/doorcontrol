@@ -6,6 +6,7 @@ export function canView(user, resource) {
   if (!user) return false;
   if (resource === "admin" || resource === "users") return administrativeRoles.has(user.role);
   if (resource === "company_dashboard") return user.role !== "itr";
+  if (resource === "finance") return user.role !== "itr";
   return roles.includes(user.role);
 }
 

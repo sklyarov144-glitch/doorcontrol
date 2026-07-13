@@ -13,6 +13,7 @@ export const screenPaths = {
   profile: "/profile",
   admin: "/admin",
   reports: "/reports",
+  finance: "/finance",
   tn_issues: "/tn-issues",
   roles: "/roles",
 };

@@ -22,6 +22,7 @@ describe("page module contract", () => {
       "ProfilePage",
       "AdminPage",
       "ReportsPage",
+      "FinancePage",
     ]) {
       expect(pages[page], `${page} must be exported`).toBeTypeOf("function");
     }

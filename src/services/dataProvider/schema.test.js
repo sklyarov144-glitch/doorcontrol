@@ -30,6 +30,14 @@ const auditMigration = readFileSync(
   resolve("supabase/migrations/202607130008_audit_security.sql"),
   "utf8"
 );
+const workforceFinance = readFileSync(
+  resolve("supabase/migrations/202607130009_workforce_finance.sql"),
+  "utf8"
+);
+const workforceFinanceRls = readFileSync(
+  resolve("supabase/migrations/202607130010_workforce_finance_rls.sql"),
+  "utf8"
+);
 
 describe("Supabase schema", () => {
   it("defines the core hierarchy and assignment tables", () => {
@@ -90,5 +98,19 @@ describe("Supabase schema", () => {
     expect(auditMigration).toContain("activity_logs_immutable");
     expect(auditMigration).toContain("array['email', 'phone', 'avatar_url', 'url']");
     expect(auditMigration).toContain("revoke all on function public.audit_entity_change()");
+  });
+
+  it("defines workforce, plan-fact and financial entities", () => {
+    for (const table of ["teams", "employees", "team_members", "team_assignments", "work_standards", "object_work_plans", "daily_work_reports", "manpower_requests", "contracts", "budget_items", "financial_transactions"]) {
+      expect(workforceFinance).toContain(`create table public.${table}`);
+    }
+    expect(workforceFinance).toContain("create view public.object_delivery_summary");
+    expect(workforceFinance).toContain("create view public.object_financial_summary");
+  });
+
+  it("keeps financial data outside ITR policies", () => {
+    expect(workforceFinanceRls).toContain("create policy financial_transactions_select");
+    expect(workforceFinanceRls).toContain("public.has_admin_access()");
+    expect(workforceFinanceRls).toContain("public.current_app_role() in ('creator', 'company_head')");
   });
 });
