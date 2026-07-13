@@ -9,9 +9,14 @@
     "preview": "vite preview --host 0.0.0.0",
     "test": "vitest run",
     "test:watch": "vitest",
-    "lint": "eslint src"
+    "lint": "eslint src",
+    "supabase:start": "supabase start",
+    "supabase:stop": "supabase stop",
+    "supabase:status": "supabase status",
+    "supabase:reset": "supabase db reset"
   },
   "dependencies": {
+    "@supabase/supabase-js": "^2.110.3",
     "@vitejs/plugin-react": "^5.0.0",
     "lz-string": "^1.5.0",
     "react": "^19.0.0",
@@ -29,6 +34,7 @@
     "eslint-plugin-react-refresh": "^0.5.3",
     "globals": "^17.7.0",
     "jsdom": "^29.1.1",
+    "supabase": "^2.109.1",
     "vitest": "^4.1.10"
   }
 }
