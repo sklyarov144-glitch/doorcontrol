@@ -38,6 +38,18 @@ const workforceFinanceRls = readFileSync(
   resolve("supabase/migrations/202607130010_workforce_finance_rls.sql"),
   "utf8"
 );
+const profilePrivilegeGuard = readFileSync(
+  resolve("supabase/migrations/202607140011_profile_privilege_guard.sql"),
+  "utf8"
+);
+const atomicProfileAssignments = readFileSync(
+  resolve("supabase/migrations/202607140012_atomic_profile_assignments.sql"),
+  "utf8"
+);
+const profileVisibilityRls = readFileSync(
+  resolve("supabase/migrations/202607140013_profile_visibility_rls.sql"),
+  "utf8"
+);
 
 describe("Supabase schema", () => {
   it("defines the core hierarchy and assignment tables", () => {
@@ -66,6 +78,29 @@ describe("Supabase schema", () => {
     expect(authHardening).toContain("protect_profile_security_fields");
     expect(authHardening).toContain("new.role is distinct from old.role");
     expect(authHardening).toContain("new.company_id is distinct from old.company_id");
+  });
+
+  it("enforces role hierarchy for profile management", () => {
+    expect(profilePrivilegeGuard).toContain("auth.uid() = old.id and security_fields_changed");
+    expect(profilePrivilegeGuard).toContain("Company head cannot manage creator");
+    expect(profilePrivilegeGuard).toContain("Construction director can manage ITR profiles only");
+    expect(profilePrivilegeGuard).toContain("new.email is distinct from old.email");
+  });
+
+  it("updates profile assignments atomically under caller RLS", () => {
+    expect(atomicProfileAssignments).toContain("function public.save_profile_assignments");
+    expect(atomicProfileAssignments).toContain("security invoker");
+    expect(atomicProfileAssignments).toContain("delete from public.object_assignments");
+    expect(atomicProfileAssignments).toContain("delete from public.building_assignments");
+    expect(atomicProfileAssignments).toContain("grant execute");
+  });
+
+  it("limits profile visibility by role and shared object scope", () => {
+    expect(profileVisibilityRls).toContain("drop policy if exists profiles_select");
+    expect(profileVisibilityRls).toContain("public.current_app_role() in ('creator', 'company_head')");
+    expect(profileVisibilityRls).toContain("public.current_app_role() = 'construction_director'");
+    expect(profileVisibilityRls).toContain("public.current_app_role() = 'itr'");
+    expect(profileVisibilityRls).toContain("public.can_access_building");
   });
 
   it("defines normalized operational modules and idempotent overdue tasks", () => {

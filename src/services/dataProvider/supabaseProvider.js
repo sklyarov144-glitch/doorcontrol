@@ -68,6 +68,44 @@ function mapDoorRecord(door) {
   };
 }
 
+export function mapProfileAssignments(profile) {
+  return {
+    ...profile,
+    assignedObjectIds: (profile.objectAssignments ?? []).map((item) => item.objectId),
+    assignedBuildingIds: (profile.buildingAssignments ?? []).map((item) => item.buildingId),
+  };
+}
+
+export function toDoorOperationalUpdate(door) {
+  return {
+    label: door.number ?? door.label,
+    mark: door.mark,
+    type: door.type,
+    openingNumber: door.openingNumber ?? null,
+    status: door.doorStatus ?? door.status,
+    openingStatus: door.openingStatus,
+    issueStatus: door.issue ?? door.issueStatus,
+    custodyActStatus: door.storageAct ?? door.custodyActStatus,
+    tnStatus: door.tnStatus ?? (door.doorStatus === "принято технадзором" ? "принято ТН" : "не передано"),
+    assignedUserId: asUuid(door.assignedUserId),
+    x: door.x,
+    y: door.y,
+    widthFact: door.widthFact || null,
+    heightFact: door.heightFact || null,
+    model: door.model || null,
+    mountedAt: door.mountedAt || null,
+    tnAcceptedAt: door.tnAcceptedAt || null,
+    custodyActUploadedAt: door.custodyActUploadedAt || null,
+    custodyActClosedAt: door.custodyActClosedAt || null,
+    meta: {
+      ...(door.meta ?? {}),
+      history: door.history ?? [],
+      swing: door.swing,
+      custodyActUrl: door.custodyActUrl ?? "",
+    },
+  };
+}
+
 export function mapObjectTree(rows) {
   return rows.map((object) => ({
     ...object.meta,
@@ -217,11 +255,33 @@ export const supabaseProvider = {
   },
   users: {
     ...usersCrud,
+    async getAll() {
+      const rows = unwrap(await requireSupabase()
+        .from("profiles")
+        .select("*, objectAssignments:object_assignments(object_id), buildingAssignments:building_assignments(building_id)")
+        .order("name"));
+      return Promise.all(rows.map(async (profile) => hydratePrivateAvatar(mapProfileAssignments(profile))));
+    },
+    async save(data) {
+      const profile = unwrap(await requireSupabase().rpc("save_profile_assignments", {
+        p_user_id: data.id,
+        p_name: data.name,
+        p_role: data.role,
+        p_position: data.position || null,
+        p_phone: data.phone || null,
+        p_avatar_url: data.avatarStorageUri ?? data.avatarUrl ?? null,
+        p_status: data.status ?? "active",
+        p_object_ids: data.assignedObjectIds ?? [],
+        p_building_ids: data.assignedBuildingIds ?? [],
+      }));
+      return { ...profile, assignedObjectIds: data.assignedObjectIds ?? [], assignedBuildingIds: data.assignedBuildingIds ?? [] };
+    },
     async invite(data) {
       const result = await requireSupabase().functions.invoke("invite-user", {
         body: toDatabase(data),
       });
-      return unwrap(result);
+      const invited = unwrap(result);
+      return this.save({ ...data, id: invited.userId, status: "active" });
     },
   },
   objects: {
@@ -237,7 +297,17 @@ export const supabaseProvider = {
   },
   buildings: makeCrud("buildings"),
   floors: makeCrud("floors"),
-  doors: makeCrud("doors"),
+  doors: {
+    ...makeCrud("doors"),
+    async updateOperational(id, door) {
+      return unwrap(await requireSupabase()
+        .from("doors")
+        .update(toDatabase(toDoorOperationalUpdate(door)))
+        .eq("id", id)
+        .select()
+        .single());
+    },
+  },
   tasks: {
     ...tasksCrud,
     async getAll() {

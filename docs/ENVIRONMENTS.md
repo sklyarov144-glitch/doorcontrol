@@ -30,6 +30,10 @@ Service role key, пароль БД и токены деплоя никогда 
 - `VERCEL_ORG_ID`
 - `VERCEL_PROJECT_ID`
 
+GitHub Environment variable (не secret):
+
+- `APP_ALLOWED_ORIGINS` — точный список frontend origins через запятую, например `https://app.gross.ru,https://gross-staging.vercel.app`. Production deployment останавливается, если значение не задано.
+
 Только для `production` backup:
 
 - `SUPABASE_DB_URL` — direct database connection string;

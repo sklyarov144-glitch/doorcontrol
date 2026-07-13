@@ -404,6 +404,7 @@ function mergeInitialObjects(savedObjects) {
 }
 
 function loadObjects() {
+  if (dataProviderName === "supabase") return [];
   try {
     const saved = dataProvider.objects.getAll();
     return saved.length ? mergeInitialObjects(saved) : createInitialObjects();
@@ -483,6 +484,7 @@ function getManpowerObjectOptions(objects) {
 }
 
 function loadUsers() {
+  if (dataProviderName === "supabase") return [];
   try {
     const saved = dataProvider.users.getAll();
     const activateUser = (user) => normalizeUser({ ...user, status: "active" });
@@ -518,7 +520,9 @@ function normalizeUser(user) {
 }
 
 function saveUsers(users) {
+  if (dataProviderName === "supabase") return users;
   dataProvider.users.replaceAll(users.map((user) => normalizeUser({ ...user, status: "active" })));
+  return users;
 }
 
 function canManageUsers(user) {
@@ -649,8 +653,10 @@ export function App() {
   const routerNavigate = useNavigate();
   const routeSyncing = React.useRef(false);
   const initialRoute = parseAppRoute(location.pathname);
+  const isRemoteAuth = dataProviderName === "supabase";
   const [objects, setObjects] = useState(loadObjects);
   const [doorMatrix, setDoorMatrix] = useState(() => {
+    if (isRemoteAuth) return [];
     const saved = getDoorMatrix();
     const currentObjects = loadObjects();
     const source = saved.length > 0 ? mergeDoorMatrixWithObjects(saved, currentObjects) : createDoorMatrix(currentObjects);
@@ -658,18 +664,20 @@ export function App() {
     saveDoorMatrix(normalized);
     return normalized;
   });
-  const isRemoteAuth = dataProviderName === "supabase";
   const localSession = isRemoteAuth ? null : dataProvider.auth.getSession();
   const [isLoggedIn, setIsLoggedIn] = useState(() => Boolean(localSession?.userId));
   const [authLoading, setAuthLoading] = useState(isRemoteAuth);
   const [domainLoading, setDomainLoading] = useState(isRemoteAuth);
+  const [domainError, setDomainError] = useState("");
+  const [domainReload, setDomainReload] = useState(0);
+  const [persistenceError, setPersistenceError] = useState("");
   const [users, setUsers] = useState(loadUsers);
   const [currentUserId, setCurrentUserId] = useState(() => localSession?.userId || "creator-1");
-  const user = users.find((item) => item.id === currentUserId) ?? users[0];
+  const user = users.find((item) => item.id === currentUserId) ?? users[0] ?? { id: "", name: "", role: "itr", assignedObjectIds: [], assignedBuildingIds: [] };
   const [screen, setScreen] = useState(initialRoute.screen === "login" ? "objects" : initialRoute.screen);
-  const [selectedObjectId, setSelectedObjectId] = useState(initialRoute.objectId ?? objects[0].id);
+  const [selectedObjectId, setSelectedObjectId] = useState(initialRoute.objectId ?? objects[0]?.id ?? "");
   const [selectedBuildingId, setSelectedBuildingId] = useState(
-    initialRoute.buildingId ?? objects.find((object) => object.id === initialRoute.objectId)?.buildings[0]?.id ?? objects[0].buildings[0].id
+    initialRoute.buildingId ?? objects.find((object) => object.id === initialRoute.objectId)?.buildings[0]?.id ?? objects[0]?.buildings[0]?.id ?? ""
   );
   const [selectedFloorId, setSelectedFloorId] = useState(initialRoute.floorId ?? "");
   const [selectedDoorId, setSelectedDoorId] = useState(initialRoute.doorId ?? "");
@@ -683,13 +691,13 @@ export function App() {
   const visibleObjects = useMemo(() => getVisibleObjectsForUser(user, objects), [user, objects]);
 
   const selectedObject = useMemo(
-    () => visibleObjects.find((object) => object.id === selectedObjectId) ?? visibleObjects[0] ?? objects[0],
+    () => visibleObjects.find((object) => object.id === selectedObjectId) ?? visibleObjects[0] ?? objects[0] ?? null,
     [visibleObjects, objects, selectedObjectId]
   );
   const selectedBuilding = useMemo(
     () =>
-      selectedObject.buildings.find((building) => building.id === selectedBuildingId) ??
-      selectedObject.buildings[0] ?? null,
+      selectedObject?.buildings.find((building) => building.id === selectedBuildingId) ??
+      selectedObject?.buildings[0] ?? null,
     [selectedObject, selectedBuildingId]
   );
   const selectedFloor = useMemo(
@@ -710,7 +718,7 @@ export function App() {
   const notifications = useMemo(() => isRemoteAuth ? remoteNotifications : getNotificationsByUser(user), [isRemoteAuth, remoteNotifications, notificationVersion, user]);
   const unreadNotifications = useMemo(() => isRemoteAuth ? notifications.filter((item) => item.status === "unread").length : getUnreadNotificationsCount(user), [isRemoteAuth, notifications, notificationVersion, user]);
   const taskNoticeCount = useMemo(() => getManualTaskNoticeCount(manualTasks, user), [manualTasks, user]);
-  const canCreateManualTask = ["creator", "company_head", "construction_director"].includes(user.role);
+  const canCreateManualTask = ["creator", "company_head", "construction_director"].includes(user?.role);
   const permissions = useMemo(() => permissionsFor(user), [user]);
   React.useEffect(() => {
     setMonitoringUser(isLoggedIn ? user : null);
@@ -801,16 +809,34 @@ export function App() {
   React.useEffect(() => {
     if (!isRemoteAuth || !isLoggedIn) return;
     let active = true;
-    dataProvider.objects.getTree()
-      .then((rows) => {
-        if (active && rows.length) setObjects(rows.map(normalizeObject));
+    setDomainLoading(true);
+    setDomainError("");
+    Promise.all([
+      dataProvider.objects.getTree(),
+      dataProvider.users.getAll(),
+      dataProvider.tasks.getAll(),
+      dataProvider.notifications.getForCurrentUser(),
+    ])
+      .then(([objectRows, userRows, taskRows, notificationRows]) => {
+        if (!active) return;
+        const normalizedObjects = objectRows.map(normalizeObject);
+        setObjects(normalizedObjects);
+        setUsers(userRows.map(normalizeUser));
+        setRemoteTasks(taskRows);
+        setRemoteNotifications(notificationRows);
+        if (normalizedObjects.length === 0 && !["admin", "profile", "users"].includes(screen)) {
+          setScreen(user.role === "itr" ? "objects" : "admin");
+        }
       })
-      .catch((error) => console.error("Unable to load object tree", error))
+      .catch((error) => {
+        console.error("Unable to load Supabase domain", error);
+        if (active) setDomainError("Не удалось загрузить данные. Проверьте соединение и повторите попытку.");
+      })
       .finally(() => {
         if (active) setDomainLoading(false);
       });
     return () => { active = false; };
-  }, [isRemoteAuth, isLoggedIn]);
+  }, [isRemoteAuth, isLoggedIn, currentUserId, domainReload]);
   const openTaskModal = (context = {}) => {
     if (!canCreateManualTask) return;
     setTaskContext(context);
@@ -1054,11 +1080,26 @@ export function App() {
     }));
 
     setObjects(nextObjects);
-    saveObjects(nextObjects);
+    const persistedDoor = nextObjects
+      .flatMap((object) => object.buildings)
+      .flatMap((building) => building.floors)
+      .flatMap((floor) => floor.doors)
+      .find((door) => door.id === doorId);
+    if (isRemoteAuth && persistedDoor) {
+      setPersistenceError("");
+      dataProvider.doors.updateOperational(doorId, persistedDoor)
+        .then(() => syncAutomation(nextObjects))
+        .catch((error) => {
+          console.error("Unable to save door", error);
+          setPersistenceError("Изменения не сохранены. Проверьте соединение и повторите сохранение.");
+        });
+    } else {
+      saveObjects(nextObjects);
+    }
     const nextMatrix = normalizeDoorMatrix(doorMatrix.map((row) => row.doorId !== doorId ? row : { ...row, ...matrixPatchFromDoor(effectiveValues) }));
     setDoorMatrix(nextMatrix);
     saveDoorMatrix(nextMatrix);
-    syncAutomation(nextObjects);
+    if (!isRemoteAuth) syncAutomation(nextObjects);
   };
 
   const updateMatrixCell = (rowId, field, value) => {
@@ -1118,6 +1159,7 @@ export function App() {
 
   const goToObject = (objectId) => {
     const nextObject = visibleObjects.find((object) => object.id === objectId) ?? visibleObjects[0] ?? objects[0];
+    if (!nextObject) return;
     setSelectedObjectId(nextObject.id);
     setSelectedBuildingId(nextObject.buildings[0]?.id ?? "");
     setScreen("object");
@@ -1307,6 +1349,10 @@ export function App() {
     return <AuthProvider value={authValue}><LoginPage users={users} onLogin={loginUser} isDemo={!isRemoteAuth} /></AuthProvider>;
   }
 
+  if (domainError) {
+    return <main className="auth-loading" aria-live="assertive"><div><strong>Данные временно недоступны</strong><p>{domainError}</p><button className="primary-button" onClick={() => setDomainReload((value) => value + 1)}>Повторить</button></div></main>;
+  }
+
   return (
     <AuthProvider value={authValue}><div className={`app-shell ${sidebarCollapsed ? "sidebar-collapsed" : ""}`}>
       <Sidebar
@@ -1352,6 +1398,7 @@ export function App() {
           }}
         />
         <div className="page-transition" key={screen}>
+          {persistenceError && <div className="form-error persistence-error" role="alert">{persistenceError}<button type="button" onClick={() => setPersistenceError("")}>×</button></div>}
           {screen === "admin" && (
             <AdminPanel
               objects={objects}
@@ -1439,10 +1486,18 @@ export function App() {
           {screen === "reports" && <ReportsPage objects={visibleObjects} />}
           {screen === "finance" && <FinancePage objects={visibleObjects} user={user} />}
           {screen === "company_dashboard" && <CompanyDashboard objects={visibleObjects} user={user} users={users} onOpen={openProblem} />}
-          {screen === "users" && <UsersPage users={users} objects={objects} currentUser={user} onSave={(nextUsers) => { setUsers(nextUsers); saveUsers(nextUsers); }} />}
+          {screen === "users" && <UsersPage users={users} objects={objects} currentUser={user} remoteAuth={isRemoteAuth} onSave={async (nextUsers) => {
+            if (isRemoteAuth) {
+              const rows = await dataProvider.users.getAll();
+              setUsers(rows.map(normalizeUser));
+              return;
+            }
+            setUsers(nextUsers);
+            saveUsers(nextUsers);
+          }} />}
           {["companies", "roles", "itr_team"].includes(screen) && <PlaceholderPage screen={screen} />}
           {screen === "objects" && <ObjectsPage objects={visibleObjects} onOpen={goToObject} />}
-          {screen === "object" && (
+          {screen === "object" && selectedObject && (
             <ObjectPage
               object={selectedObject}
               objects={objects}
@@ -1461,7 +1516,7 @@ export function App() {
             <section className="building-dashboard">
               <BuildingVisualization
                 building={selectedBuilding}
-                objectId={selectedObject.id}
+                objectId={selectedObject?.id}
                 selectedFloorId={selectedFloorId}
                 onSelectFloor={goToFloor}
                 onCreateTask={openTaskModal}
@@ -1693,7 +1748,7 @@ function Header({
           {screen !== "objects" && (
             <>
               <span>/</span>
-              <button onClick={() => setScreen("object")}>{selectedObject.name}</button>
+              <button onClick={() => setScreen("object")}>{selectedObject?.name ?? "Объект"}</button>
             </>
           )}
           {["building", "floor", "door"].includes(screen) && (
@@ -2527,7 +2582,7 @@ function AdminPanel({ objects, user, users, onChange }) {
   const [editing, setEditing] = useState(false);
   const [selectedElement, setSelectedElement] = useState(null);
   const [notice, setNotice] = useState("");
-  const canCreateObject = ["creator", "company_head", "construction_director"].includes(user.role);
+  const canCreateObject = ["creator", "company_head"].includes(user.role);
   const canAssignResponsible = ["creator", "company_head", "construction_director"].includes(user.role);
   const responsibleUsers = users.filter((item) => ["itr", "construction_director"].includes(item.role));
 
@@ -2690,14 +2745,31 @@ function RangeField({ label, value, min, max, onChange }) {
   return <label className="range-field"><span>{label}<b>{Math.round(value)}</b></span><input type="range" min={min} max={max} value={value} onChange={(event) => onChange(Number(event.target.value))} /></label>;
 }
 
-function UsersPage({ users, objects, currentUser, onSave }) {
+function UsersPage({ users, objects, currentUser, onSave, remoteAuth }) {
   const [editingUser, setEditingUser] = useState(null);
+  const [saving, setSaving] = useState(false);
+  const [error, setError] = useState("");
   const visibleUsers = getVisibleUsersForManager(currentUser, users, objects);
   const canCreate = canManageUsers(currentUser);
   const objectNames = new Map(objects.map((object) => [object.id, object.name]));
   const buildingNames = new Map(objects.flatMap((object) => object.buildings.map((building) => [building.id, `${object.name} / ${building.name}`])));
-  const saveUser = (values) => {
+  const saveUser = async (values) => {
     const prepared = normalizeUser({ ...values, status: "active" });
+    if (remoteAuth) {
+      setSaving(true);
+      setError("");
+      try {
+        if (prepared.id && users.some((user) => user.id === prepared.id)) await dataProvider.users.save(prepared);
+        else await dataProvider.users.invite({ ...prepared, id: undefined });
+        await onSave();
+        setEditingUser(null);
+      } catch (saveError) {
+        setError(saveError?.message ?? "Не удалось сохранить пользователя");
+      } finally {
+        setSaving(false);
+      }
+      return;
+    }
     const nextUsers = prepared.id && users.some((user) => user.id === prepared.id)
       ? users.map((user) => user.id === prepared.id ? dataProvider.users.update(prepared.id, prepared) ?? prepared : user)
       : [dataProvider.users.create({ ...prepared, id: prepared.id || `user-${Date.now()}` }), ...users];
@@ -2716,8 +2788,9 @@ function UsersPage({ users, objects, currentUser, onSave }) {
           <h2>Команда, роли и назначения</h2>
           <p>Создание пользователей, назначение объектов и подготовка к серверной авторизации.</p>
         </div>
-        {canCreate && <button className="primary-button" onClick={() => setEditingUser({ status: "active", role: "itr", password: "123456", assignedObjectIds: [], assignedBuildingIds: [] })}>Добавить пользователя</button>}
+        {canCreate && <button className="primary-button" disabled={saving} onClick={() => setEditingUser({ status: "active", role: "itr", password: "", assignedObjectIds: [], assignedBuildingIds: [] })}>Добавить пользователя</button>}
       </div>
+      {error && <div className="form-error" role="alert">{error}</div>}
       <div className="users-table-wrap">
         <table className="executive-table users-table">
           <thead><tr><th>ФИО</th><th>Роль</th><th>Должность</th><th>Email</th><th>Телефон</th><th>Статус</th><th>Объекты</th><th>Корпуса</th><th>Действия</th></tr></thead>
@@ -2732,18 +2805,19 @@ function UsersPage({ users, objects, currentUser, onSave }) {
                 <td><StatusBadge value="active" /></td>
                 <td>{["creator", "company_head"].includes(user.role) && !user.assignedObjectIds?.length ? "Все" : user.assignedObjectIds?.map((id) => objectNames.get(id)).filter(Boolean).join(", ") || "—"}</td>
                 <td>{user.assignedBuildingIds?.map((id) => buildingNames.get(id)).filter(Boolean).join(", ") || "—"}</td>
-                <td><div className="task-actions">{canCreate && <button className="secondary-button slim" onClick={() => setEditingUser(user)}>Редактировать</button>}{canCreate && <button className="secondary-button slim" onClick={() => resetPassword(user.id)}>Сбросить пароль</button>}</div></td>
+                <td><div className="task-actions">{canCreate && <button className="secondary-button slim" onClick={() => setEditingUser(user)}>Редактировать</button>}{canCreate && !remoteAuth && <button className="secondary-button slim" onClick={() => resetPassword(user.id)}>Сбросить пароль</button>}</div></td>
               </tr>
             ))}
           </tbody>
         </table>
       </div>
-      {editingUser && <UserEditModal user={editingUser} currentUser={currentUser} objects={objects} onClose={() => setEditingUser(null)} onSave={saveUser} />}
+      {editingUser && <UserEditModal user={editingUser} currentUser={currentUser} objects={objects} remoteAuth={remoteAuth} onClose={() => setEditingUser(null)} onSave={saveUser} />}
     </section>
   );
 }
 
-function UserEditModal({ user, currentUser, objects, onClose, onSave }) {
+function UserEditModal({ user, currentUser, objects, onClose, onSave, remoteAuth }) {
+  const isNew = !user.id;
   const [form, setForm] = useState(() => normalizeUser({ ...user, id: user.id ?? `user-${Date.now()}`, name: user.name ?? "", email: user.email ?? "", phone: user.phone ?? "", position: user.position ?? "", role: user.role ?? "itr" }));
   const update = (field, value) => setForm((current) => ({ ...current, [field]: value }));
   const allowedRoles = ["creator", "company_head"].includes(currentUser.role)
@@ -2758,12 +2832,12 @@ function UserEditModal({ user, currentUser, objects, onClose, onSave }) {
         <div className="modal-title"><div><h2>{user.name ? "Редактировать пользователя" : "Добавить пользователя"}</h2><p>Роль, контакты и назначения.</p></div><button type="button" onClick={onClose}>×</button></div>
         <div className="task-form-grid">
           <label>ФИО<input value={form.name} onChange={(event) => update("name", event.target.value)} required /></label>
-          <label>Email<input type="email" value={form.email} onChange={(event) => update("email", event.target.value)} required /></label>
+          <label>Email<input type="email" value={form.email} readOnly={remoteAuth && !isNew} onChange={(event) => update("email", event.target.value)} required /></label>
           <label>Телефон<input value={form.phone} onChange={(event) => update("phone", event.target.value)} /></label>
           <label>Должность<input value={form.position} onChange={(event) => update("position", event.target.value)} /></label>
           <label>Роль<select value={form.role} onChange={(event) => update("role", event.target.value)}>{allowedRoles.map((role) => <option key={role} value={role}>{roleLabels[role]}</option>)}</select></label>
           <label>Статус<input value="active" readOnly /></label>
-          <label>Временный пароль<input value={form.password} onChange={(event) => update("password", event.target.value)} /></label>
+          {(!remoteAuth || isNew) && <label>Временный пароль<input type="password" minLength={remoteAuth ? 10 : 6} pattern={remoteAuth ? "(?=.*[a-z])(?=.*[A-Z])(?=.*\\d).{10,}" : undefined} title={remoteAuth ? "Минимум 10 символов, заглавная и строчная латинские буквы и цифра" : undefined} value={form.password} onChange={(event) => update("password", event.target.value)} required /></label>}
         </div>
         <h3 className="modal-subtitle">Назначенные объекты</h3>
         <div className="checkbox-grid">{objects.map((object) => <label key={object.id}><input type="checkbox" checked={form.assignedObjectIds.includes(object.id)} onChange={() => toggle("assignedObjectIds", object.id)} />{object.name}</label>)}</div>

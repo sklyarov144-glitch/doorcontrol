@@ -8,9 +8,9 @@ const required = [
 const missing = required.filter((path) => !fs.existsSync(path));
 const migrations = fs.readdirSync("supabase/migrations").filter((name) => name.endsWith(".sql")).sort();
 
-if (missing.length || migrations.length < 10) {
+if (missing.length || migrations.length < 13) {
   missing.forEach((path) => console.error(`Missing readiness artifact: ${path}`));
-  if (migrations.length < 10) console.error(`Expected at least 10 migrations, found ${migrations.length}`);
+  if (migrations.length < 13) console.error(`Expected at least 13 migrations, found ${migrations.length}`);
   process.exit(1);
 }
 console.log(`Pilot readiness artifacts present. ${migrations.length} ordered migrations found.`);

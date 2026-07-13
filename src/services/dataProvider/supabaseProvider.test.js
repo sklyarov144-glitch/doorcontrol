@@ -1,7 +1,40 @@
 import { describe, expect, it } from "vitest";
-import { mapObjectTree } from "./supabaseProvider";
+import { mapObjectTree, mapProfileAssignments, toDoorOperationalUpdate } from "./supabaseProvider";
 
 describe("Supabase object tree", () => {
+  it("maps profile assignments to UI access lists", () => {
+    expect(mapProfileAssignments({
+      id: "user-1",
+      objectAssignments: [{ objectId: "object-1" }],
+      buildingAssignments: [{ buildingId: "building-1" }],
+    })).toMatchObject({
+      assignedObjectIds: ["object-1"],
+      assignedBuildingIds: ["building-1"],
+    });
+  });
+
+  it("maps a UI door to one safe operational update", () => {
+    expect(toDoorOperationalUpdate({
+      number: "Квартира 1",
+      mark: "Д-1",
+      type: "Квартирная",
+      doorStatus: "смонтирована",
+      openingStatus: "готов",
+      issue: "нет",
+      storageAct: "не передана",
+      x: 25,
+      y: 40,
+      history: [{ text: "Статус изменён" }],
+    })).toMatchObject({
+      label: "Квартира 1",
+      status: "смонтирована",
+      openingStatus: "готов",
+      issueStatus: "нет",
+      custodyActStatus: "не передана",
+      meta: { history: [{ text: "Статус изменён" }] },
+    });
+  });
+
   it("maps relational rows to the visual hierarchy and restores service levels", () => {
     const [object] = mapObjectTree([{
       id: "object-uuid",
@@ -45,4 +78,3 @@ describe("Supabase object tree", () => {
     });
   });
 });
-
