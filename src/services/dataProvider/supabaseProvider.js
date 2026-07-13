@@ -41,6 +41,9 @@ function makeCrud(table) {
 
 const usersCrud = makeCrud("profiles");
 const objectsCrud = makeCrud("objects");
+const tasksCrud = makeCrud("tasks");
+const notificationsCrud = makeCrud("notifications");
+const custodyActsCrud = makeCrud("custody_acts");
 
 function mapDoorRecord(door) {
   const meta = door.meta ?? {};
@@ -227,11 +230,63 @@ export const supabaseProvider = {
   buildings: makeCrud("buildings"),
   floors: makeCrud("floors"),
   doors: makeCrud("doors"),
-  tasks: makeCrud("tasks"),
-  notifications: makeCrud("notifications"),
+  tasks: {
+    ...tasksCrud,
+    async getAll() {
+      return unwrap(await requireSupabase()
+        .from("tasks")
+        .select("*, comments:task_comments(*), documentLinks:task_links(*)")
+        .order("created_at", { ascending: false }));
+    },
+    async addComment(taskId, comment) {
+      return unwrap(await requireSupabase().from("task_comments").insert(toDatabase({
+        taskId,
+        userName: comment.userName,
+        text: comment.text,
+      })).select().single());
+    },
+    async addLink(taskId, link) {
+      return unwrap(await requireSupabase().from("task_links").insert(toDatabase({
+        taskId,
+        title: link.title,
+        url: link.url,
+        category: link.category,
+        comment: link.comment,
+        documentId: link.documentId,
+      })).select().single());
+    },
+  },
+  notifications: {
+    ...notificationsCrud,
+    async getForCurrentUser() {
+      return unwrap(await requireSupabase()
+        .from("notifications")
+        .select("*")
+        .order("created_at", { ascending: false }));
+    },
+    async markRead(id) {
+      return this.update(id, { status: "read" });
+    },
+    async markAllRead() {
+      return unwrap(await requireSupabase()
+        .from("notifications")
+        .update({ status: "read" })
+        .eq("status", "unread")
+        .select());
+    },
+  },
   documentItems: makeCrud("document_items"),
   documents: makeCrud("document_items"),
-  custodyActs: makeCrud("custody_acts"),
+  custodyActs: {
+    ...custodyActsCrud,
+    async upsertForDoor(doorId, data) {
+      return unwrap(await requireSupabase().from("custody_acts").upsert({
+        door_id: doorId,
+        ...toDatabase(data),
+      }, { onConflict: "door_id" }).select().single());
+    },
+  },
+  tnIssues: makeCrud("tn_issues"),
   teams: makeCrud("teams"),
   employees: makeCrud("employees"),
   workers: makeCrud("employees"),
@@ -240,4 +295,11 @@ export const supabaseProvider = {
   dailyWorkReports: makeCrud("daily_work_reports"),
   manpowerRequests: makeCrud("manpower_requests"),
   activityLogs: makeCrud("activity_logs"),
+  operations: {
+    async syncOverdueTasks() {
+      const { data, error } = await requireSupabase().rpc("sync_overdue_door_tasks");
+      if (error) throw error;
+      return data;
+    },
+  },
 };

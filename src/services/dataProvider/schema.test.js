@@ -14,6 +14,14 @@ const authHardening = readFileSync(
   resolve("supabase/migrations/202607130003_auth_hardening.sql"),
   "utf8"
 );
+const operational = readFileSync(
+  resolve("supabase/migrations/202607130005_operational_modules.sql"),
+  "utf8"
+);
+const operationalRls = readFileSync(
+  resolve("supabase/migrations/202607130006_operational_rls.sql"),
+  "utf8"
+);
 
 describe("Supabase schema", () => {
   it("defines the core hierarchy and assignment tables", () => {
@@ -42,5 +50,21 @@ describe("Supabase schema", () => {
     expect(authHardening).toContain("protect_profile_security_fields");
     expect(authHardening).toContain("new.role is distinct from old.role");
     expect(authHardening).toContain("new.company_id is distinct from old.company_id");
+  });
+
+  it("defines normalized operational modules and idempotent overdue tasks", () => {
+    for (const table of ["tasks", "task_comments", "task_links", "notifications", "document_items", "custody_acts", "tn_issues", "activity_logs"]) {
+      expect(operational).toContain(`create table public.${table}`);
+    }
+    expect(operational).toContain("automatic_key text unique");
+    expect(operational).toContain("sync_overdue_door_tasks");
+    expect(operational).toContain("on conflict (automatic_key) do nothing");
+    expect(operational).toContain("notify_task_change");
+  });
+
+  it("protects every operational table with RLS", () => {
+    for (const table of ["tasks", "task_comments", "task_links", "notifications", "document_items", "custody_acts", "tn_issues", "activity_logs"]) {
+      expect(operationalRls).toContain(`alter table public.${table} enable row level security`);
+    }
   });
 });

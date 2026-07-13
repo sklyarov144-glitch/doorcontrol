@@ -670,8 +670,10 @@ export function App() {
   const [selectedFloorId, setSelectedFloorId] = useState(initialRoute.floorId ?? "");
   const [selectedDoorId, setSelectedDoorId] = useState(initialRoute.doorId ?? "");
   const [taskVersion, setTaskVersion] = useState(0);
+  const [remoteTasks, setRemoteTasks] = useState([]);
   const [taskContext, setTaskContext] = useState(null);
   const [notificationVersion, setNotificationVersion] = useState(0);
+  const [remoteNotifications, setRemoteNotifications] = useState([]);
   const [actNotificationTask, setActNotificationTask] = useState(null);
   const [sidebarCollapsed, setSidebarCollapsed] = useState(false);
   const visibleObjects = useMemo(() => getVisibleObjectsForUser(user, objects), [user, objects]);
@@ -700,15 +702,36 @@ export function App() {
     [selectedDoorId, selectedFloor]
   );
 
-  const manualTasks = useMemo(() => getTasks(), [taskVersion]);
-  const notifications = useMemo(() => getNotificationsByUser(user), [notificationVersion, user]);
-  const unreadNotifications = useMemo(() => getUnreadNotificationsCount(user), [notificationVersion, user]);
+  const manualTasks = useMemo(() => isRemoteAuth ? remoteTasks : getTasks(), [isRemoteAuth, remoteTasks, taskVersion]);
+  const notifications = useMemo(() => isRemoteAuth ? remoteNotifications : getNotificationsByUser(user), [isRemoteAuth, remoteNotifications, notificationVersion, user]);
+  const unreadNotifications = useMemo(() => isRemoteAuth ? notifications.filter((item) => item.status === "unread").length : getUnreadNotificationsCount(user), [isRemoteAuth, notifications, notificationVersion, user]);
   const taskNoticeCount = useMemo(() => getManualTaskNoticeCount(manualTasks, user), [manualTasks, user]);
   const canCreateManualTask = ["creator", "company_head", "construction_director"].includes(user.role);
   const permissions = useMemo(() => permissionsFor(user), [user]);
-  const refreshManualTasks = () => setTaskVersion((value) => value + 1);
-  const refreshNotifications = () => setNotificationVersion((value) => value + 1);
-  const syncAutomation = (sourceObjects = objects) => {
+  const refreshManualTasks = async () => {
+    if (isRemoteAuth) setRemoteTasks(await dataProvider.tasks.getAll());
+    else setTaskVersion((value) => value + 1);
+  };
+  const refreshNotifications = async () => {
+    if (isRemoteAuth) setRemoteNotifications(await dataProvider.notifications.getForCurrentUser());
+    else setNotificationVersion((value) => value + 1);
+  };
+  const readNotification = async (id) => {
+    if (isRemoteAuth) await dataProvider.notifications.markRead(id);
+    else markNotificationRead(id);
+    await refreshNotifications();
+  };
+  const readAllNotifications = async () => {
+    if (isRemoteAuth) await dataProvider.notifications.markAllRead();
+    else markAllNotificationsRead(user);
+    await refreshNotifications();
+  };
+  const syncAutomation = async (sourceObjects = objects) => {
+    if (isRemoteAuth) {
+      await dataProvider.operations.syncOverdueTasks();
+      await Promise.all([refreshManualTasks(), refreshNotifications()]);
+      return;
+    }
     const created = syncAutomaticTasksAndNotifications(sourceObjects, users);
     const today = new Date().toISOString().slice(0, 10);
     getTasks()
@@ -786,7 +809,13 @@ export function App() {
     setTaskContext(context);
   };
 
-  const createManualTask = (task) => {
+  const createManualTask = async (task) => {
+    if (isRemoteAuth) {
+      await dataProvider.tasks.create({ ...task, companyId: user.companyId, createdBy: user.id });
+      await Promise.all([refreshManualTasks(), refreshNotifications()]);
+      setTaskContext(null);
+      return;
+    }
     const created = addTask({ ...task, createdBy: user.id });
     addNotification({
       type: "руководитель поставил задачу",
@@ -805,7 +834,15 @@ export function App() {
     setTaskContext(null);
   };
 
-  const changeManualTask = (taskId, values) => {
+  const changeManualTask = async (taskId, values) => {
+    if (isRemoteAuth) {
+      await dataProvider.tasks.update(taskId, {
+        ...values,
+        completedAt: values.status === "выполнена" ? new Date().toISOString() : undefined,
+      });
+      await Promise.all([refreshManualTasks(), refreshNotifications()]);
+      return;
+    }
     const currentTask = manualTasks.find((task) => task.id === taskId);
     updateTask(taskId, { ...values, updatedBy: user.id });
     if (values.status === "выполнена" && currentTask?.createdBy && currentTask.createdBy !== "system") {
@@ -841,8 +878,13 @@ export function App() {
     refreshNotifications();
   };
 
-  const commentManualTask = (taskId, text) => {
+  const commentManualTask = async (taskId, text) => {
     if (!text.trim()) return;
+    if (isRemoteAuth) {
+      await dataProvider.tasks.addComment(taskId, { userName: user.name, text: text.trim() });
+      await refreshManualTasks();
+      return;
+    }
     addTaskComment(taskId, { userId: user.id, userName: user.name, text: text.trim() });
     const task = manualTasks.find((item) => item.id === taskId);
     if (task?.createdBy && task.createdBy !== user.id && task.createdBy !== "system") {
@@ -863,8 +905,13 @@ export function App() {
     refreshNotifications();
   };
 
-  const linkManualTask = (task, link) => {
+  const linkManualTask = async (task, link) => {
     if (!link.url.trim()) return;
+    if (isRemoteAuth) {
+      await dataProvider.tasks.addLink(task.id, link);
+      await refreshManualTasks();
+      return;
+    }
     const savedLink = addTaskLink(task.id, { ...link, createdBy: user.id });
     if (task.doorId) {
       const currentDoor = objects
@@ -888,8 +935,13 @@ export function App() {
     refreshNotifications();
   };
 
-  const completeAutomaticTask = (taskId) => {
+  const completeAutomaticTask = async (taskId) => {
     if (!taskId) return;
+    if (isRemoteAuth) {
+      await dataProvider.tasks.update(taskId, { status: "выполнена", completedAt: new Date().toISOString() });
+      await Promise.all([refreshManualTasks(), refreshNotifications()]);
+      return;
+    }
     updateTask(taskId, { status: "выполнена", updatedBy: user.id });
     const task = manualTasks.find((item) => item.id === taskId);
     if (task?.directorId || task?.createdBy === "system") {
@@ -927,8 +979,7 @@ export function App() {
       tnAcceptedAt: new Date().toISOString().slice(0, 10),
     });
     completeAutomaticTask(notification.taskId);
-    markNotificationRead(notification.id);
-    refreshNotifications();
+    readNotification(notification.id);
   };
 
   const updateDoor = (doorId, values) => {
@@ -1274,22 +1325,15 @@ export function App() {
           unreadNotifications={unreadNotifications}
           allowUserSwitch={!isRemoteAuth}
           onOpenNotification={(notification) => {
-            markNotificationRead(notification.id);
-            refreshNotifications();
+            readNotification(notification.id);
             if (notification.taskId) {
               setScreen("tasks");
               return;
             }
             openProblem(notification);
           }}
-          onMarkNotificationRead={(id) => {
-            markNotificationRead(id);
-            refreshNotifications();
-          }}
-          onMarkAllNotificationsRead={() => {
-            markAllNotificationsRead(user);
-            refreshNotifications();
-          }}
+          onMarkNotificationRead={readNotification}
+          onMarkAllNotificationsRead={readAllNotifications}
           onOpenNotificationsPage={() => setScreen("notifications")}
           onUserChange={(userId) => {
             setCurrentUserId(userId);
@@ -1345,18 +1389,11 @@ export function App() {
             <NotificationsPage
               notifications={notifications}
               onOpen={(notification) => {
-                markNotificationRead(notification.id);
-                refreshNotifications();
+                readNotification(notification.id);
                 notification.taskId ? setScreen("tasks") : openProblem(notification);
               }}
-              onMarkRead={(id) => {
-                markNotificationRead(id);
-                refreshNotifications();
-              }}
-              onMarkAll={() => {
-                markAllNotificationsRead(user);
-                refreshNotifications();
-              }}
+              onMarkRead={readNotification}
+              onMarkAll={readAllNotifications}
               onQuickAct={(notification) => {
                 const task = manualTasks.find((item) => item.id === notification.taskId);
                 if (task) setActNotificationTask({ task, notificationId: notification.id });
@@ -1458,8 +1495,7 @@ export function App() {
           onSave={(link) => {
             linkManualTask(actNotificationTask.task, { ...link, category: "акт АОХ" });
             completeAutomaticTask(actNotificationTask.task.id);
-            markNotificationRead(actNotificationTask.notificationId);
-            refreshNotifications();
+            readNotification(actNotificationTask.notificationId);
             setActNotificationTask(null);
           }}
         />

@@ -117,4 +117,7 @@ export const localProvider = {
   dailyWorkReports: makeCrud(keys.dailyWorkReports, "daily-report"),
   manpowerRequests: makeCrud(keys.manpowerRequests, "manpower"),
   activityLogs: makeCrud(keys.activityLogs, "activity"),
+  operations: {
+    syncOverdueTasks: () => 0,
+  },
 };
