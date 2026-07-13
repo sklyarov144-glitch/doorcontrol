@@ -30,15 +30,30 @@ jobs:
           cache: npm
       - run: npm ci
       - run: npm run ci
+      - name: Check deployment configuration
+        id: deployment-config
+        env:
+          VERCEL_TOKEN: ${{ secrets.VERCEL_TOKEN }}
+        run: |
+          if [[ -n "$SUPABASE_ACCESS_TOKEN" && -n "$SUPABASE_PROJECT_ID" && -n "$VERCEL_TOKEN" && -n "$VERCEL_ORG_ID" && -n "$VERCEL_PROJECT_ID" ]]; then
+            echo "enabled=true" >> "$GITHUB_OUTPUT"
+          else
+            echo "enabled=false" >> "$GITHUB_OUTPUT"
+            echo "::notice::Staging deployment skipped until Supabase and Vercel secrets are configured. CI verification passed."
+          fi
       - name: Apply database migrations
+        if: steps.deployment-config.outputs.enabled == 'true'
         run: npx supabase link --project-ref "$SUPABASE_PROJECT_ID" && npx supabase db push --linked
       - name: Deploy Edge Functions
+        if: steps.deployment-config.outputs.enabled == 'true'
         run: npx supabase functions deploy --project-ref "$SUPABASE_PROJECT_ID"
       - name: Build and deploy Vercel staging
+        if: steps.deployment-config.outputs.enabled == 'true'
         run: |
           npx vercel pull --yes --environment=preview --token="${{ secrets.VERCEL_TOKEN }}"
           npx vercel build --token="${{ secrets.VERCEL_TOKEN }}"
           DEPLOY_URL=$(npx vercel deploy --prebuilt --token="${{ secrets.VERCEL_TOKEN }}")
           echo "DEPLOY_URL=$DEPLOY_URL" >> "$GITHUB_ENV"
       - name: Smoke test
+        if: steps.deployment-config.outputs.enabled == 'true'
         run: SMOKE_URL="$DEPLOY_URL" npm run smoke
