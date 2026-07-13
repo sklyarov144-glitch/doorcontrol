@@ -37,6 +37,8 @@ function makeCrud(table) {
   };
 }
 
+const usersCrud = makeCrud("profiles");
+
 export const supabaseProvider = {
   auth: {
     async getSession() {
@@ -53,6 +55,20 @@ export const supabaseProvider = {
       const { error } = await requireSupabase().auth.signOut();
       if (error) throw error;
     },
+    async updatePassword(password) {
+      const { data, error } = await requireSupabase().auth.updateUser({ password });
+      if (error) throw error;
+      return data.user;
+    },
+    async requestPasswordReset(email, redirectTo = window.location.origin) {
+      const { error } = await requireSupabase().auth.resetPasswordForEmail(email, {
+        redirectTo,
+      });
+      if (error) throw error;
+    },
+    onAuthStateChange(callback) {
+      return requireSupabase().auth.onAuthStateChange(callback);
+    },
     async getCurrentProfile() {
       const { data: authData, error: authError } = await requireSupabase().auth.getUser();
       if (authError) throw authError;
@@ -66,7 +82,15 @@ export const supabaseProvider = {
       );
     },
   },
-  users: makeCrud("profiles"),
+  users: {
+    ...usersCrud,
+    async invite(data) {
+      const result = await requireSupabase().functions.invoke("invite-user", {
+        body: toDatabase(data),
+      });
+      return unwrap(result);
+    },
+  },
   objects: makeCrud("objects"),
   buildings: makeCrud("buildings"),
   floors: makeCrud("floors"),
@@ -85,4 +109,3 @@ export const supabaseProvider = {
   manpowerRequests: makeCrud("manpower_requests"),
   activityLogs: makeCrud("activity_logs"),
 };
-

@@ -66,7 +66,7 @@ import {
   updateWorkStandard,
   disableWorkStandard,
 } from "../storage";
-import { dataProvider } from "../../services/dataProvider";
+import { dataProvider, dataProviderName } from "../../services/dataProvider";
 import { AuthProvider } from "../contexts/AuthContext";
 import { permissionsFor } from "../domain/permissions";
 import { buildAppPath, parseAppRoute } from "./routes";
@@ -648,9 +648,12 @@ export function App() {
     saveDoorMatrix(normalized);
     return normalized;
   });
-  const [isLoggedIn, setIsLoggedIn] = useState(() => Boolean(dataProvider.auth.getSession()?.userId));
+  const isRemoteAuth = dataProviderName === "supabase";
+  const localSession = isRemoteAuth ? null : dataProvider.auth.getSession();
+  const [isLoggedIn, setIsLoggedIn] = useState(() => Boolean(localSession?.userId));
+  const [authLoading, setAuthLoading] = useState(isRemoteAuth);
   const [users, setUsers] = useState(loadUsers);
-  const [currentUserId, setCurrentUserId] = useState(() => dataProvider.auth.getSession()?.userId || "creator-1");
+  const [currentUserId, setCurrentUserId] = useState(() => localSession?.userId || "creator-1");
   const user = users.find((item) => item.id === currentUserId) ?? users[0];
   const [screen, setScreen] = useState(initialRoute.screen === "login" ? "objects" : initialRoute.screen);
   const [selectedObjectId, setSelectedObjectId] = useState(initialRoute.objectId ?? objects[0].id);
@@ -723,6 +726,40 @@ export function App() {
     }
     refreshNotifications();
   };
+
+  React.useEffect(() => {
+    if (!isRemoteAuth) return undefined;
+    let active = true;
+
+    const restoreSession = async () => {
+      try {
+        const session = await dataProvider.auth.getSession();
+        if (!session) return;
+        const profile = await dataProvider.auth.getCurrentProfile();
+        if (!profile || profile.status === "disabled") {
+          await dataProvider.auth.signOut();
+          return;
+        }
+        if (!active) return;
+        setUsers((current) => [profile, ...current.filter((item) => item.id !== profile.id)]);
+        setCurrentUserId(profile.id);
+        setIsLoggedIn(true);
+      } catch (error) {
+        console.error("Unable to restore Supabase session", error);
+      } finally {
+        if (active) setAuthLoading(false);
+      }
+    };
+
+    restoreSession();
+    const subscription = dataProvider.auth.onAuthStateChange((_event, session) => {
+      if (!session && active) setIsLoggedIn(false);
+    });
+    return () => {
+      active = false;
+      subscription?.data?.subscription?.unsubscribe();
+    };
+  }, [isRemoteAuth]);
   const openTaskModal = (context = {}) => {
     if (!canCreateManualTask) return;
     setTaskContext(context);
@@ -1089,6 +1126,7 @@ export function App() {
   const defaultScreenForRole = (role) => role === "itr" ? "tasks" : "company_dashboard";
 
   React.useEffect(() => {
+    if (authLoading) return;
     if (!isLoggedIn) {
       if (location.pathname !== "/login") routerNavigate("/login", { replace: true });
       return;
@@ -1110,7 +1148,7 @@ export function App() {
     if (route.buildingId) setSelectedBuildingId(route.buildingId);
     if (route.floorId) setSelectedFloorId(route.floorId);
     if (route.doorId) setSelectedDoorId(route.doorId);
-  }, [isLoggedIn, location.pathname]);
+  }, [authLoading, isLoggedIn, location.pathname]);
 
   React.useEffect(() => {
     if (!isLoggedIn || location.pathname === "/login") return;
@@ -1127,7 +1165,31 @@ export function App() {
     if (location.pathname !== nextPath) routerNavigate(nextPath);
   }, [screen, selectedObject?.id, selectedBuilding?.id, selectedFloor?.id, selectedDoor?.id, isLoggedIn]);
 
-  const loginUser = (email, password) => {
+  const loginUser = async (email, password) => {
+    if (isRemoteAuth) {
+      try {
+        await dataProvider.auth.signIn(email.trim(), password);
+        const profile = await dataProvider.auth.getCurrentProfile();
+        if (!profile || profile.status === "disabled") {
+          await dataProvider.auth.signOut();
+          return { ok: false, message: "Учётная запись неактивна" };
+        }
+        setUsers((current) => [profile, ...current.filter((item) => item.id !== profile.id)]);
+        setCurrentUserId(profile.id);
+        const nextScreen = defaultScreenForRole(profile.role);
+        setScreen(nextScreen);
+        setIsLoggedIn(true);
+        routerNavigate(buildAppPath(nextScreen), { replace: true });
+        return { ok: true };
+      } catch (error) {
+        return {
+          ok: false,
+          message: error?.message === "Invalid login credentials"
+            ? "Неверный email или пароль"
+            : "Не удалось войти. Проверьте соединение и повторите попытку.",
+        };
+      }
+    }
     const nextUser = users.find((item) => item.email.toLowerCase() === email.toLowerCase().trim() && item.password === password);
     if (!nextUser) return { ok: false, message: "Неверный email или пароль" };
     const updated = users.map((item) => item.id === nextUser.id ? { ...item, lastLoginAt: new Date().toISOString(), updatedAt: new Date().toISOString() } : item);
@@ -1142,8 +1204,9 @@ export function App() {
     return { ok: true };
   };
 
-  const logoutUser = () => {
-    dataProvider.auth.clearSession();
+  const logoutUser = async () => {
+    if (isRemoteAuth) await dataProvider.auth.signOut();
+    else dataProvider.auth.clearSession();
     setIsLoggedIn(false);
     routerNavigate("/login", { replace: true });
   };
@@ -1157,8 +1220,12 @@ export function App() {
     permissions,
   };
 
+  if (authLoading) {
+    return <main className="auth-loading" aria-live="polite">Проверяем сессию...</main>;
+  }
+
   if (!isLoggedIn) {
-    return <AuthProvider value={authValue}><LoginPage users={users} onLogin={loginUser} /></AuthProvider>;
+    return <AuthProvider value={authValue}><LoginPage users={users} onLogin={loginUser} isDemo={!isRemoteAuth} /></AuthProvider>;
   }
 
   return (
@@ -1184,6 +1251,7 @@ export function App() {
           users={users}
           notifications={notifications}
           unreadNotifications={unreadNotifications}
+          allowUserSwitch={!isRemoteAuth}
           onOpenNotification={(notification) => {
             markNotificationRead(notification.id);
             refreshNotifications();
@@ -1227,10 +1295,25 @@ export function App() {
             <ProfilePage
               user={user}
               objects={objects}
-              onSave={(nextUser) => {
+              remoteAuth={isRemoteAuth}
+              onSave={async (nextUser, passwordChange) => {
+                if (isRemoteAuth) {
+                  if (passwordChange?.newPassword) {
+                    await dataProvider.auth.signIn(user.email, passwordChange.oldPassword);
+                    await dataProvider.auth.updatePassword(passwordChange.newPassword);
+                  }
+                  const updatedProfile = await dataProvider.users.update(nextUser.id, {
+                    name: nextUser.name,
+                    phone: nextUser.phone,
+                    avatarUrl: nextUser.avatarUrl,
+                  });
+                  setUsers((current) => current.map((item) => item.id === updatedProfile.id ? updatedProfile : item));
+                  return updatedProfile;
+                }
                 const nextUsers = users.map((item) => item.id === nextUser.id ? nextUser : item);
                 setUsers(nextUsers);
                 saveUsers(nextUsers);
+                return nextUser;
               }}
             />
           )}
@@ -1364,10 +1447,11 @@ export function App() {
   );
 }
 
-function LoginPage({ users, onLogin }) {
+function LoginPage({ users, onLogin, isDemo = true }) {
   const [email, setEmail] = useState("creator@gross.ru");
   const [password, setPassword] = useState("");
   const [error, setError] = useState("");
+  const [submitting, setSubmitting] = useState(false);
   const activeUsers = users;
 
   return (
@@ -1383,9 +1467,11 @@ function LoginPage({ users, onLogin }) {
         </div>
         <form
           className="login-form"
-          onSubmit={(event) => {
+          onSubmit={async (event) => {
             event.preventDefault();
-            const result = onLogin(email, password);
+            setSubmitting(true);
+            const result = await onLogin(email, password);
+            setSubmitting(false);
             if (result.ok) {
               setError("");
               return;
@@ -1403,12 +1489,12 @@ function LoginPage({ users, onLogin }) {
               placeholder="creator@gross.ru"
             />
           </label>
-          <label>
+          {isDemo && <label>
             Демо-пользователь
             <select value={email} onChange={(event) => setEmail(event.target.value)}>
               {activeUsers.map((user) => <option key={user.id} value={user.email}>{user.name} — {roleLabels[user.role]}</option>)}
             </select>
-          </label>
+          </label>}
           <label>
             Пароль
             <input
@@ -1420,7 +1506,7 @@ function LoginPage({ users, onLogin }) {
             />
           </label>
           {error && <div className="form-error">{error}</div>}
-          <button type="submit">Войти</button>
+          <button type="submit" disabled={submitting}>{submitting ? "Входим..." : "Войти"}</button>
         </form>
       </section>
     </main>
@@ -1497,6 +1583,7 @@ function Header({
   onMarkAllNotificationsRead,
   onOpenNotificationsPage,
   onUserChange,
+  allowUserSwitch,
 }) {
   const labels = {
     objects: "Мои объекты",
@@ -1567,7 +1654,7 @@ function Header({
           onOpenPage={onOpenNotificationsPage}
         />
         <div className="user-chip"><strong>{user.name}</strong><span>{roleLabels[user.role]}</span></div>
-        <select aria-label="Текущий пользователь" value={user.id} onChange={(event) => onUserChange(event.target.value)}>{users.map((item) => <option key={item.id} value={item.id}>{item.name} — {roleLabels[item.role]}</option>)}</select>
+        {allowUserSwitch && <select aria-label="Текущий пользователь" value={user.id} onChange={(event) => onUserChange(event.target.value)}>{users.map((item) => <option key={item.id} value={item.id}>{item.name} — {roleLabels[item.role]}</option>)}</select>}
       </div>
     </header>
   );
@@ -2842,14 +2929,14 @@ function ManpowerAdjustModal({ request, objectName, onClose, onSave }) {
   return <div className="modal-backdrop"><form className="task-modal compact" onSubmit={(event) => { event.preventDefault(); onSave(form); }}><div className="modal-title"><div><h2>Скорректировать заявку</h2><p>{objectName}: запрошено {request.loadersRequested} груз. и {request.installersRequested} монт.</p></div><button type="button" onClick={onClose}>×</button></div><label>Утвердить грузчиков<input type="number" min="0" value={form.approvedLoaders} onChange={(event) => update("approvedLoaders", event.target.value)} /></label><label>Утвердить монтажников<input type="number" min="0" value={form.approvedInstallers} onChange={(event) => update("approvedInstallers", event.target.value)} /></label><label>Приоритет<select value={form.priority} onChange={(event) => update("priority", event.target.value)}>{manpowerPriorities.map((item) => <option key={item}>{item}</option>)}</select></label><label>Комментарий директора<textarea value={form.directorComment} onChange={(event) => update("directorComment", event.target.value)} /></label><div className="form-actions"><button className="secondary-button" type="button" onClick={onClose}>Отмена</button><button className="primary-button">Сохранить решение</button></div></form></div>;
 }
 
-function ProfilePage({ user, objects, onSave }) {
+function ProfilePage({ user, objects, onSave, remoteAuth = false }) {
   const [form, setForm] = useState({ ...user, oldPassword: "", newPassword: "" });
   const [saved, setSaved] = useState(false);
   const [error, setError] = useState("");
   const update = (field, value) => { setForm((current) => ({ ...current, [field]: value })); setSaved(false); };
   const assignedObjects = objects.filter((object) => form.assignedObjectIds?.includes(object.id));
   const assignedBuildings = objects.flatMap((object) => object.buildings.map((building) => ({ ...building, objectName: object.name }))).filter((building) => form.assignedBuildingIds?.includes(building.id));
-  return <section className="profile-panel"><div className="profile-card"><div className="profile-avatar"><div>{form.avatarUrl ? <img src={form.avatarUrl} alt="Аватар" /> : form.name.slice(0, 1)}</div><label>Загрузить аватар<input type="file" accept="image/*" onChange={(event) => { const file = event.target.files?.[0]; if (!file) return; const reader = new FileReader(); reader.onload = () => update("avatarUrl", String(reader.result)); reader.readAsDataURL(file); }} /></label></div><form onSubmit={(event) => { event.preventDefault(); setError(""); if (form.newPassword && form.oldPassword !== user.password) { setError("Введите текущий пароль, чтобы подтвердить смену пароля"); return; } const { oldPassword, newPassword, ...profile } = form; onSave(normalizeUser({ ...profile, password: newPassword ? newPassword : user.password })); setForm((current) => ({ ...current, oldPassword: "", newPassword: "", password: newPassword ? newPassword : user.password })); setSaved(true); }}><div className="profile-grid"><label>ФИО<input value={form.name} onChange={(event) => update("name", event.target.value)} /></label><label>Должность<input value={form.position} readOnly /></label><label>Роль<input value={roleLabels[form.role]} readOnly /></label><label>Email<input type="email" value={form.email} onChange={(event) => update("email", event.target.value)} /></label><label>Телефон<input value={form.phone} onChange={(event) => update("phone", event.target.value)} /></label><label>Статус<input value={form.status} readOnly /></label><label className="profile-password">Текущий пароль<input type="password" value={form.oldPassword} onChange={(event) => update("oldPassword", event.target.value)} placeholder="Введите старый пароль" /></label><label className="profile-password">Новый пароль<input type="password" value={form.newPassword} onChange={(event) => update("newPassword", event.target.value)} placeholder="Оставьте пустым, если не меняете" /></label></div><div className="profile-assignments"><div><span>Назначенные объекты</span><strong>{assignedObjects.map((object) => object.name).join(", ") || "Все / не ограничено"}</strong></div><div><span>Назначенные корпуса</span><strong>{assignedBuildings.map((building) => `${building.objectName} / ${building.name}`).join(", ") || "Не указаны"}</strong></div></div><button className="primary-button">Сохранить профиль</button>{error && <div className="form-error">{error}</div>}{saved && <div className="save-notice">Данные пользователя сохранены</div>}</form></div></section>;
+  return <section className="profile-panel"><div className="profile-card"><div className="profile-avatar"><div>{form.avatarUrl ? <img src={form.avatarUrl} alt="Аватар" /> : form.name.slice(0, 1)}</div><label>Загрузить аватар<input type="file" accept="image/*" onChange={(event) => { const file = event.target.files?.[0]; if (!file) return; const reader = new FileReader(); reader.onload = () => update("avatarUrl", String(reader.result)); reader.readAsDataURL(file); }} /></label></div><form onSubmit={async (event) => { event.preventDefault(); setError(""); if (form.newPassword && !form.oldPassword) { setError("Введите текущий пароль, чтобы подтвердить смену пароля"); return; } if (!remoteAuth && form.newPassword && form.oldPassword !== user.password) { setError("Текущий пароль указан неверно"); return; } const { oldPassword, newPassword, ...profile } = form; try { const savedProfile = await onSave(normalizeUser({ ...profile, password: remoteAuth ? undefined : newPassword || user.password }), { oldPassword, newPassword }); setForm((current) => ({ ...current, ...savedProfile, oldPassword: "", newPassword: "", password: remoteAuth ? undefined : newPassword || user.password })); setSaved(true); } catch { setError("Не удалось сохранить профиль. Проверьте текущий пароль и соединение."); } }}><div className="profile-grid"><label>ФИО<input value={form.name} onChange={(event) => update("name", event.target.value)} /></label><label>Должность<input value={form.position} readOnly /></label><label>Роль<input value={roleLabels[form.role]} readOnly /></label><label>Email<input type="email" value={form.email} readOnly={remoteAuth} onChange={(event) => update("email", event.target.value)} /></label><label>Телефон<input value={form.phone} onChange={(event) => update("phone", event.target.value)} /></label><label>Статус<input value={form.status} readOnly /></label><label className="profile-password">Текущий пароль<input type="password" value={form.oldPassword} onChange={(event) => update("oldPassword", event.target.value)} placeholder="Введите старый пароль" /></label><label className="profile-password">Новый пароль<input type="password" value={form.newPassword} onChange={(event) => update("newPassword", event.target.value)} placeholder="Оставьте пустым, если не меняете" /></label></div><div className="profile-assignments"><div><span>Назначенные объекты</span><strong>{assignedObjects.map((object) => object.name).join(", ") || "Все / не ограничено"}</strong></div><div><span>Назначенные корпуса</span><strong>{assignedBuildings.map((building) => `${building.objectName} / ${building.name}`).join(", ") || "Не указаны"}</strong></div></div><button className="primary-button">Сохранить профиль</button>{error && <div className="form-error">{error}</div>}{saved && <div className="save-notice">Данные пользователя сохранены</div>}</form></div></section>;
 }
 
 function BrigadePlanPage({ objects, user, users }) {

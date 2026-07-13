@@ -45,3 +45,5 @@ npm run supabase:status
 
 Приложение не переключается на облачную базу автоматически: это происходит только при `VITE_DATA_PROVIDER=supabase`.
 
+Настройка реальных аккаунтов и серверного создания пользователей описана в
+[AUTHENTICATION.md](./AUTHENTICATION.md).
