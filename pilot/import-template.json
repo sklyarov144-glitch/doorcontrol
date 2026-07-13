@@ -1,0 +1,37 @@
+{
+  "objects": [
+    {
+      "legacyId": "pilot-matveevsky",
+      "name": "ЖК Матвеевский парк",
+      "district": "Очаково-Матвеевское",
+      "metro": "Аминьевская",
+      "status": "В работе",
+      "buildings": [
+        {
+          "legacyId": "pilot-building-4-1",
+          "name": "Корпус 4.1",
+          "floorsCount": 2,
+          "hasParking": true,
+          "floors": [
+            {
+              "legacyId": "pilot-building-4-1-floor-1",
+              "number": 1,
+              "doors": [
+                { "legacyId": "pilot-4-1-1-d1", "label": "Квартира 1", "mark": "Д-1", "type": "apartment", "openingNumber": 1, "x": 28, "y": 42 },
+                { "legacyId": "pilot-4-1-1-mop1", "label": "1 МОП", "mark": "МОП-1", "type": "mop", "x": 49, "y": 52 }
+              ]
+            },
+            {
+              "legacyId": "pilot-building-4-1-floor-2",
+              "number": 2,
+              "doors": [
+                { "legacyId": "pilot-4-1-2-d1", "label": "Квартира 1", "mark": "Д-1", "type": "apartment", "openingNumber": 1, "x": 28, "y": 42 },
+                { "legacyId": "pilot-4-1-2-mop1", "label": "1 МОП", "mark": "МОП-1", "type": "mop", "x": 49, "y": 52 }
+              ]
+            }
+          ]
+        }
+      ]
+    }
+  ]
+}

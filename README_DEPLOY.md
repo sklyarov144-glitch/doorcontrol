@@ -29,3 +29,5 @@ npm run dev
 - `Encrypted production database backup`: ежедневный зашифрованный логический backup; основной механизм восстановления — Supabase backups/PITR.
 
 После каждого деплоя выполняется smoke-проверка `/` и `/login`. Операционные действия при сбое описаны в [docs/RUNBOOK.md](docs/RUNBOOK.md).
+
+Подготовка реальных данных и допуск пилота описаны в [docs/PILOT_PLAN.md](docs/PILOT_PLAN.md), [docs/DATA_IMPORT.md](docs/DATA_IMPORT.md) и [docs/GO_LIVE_CHECKLIST.md](docs/GO_LIVE_CHECKLIST.md).
