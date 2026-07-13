@@ -22,6 +22,10 @@ const operationalRls = readFileSync(
   resolve("supabase/migrations/202607130006_operational_rls.sql"),
   "utf8"
 );
+const storageMigration = readFileSync(
+  resolve("supabase/migrations/202607130007_storage_buckets.sql"),
+  "utf8"
+);
 
 describe("Supabase schema", () => {
   it("defines the core hierarchy and assignment tables", () => {
@@ -66,5 +70,14 @@ describe("Supabase schema", () => {
     for (const table of ["tasks", "task_comments", "task_links", "notifications", "document_items", "custody_acts", "tn_issues", "activity_logs"]) {
       expect(operationalRls).toContain(`alter table public.${table} enable row level security`);
     }
+  });
+
+  it("creates private scoped storage buckets", () => {
+    for (const bucket of ["documents", "floor-plans", "avatars"]) {
+      expect(storageMigration).toContain(`'${bucket}'`);
+    }
+    expect(storageMigration).toContain("false, 52428800");
+    expect(storageMigration).toContain("public.can_access_object");
+    expect(storageMigration).toContain("auth.uid()::text");
   });
 });

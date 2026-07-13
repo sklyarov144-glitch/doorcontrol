@@ -6,6 +6,14 @@ function unwrap({ data, error }) {
   return fromDatabase(data);
 }
 
+async function hydratePrivateAvatar(profile) {
+  if (!profile?.avatarUrl?.startsWith("storage://avatars/")) return profile;
+  const path = profile.avatarUrl.slice("storage://avatars/".length);
+  const { data, error } = await requireSupabase().storage.from("avatars").createSignedUrl(path, 3600);
+  if (error) return { ...profile, avatarStorageUri: profile.avatarUrl, avatarUrl: "" };
+  return { ...profile, avatarStorageUri: profile.avatarUrl, avatarUrl: data.signedUrl };
+}
+
 const asUuid = (value) => /^[0-9a-f]{8}-[0-9a-f]{4}-[1-5][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i.test(value ?? "") ? value : null;
 
 function makeCrud(table) {
@@ -198,13 +206,13 @@ export const supabaseProvider = {
       const { data: authData, error: authError } = await requireSupabase().auth.getUser();
       if (authError) throw authError;
       if (!authData.user) return null;
-      return unwrap(
+      return hydratePrivateAvatar(unwrap(
         await requireSupabase()
           .from("profiles")
           .select("*")
           .eq("id", authData.user.id)
           .maybeSingle()
-      );
+      ));
     },
   },
   users: {

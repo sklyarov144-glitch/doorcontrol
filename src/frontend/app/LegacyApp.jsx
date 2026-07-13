@@ -67,6 +67,7 @@ import {
   disableWorkStandard,
 } from "../storage";
 import { dataProvider, dataProviderName } from "../../services/dataProvider";
+import { fileService } from "../../services/files";
 import { AuthProvider } from "../contexts/AuthContext";
 import { permissionsFor } from "../domain/permissions";
 import { buildAppPath, parseAppRoute } from "./routes";
@@ -502,6 +503,7 @@ function normalizeUser(user) {
     role: user.role ?? "itr",
     position: user.position ?? "",
     avatarUrl: user.avatarUrl ?? user.avatar ?? "",
+    avatarStorageUri: user.avatarStorageUri ?? "",
     avatar: user.avatarUrl ?? user.avatar ?? "",
     status: user.status ?? "active",
     assignedObjectIds: user.assignedObjectIds ?? [],
@@ -1370,15 +1372,24 @@ export function App() {
                   const updatedProfile = await dataProvider.users.update(nextUser.id, {
                     name: nextUser.name,
                     phone: nextUser.phone,
-                    avatarUrl: nextUser.avatarUrl,
+                    avatarUrl: nextUser.avatarStorageUri ?? nextUser.avatarUrl,
                   });
-                  setUsers((current) => current.map((item) => item.id === updatedProfile.id ? updatedProfile : item));
-                  return updatedProfile;
+                  const displayProfile = nextUser.avatarStorageUri
+                    ? { ...updatedProfile, avatarStorageUri: nextUser.avatarStorageUri, avatarUrl: nextUser.avatarUrl }
+                    : updatedProfile;
+                  setUsers((current) => current.map((item) => item.id === displayProfile.id ? displayProfile : item));
+                  return displayProfile;
                 }
                 const nextUsers = users.map((item) => item.id === nextUser.id ? nextUser : item);
                 setUsers(nextUsers);
                 saveUsers(nextUsers);
                 return nextUser;
+              }}
+              onAvatarUpload={async (file) => {
+                const uploaded = await fileService.uploadAvatar({ userId: user.id }, file);
+                if (!isRemoteAuth) return { avatarUrl: uploaded.uri, avatarStorageUri: "" };
+                const avatarUrl = await fileService.createSignedUrl(uploaded.bucket, uploaded.path, 3600);
+                return { avatarUrl, avatarStorageUri: uploaded.uri };
               }}
             />
           )}
@@ -2986,14 +2997,14 @@ function ManpowerAdjustModal({ request, objectName, onClose, onSave }) {
   return <div className="modal-backdrop"><form className="task-modal compact" onSubmit={(event) => { event.preventDefault(); onSave(form); }}><div className="modal-title"><div><h2>Скорректировать заявку</h2><p>{objectName}: запрошено {request.loadersRequested} груз. и {request.installersRequested} монт.</p></div><button type="button" onClick={onClose}>×</button></div><label>Утвердить грузчиков<input type="number" min="0" value={form.approvedLoaders} onChange={(event) => update("approvedLoaders", event.target.value)} /></label><label>Утвердить монтажников<input type="number" min="0" value={form.approvedInstallers} onChange={(event) => update("approvedInstallers", event.target.value)} /></label><label>Приоритет<select value={form.priority} onChange={(event) => update("priority", event.target.value)}>{manpowerPriorities.map((item) => <option key={item}>{item}</option>)}</select></label><label>Комментарий директора<textarea value={form.directorComment} onChange={(event) => update("directorComment", event.target.value)} /></label><div className="form-actions"><button className="secondary-button" type="button" onClick={onClose}>Отмена</button><button className="primary-button">Сохранить решение</button></div></form></div>;
 }
 
-function ProfilePage({ user, objects, onSave, remoteAuth = false }) {
+function ProfilePage({ user, objects, onSave, onAvatarUpload, remoteAuth = false }) {
   const [form, setForm] = useState({ ...user, oldPassword: "", newPassword: "" });
   const [saved, setSaved] = useState(false);
   const [error, setError] = useState("");
   const update = (field, value) => { setForm((current) => ({ ...current, [field]: value })); setSaved(false); };
   const assignedObjects = objects.filter((object) => form.assignedObjectIds?.includes(object.id));
   const assignedBuildings = objects.flatMap((object) => object.buildings.map((building) => ({ ...building, objectName: object.name }))).filter((building) => form.assignedBuildingIds?.includes(building.id));
-  return <section className="profile-panel"><div className="profile-card"><div className="profile-avatar"><div>{form.avatarUrl ? <img src={form.avatarUrl} alt="Аватар" /> : form.name.slice(0, 1)}</div><label>Загрузить аватар<input type="file" accept="image/*" onChange={(event) => { const file = event.target.files?.[0]; if (!file) return; const reader = new FileReader(); reader.onload = () => update("avatarUrl", String(reader.result)); reader.readAsDataURL(file); }} /></label></div><form onSubmit={async (event) => { event.preventDefault(); setError(""); if (form.newPassword && !form.oldPassword) { setError("Введите текущий пароль, чтобы подтвердить смену пароля"); return; } if (!remoteAuth && form.newPassword && form.oldPassword !== user.password) { setError("Текущий пароль указан неверно"); return; } const { oldPassword, newPassword, ...profile } = form; try { const savedProfile = await onSave(normalizeUser({ ...profile, password: remoteAuth ? undefined : newPassword || user.password }), { oldPassword, newPassword }); setForm((current) => ({ ...current, ...savedProfile, oldPassword: "", newPassword: "", password: remoteAuth ? undefined : newPassword || user.password })); setSaved(true); } catch { setError("Не удалось сохранить профиль. Проверьте текущий пароль и соединение."); } }}><div className="profile-grid"><label>ФИО<input value={form.name} onChange={(event) => update("name", event.target.value)} /></label><label>Должность<input value={form.position} readOnly /></label><label>Роль<input value={roleLabels[form.role]} readOnly /></label><label>Email<input type="email" value={form.email} readOnly={remoteAuth} onChange={(event) => update("email", event.target.value)} /></label><label>Телефон<input value={form.phone} onChange={(event) => update("phone", event.target.value)} /></label><label>Статус<input value={form.status} readOnly /></label><label className="profile-password">Текущий пароль<input type="password" value={form.oldPassword} onChange={(event) => update("oldPassword", event.target.value)} placeholder="Введите старый пароль" /></label><label className="profile-password">Новый пароль<input type="password" value={form.newPassword} onChange={(event) => update("newPassword", event.target.value)} placeholder="Оставьте пустым, если не меняете" /></label></div><div className="profile-assignments"><div><span>Назначенные объекты</span><strong>{assignedObjects.map((object) => object.name).join(", ") || "Все / не ограничено"}</strong></div><div><span>Назначенные корпуса</span><strong>{assignedBuildings.map((building) => `${building.objectName} / ${building.name}`).join(", ") || "Не указаны"}</strong></div></div><button className="primary-button">Сохранить профиль</button>{error && <div className="form-error">{error}</div>}{saved && <div className="save-notice">Данные пользователя сохранены</div>}</form></div></section>;
+  return <section className="profile-panel"><div className="profile-card"><div className="profile-avatar"><div>{form.avatarUrl ? <img src={form.avatarUrl} alt="Аватар" /> : form.name.slice(0, 1)}</div><label>Загрузить аватар<input type="file" accept="image/*" onChange={async (event) => { const file = event.target.files?.[0]; if (!file) return; setError(""); try { const avatar = await onAvatarUpload(file); setForm((current) => ({ ...current, ...avatar })); } catch { setError("Не удалось загрузить аватар"); } }} /></label></div><form onSubmit={async (event) => { event.preventDefault(); setError(""); if (form.newPassword && !form.oldPassword) { setError("Введите текущий пароль, чтобы подтвердить смену пароля"); return; } if (!remoteAuth && form.newPassword && form.oldPassword !== user.password) { setError("Текущий пароль указан неверно"); return; } const { oldPassword, newPassword, ...profile } = form; try { const savedProfile = await onSave(normalizeUser({ ...profile, password: remoteAuth ? undefined : newPassword || user.password }), { oldPassword, newPassword }); setForm((current) => ({ ...current, ...savedProfile, oldPassword: "", newPassword: "", password: remoteAuth ? undefined : newPassword || user.password })); setSaved(true); } catch { setError("Не удалось сохранить профиль. Проверьте текущий пароль и соединение."); } }}><div className="profile-grid"><label>ФИО<input value={form.name} onChange={(event) => update("name", event.target.value)} /></label><label>Должность<input value={form.position} readOnly /></label><label>Роль<input value={roleLabels[form.role]} readOnly /></label><label>Email<input type="email" value={form.email} readOnly={remoteAuth} onChange={(event) => update("email", event.target.value)} /></label><label>Телефон<input value={form.phone} onChange={(event) => update("phone", event.target.value)} /></label><label>Статус<input value={form.status} readOnly /></label><label className="profile-password">Текущий пароль<input type="password" value={form.oldPassword} onChange={(event) => update("oldPassword", event.target.value)} placeholder="Введите старый пароль" /></label><label className="profile-password">Новый пароль<input type="password" value={form.newPassword} onChange={(event) => update("newPassword", event.target.value)} placeholder="Оставьте пустым, если не меняете" /></label></div><div className="profile-assignments"><div><span>Назначенные объекты</span><strong>{assignedObjects.map((object) => object.name).join(", ") || "Все / не ограничено"}</strong></div><div><span>Назначенные корпуса</span><strong>{assignedBuildings.map((building) => `${building.objectName} / ${building.name}`).join(", ") || "Не указаны"}</strong></div></div><button className="primary-button">Сохранить профиль</button>{error && <div className="form-error">{error}</div>}{saved && <div className="save-notice">Данные пользователя сохранены</div>}</form></div></section>;
 }
 
 function BrigadePlanPage({ objects, user, users }) {
