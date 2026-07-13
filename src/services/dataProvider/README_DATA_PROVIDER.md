@@ -6,6 +6,7 @@ Current implementation:
 - `localProvider.js`
 - browser `localStorage`
 - synchronous CRUD methods for MVP speed
+- application session through `dataProvider.auth`
 
 Future implementation:
 - replace `localProvider` with a Supabase provider;
@@ -16,10 +17,13 @@ Main groups:
 - `users`
 - `objects`
 - `buildings`
+- `floors`
 - `doors`
 - `tasks`
 - `notifications`
 - `documentItems`
+- `documents`
+- `custodyActs`
 - `teams`
 - `workers`
 - `employees`

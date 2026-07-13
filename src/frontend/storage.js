@@ -294,7 +294,7 @@ export function getProblemStats(problems) {
 }
 
 export function getProblems(objects) {
-  let documents = DEFAULT_MATRIX_DOCUMENTS;
+  let documents;
   try {
     const saved = JSON.parse(localStorage.getItem(MATRIX_DOCUMENTS_KEY));
     documents = Array.isArray(saved) ? saved : DEFAULT_MATRIX_DOCUMENTS;

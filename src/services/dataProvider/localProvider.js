@@ -12,6 +12,8 @@ const keys = {
   dailyWorkReports: "gross-lean-montage.daily-work-reports.v1",
   manpowerRequests: "gross-lean-montage.manpower-requests.v1",
   activityLogs: "gross-lean-montage.activity-logs.v1",
+  custodyActs: "gross-lean-montage.custody-acts.v1",
+  session: "gross-lean-montage.auth-session.v1",
 };
 
 function readCollection(key) {
@@ -31,6 +33,7 @@ function makeCrud(key, idPrefix) {
   return {
     getAll: () => readCollection(key),
     getById: (id) => readCollection(key).find((item) => item.id === id) ?? null,
+    replaceAll: (rows) => writeCollection(key, rows),
     create: (data) => {
       const now = new Date().toISOString();
       const item = {
@@ -62,11 +65,29 @@ function makeCrud(key, idPrefix) {
 }
 
 export const localProvider = {
+  auth: {
+    getSession: () => {
+      try {
+        return JSON.parse(localStorage.getItem(keys.session));
+      } catch {
+        return null;
+      }
+    },
+    saveSession: (session) => {
+      localStorage.setItem(keys.session, JSON.stringify(session));
+      return session;
+    },
+    clearSession: () => localStorage.removeItem(keys.session),
+  },
   users: makeCrud(keys.users, "user"),
   objects: makeCrud(keys.objects, "object"),
   buildings: {
     getAll: () => readCollection(keys.objects).flatMap((object) => object.buildings ?? []),
     getById: (id) => readCollection(keys.objects).flatMap((object) => object.buildings ?? []).find((building) => building.id === id) ?? null,
+  },
+  floors: {
+    getAll: () => readCollection(keys.objects).flatMap((object) => (object.buildings ?? []).flatMap((building) => building.floors ?? [])),
+    getById: (id) => localProvider.floors.getAll().find((floor) => floor.id === id) ?? null,
   },
   doors: {
     getAll: () => readCollection(keys.objects).flatMap((object) => (object.buildings ?? []).flatMap((building) => (building.floors ?? []).flatMap((floor) => floor.doors ?? []))),
@@ -75,6 +96,8 @@ export const localProvider = {
   tasks: makeCrud(keys.tasks, "task"),
   notifications: makeCrud(keys.notifications, "notification"),
   documentItems: makeCrud(keys.documentItems, "document"),
+  documents: makeCrud(keys.documentItems, "document"),
+  custodyActs: makeCrud(keys.custodyActs, "custody-act"),
   teams: makeCrud(keys.teams, "team"),
   workers: makeCrud(keys.workers, "worker"),
   employees: makeCrud(keys.employees, "employee"),
