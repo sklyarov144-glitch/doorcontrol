@@ -6,6 +6,8 @@ function unwrap({ data, error }) {
   return fromDatabase(data);
 }
 
+const asUuid = (value) => /^[0-9a-f]{8}-[0-9a-f]{4}-[1-5][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i.test(value ?? "") ? value : null;
+
 function makeCrud(table) {
   return {
     async getAll() {
@@ -38,6 +40,126 @@ function makeCrud(table) {
 }
 
 const usersCrud = makeCrud("profiles");
+const objectsCrud = makeCrud("objects");
+
+function mapDoorRecord(door) {
+  const meta = door.meta ?? {};
+  return {
+    ...meta,
+    ...door,
+    number: door.label,
+    doorStatus: door.status,
+    openingStatus: door.openingStatus,
+    issue: door.issueStatus,
+    storageAct: door.custodyActStatus,
+    history: meta.history ?? [],
+    swing: meta.swing,
+  };
+}
+
+export function mapObjectTree(rows) {
+  return rows.map((object) => ({
+    ...object.meta,
+    ...object,
+    responsibleDirectorId: object.responsibleDirectorId,
+    buildings: (object.buildings ?? []).map((building) => {
+      const floors = (building.floors ?? [])
+        .sort((left, right) => left.floorNumber - right.floorNumber)
+        .map((floor) => ({
+          ...floor.templateSnapshot,
+          ...floor,
+          number: floor.floorNumber,
+          label: String(floor.floorNumber),
+          type: "floor",
+          doors: (floor.doors ?? []).map(mapDoorRecord),
+        }));
+      return {
+        ...building.floorTemplate,
+        ...building,
+        floorsCount: building.floorsCount,
+        floors: [
+          ...(building.hasParking ? [{ id: `parking-${building.id}`, label: "Паркинг", type: "service", doors: [] }] : []),
+          ...floors,
+          { id: `roof-${building.id}`, label: "Кровля", type: "service", doors: [] },
+        ],
+      };
+    }),
+  }));
+}
+
+async function upsertObjectTree(objects) {
+  const client = requireSupabase();
+  const profile = await supabaseProvider.auth.getCurrentProfile();
+  if (!profile?.companyId) throw new Error("Current profile has no company");
+
+  for (const object of objects) {
+    const objectRow = unwrap(await client.from("objects").upsert({
+      legacy_id: object.legacyId ?? object.id,
+      company_id: profile.companyId,
+      name: object.name,
+      address: object.address,
+      metro: object.metro,
+      status: object.status,
+      responsible_director_id: asUuid(object.responsibleDirectorId),
+      meta: {
+        developer: object.developer,
+        description: object.description,
+        startDate: object.startDate,
+        plannedEndDate: object.plannedEndDate,
+      },
+    }, { onConflict: "legacy_id" }).select().single());
+
+    for (const building of object.buildings ?? []) {
+      const buildingRow = unwrap(await client.from("buildings").upsert({
+        legacy_id: building.legacyId ?? building.id,
+        object_id: objectRow.id,
+        name: building.name,
+        floors_count: building.floorsCount,
+        has_parking: (building.floors ?? []).some((floor) => floor.type === "service" && floor.label === "Паркинг"),
+        readiness: Number(building.readiness ?? 0),
+        responsible_itr_id: asUuid(building.responsibleItrId),
+        floor_template: building.floorTemplate ?? {},
+      }, { onConflict: "legacy_id" }).select().single());
+
+      for (const floor of (building.floors ?? []).filter((item) => item.type === "floor")) {
+        const floorRow = unwrap(await client.from("floors").upsert({
+          legacy_id: floor.legacyId ?? floor.id,
+          building_id: buildingRow.id,
+          floor_number: floor.number,
+          plan_image_url: floor.planImageUrl ?? null,
+          template_snapshot: floor.templateSnapshot ?? {},
+        }, { onConflict: "building_id,floor_number" }).select().single());
+
+        for (const door of floor.doors ?? []) {
+          await client.from("doors").upsert({
+            legacy_id: door.legacyId ?? door.id,
+            floor_id: floorRow.id,
+            label: door.number ?? door.label,
+            mark: door.mark,
+            type: door.type,
+            opening_number: door.openingNumber ?? null,
+            status: door.doorStatus ?? door.status,
+            opening_status: door.openingStatus,
+            issue_status: door.issue ?? door.issueStatus,
+            custody_act_status: door.storageAct ?? door.custodyActStatus,
+            assigned_user_id: asUuid(door.assignedUserId),
+            x: door.x,
+            y: door.y,
+            width_fact: door.widthFact || null,
+            height_fact: door.heightFact || null,
+            model: door.model || null,
+            mounted_at: door.mountedAt || null,
+            tn_accepted_at: door.tnAcceptedAt || null,
+            custody_act_uploaded_at: door.custodyActUploadedAt || null,
+            custody_act_closed_at: door.custodyActClosedAt || null,
+            meta: { history: door.history ?? [], swing: door.swing },
+          }, { onConflict: "legacy_id" }).throwOnError();
+        }
+      }
+    }
+  }
+  return objects;
+}
 
 export const supabaseProvider = {
   auth: {
@@ -91,7 +213,17 @@ export const supabaseProvider = {
       return unwrap(result);
     },
   },
-  objects: makeCrud("objects"),
+  objects: {
+    ...objectsCrud,
+    async getTree() {
+      const response = await requireSupabase()
+        .from("objects")
+        .select("*, buildings(*, floors(*, doors(*)))")
+        .order("created_at");
+      return mapObjectTree(unwrap(response));
+    },
+    upsertTree: upsertObjectTree,
+  },
   buildings: makeCrud("buildings"),
   floors: makeCrud("floors"),
   doors: makeCrud("doors"),

@@ -410,7 +410,13 @@ function loadObjects() {
 }
 
 function saveObjects(objects) {
-  dataProvider.objects.replaceAll(objects);
+  if (dataProviderName === "supabase") {
+    return dataProvider.objects.upsertTree(objects).catch((error) => {
+      console.error("Unable to persist object tree", error);
+      throw error;
+    });
+  }
+  return dataProvider.objects.replaceAll(objects);
 }
 
 const mockUsers = [
@@ -652,6 +658,7 @@ export function App() {
   const localSession = isRemoteAuth ? null : dataProvider.auth.getSession();
   const [isLoggedIn, setIsLoggedIn] = useState(() => Boolean(localSession?.userId));
   const [authLoading, setAuthLoading] = useState(isRemoteAuth);
+  const [domainLoading, setDomainLoading] = useState(isRemoteAuth);
   const [users, setUsers] = useState(loadUsers);
   const [currentUserId, setCurrentUserId] = useState(() => localSession?.userId || "creator-1");
   const user = users.find((item) => item.id === currentUserId) ?? users[0];
@@ -760,6 +767,20 @@ export function App() {
       subscription?.data?.subscription?.unsubscribe();
     };
   }, [isRemoteAuth]);
+
+  React.useEffect(() => {
+    if (!isRemoteAuth || !isLoggedIn) return;
+    let active = true;
+    dataProvider.objects.getTree()
+      .then((rows) => {
+        if (active && rows.length) setObjects(rows.map(normalizeObject));
+      })
+      .catch((error) => console.error("Unable to load object tree", error))
+      .finally(() => {
+        if (active) setDomainLoading(false);
+      });
+    return () => { active = false; };
+  }, [isRemoteAuth, isLoggedIn]);
   const openTaskModal = (context = {}) => {
     if (!canCreateManualTask) return;
     setTaskContext(context);
@@ -1220,8 +1241,8 @@ export function App() {
     permissions,
   };
 
-  if (authLoading) {
-    return <main className="auth-loading" aria-live="polite">Проверяем сессию...</main>;
+  if (authLoading || isLoggedIn && domainLoading) {
+    return <main className="auth-loading" aria-live="polite">{authLoading ? "Проверяем сессию..." : "Загружаем объекты..."}</main>;
   }
 
   if (!isLoggedIn) {
