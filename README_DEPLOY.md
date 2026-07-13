@@ -1,53 +1,31 @@
-# Деплой MVP "ГРОСС Бережливый Монтаж"
+# Развёртывание "ГРОСС Бережливый Монтаж"
 
-## Локальный запуск
+Production-архитектура: Vercel (React/Vite), Supabase (PostgreSQL, Auth, Storage, Edge Functions), Sentry (ошибки и производительность).
+
+## Локальная проверка
 
 ```bash
-npm install
+npm ci
+cp .env.example .env.local
+npm run ci
 npm run dev
 ```
 
-Приложение открывается по адресу `http://localhost:5173/`.
+Для локального демо оставьте `VITE_DATA_PROVIDER=local`. Для подключения к Supabase установите `VITE_DATA_PROVIDER=supabase`, URL проекта и публичный anon key.
 
-## Демо-пользователи
+## Среды
 
-Все демо-пользователи используют пароль `123456`.
+- `local`: разработка, допускается local provider.
+- `staging`: отдельные проекты Vercel и Supabase, тестовые данные.
+- `production`: отдельные проекты и секреты, только Supabase provider.
 
-| Роль | Email |
-| --- | --- |
-| Создатель сайта | `creator@gross.ru` |
-| Руководитель компании | `head@gross.ru` |
-| Директор строительства | `director@gross.ru` |
-| ИТР Матвеевский парк | `itr.matveevsky@gross.ru` |
-| ИТР Прокшино | `itr.prokshino@gross.ru` |
+Настройка сред и секретов описана в [docs/ENVIRONMENTS.md](docs/ENVIRONMENTS.md). Порядок выпуска — в [docs/DEPLOYMENT.md](docs/DEPLOYMENT.md).
 
-## Сборка
+## Автоматизация
 
-```bash
-npm run build
-```
+- `CI`: lint, тесты, production build и аудит production-зависимостей.
+- `Deploy staging`: автоматически после успешного push в `main`, также запускается вручную.
+- `Deploy production`: только вручную, с подтверждением `DEPLOY` и защитой GitHub Environment.
+- `Encrypted production database backup`: ежедневный зашифрованный логический backup; основной механизм восстановления — Supabase backups/PITR.
 
-Результат сборки находится в папке `dist`.
-
-## Vercel
-
-1. Импортировать GitHub-репозиторий в Vercel.
-2. Framework preset: `Vite`.
-3. Build command: `npm run build`.
-4. Output directory: `dist`.
-5. Переменные окружения пока не обязательны, потому что MVP работает на `localStorage`.
-
-## Будущее подключение Supabase
-
-Планируемые переменные окружения:
-
-```bash
-VITE_SUPABASE_URL=
-VITE_SUPABASE_ANON_KEY=
-SUPABASE_SERVICE_ROLE_KEY=
-```
-
-`SUPABASE_SERVICE_ROLE_KEY` нельзя использовать во фронтенде. Он нужен только для будущего серверного слоя, edge functions или админских операций.
-
-Граница доступа к данным уже вынесена в `src/services/dataProvider`. Сейчас используется `localProvider`, позже его можно заменить на `supabaseProvider` без полной переработки экранов.
-
+После каждого деплоя выполняется smoke-проверка `/` и `/login`. Операционные действия при сбое описаны в [docs/RUNBOOK.md](docs/RUNBOOK.md).

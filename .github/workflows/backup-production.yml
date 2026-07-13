@@ -1,0 +1,36 @@
+name: Encrypted production database backup
+
+on:
+  schedule:
+    - cron: "15 1 * * *"
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  backup:
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    environment: production
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version-file: .nvmrc
+          cache: npm
+      - run: npm ci
+      - name: Export database
+        env:
+          SUPABASE_DB_URL: ${{ secrets.SUPABASE_DB_URL }}
+        run: npx supabase db dump --db-url "$SUPABASE_DB_URL" --file gross-production.sql
+      - name: Encrypt backup
+        env:
+          BACKUP_ENCRYPTION_PASSWORD: ${{ secrets.BACKUP_ENCRYPTION_PASSWORD }}
+        run: openssl enc -aes-256-cbc -salt -pbkdf2 -in gross-production.sql -out gross-production-$(date -u +%F).sql.enc -pass env:BACKUP_ENCRYPTION_PASSWORD && rm gross-production.sql
+      - uses: actions/upload-artifact@v4
+        with:
+          name: gross-db-backup-${{ github.run_id }}
+          path: "*.sql.enc"
+          retention-days: 14
+          if-no-files-found: error

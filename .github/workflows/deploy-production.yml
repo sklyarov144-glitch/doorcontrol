@@ -1,0 +1,47 @@
+name: Deploy production
+
+on:
+  workflow_dispatch:
+    inputs:
+      confirmation:
+        description: Type DEPLOY to confirm production release
+        required: true
+
+concurrency:
+  group: production
+  cancel-in-progress: false
+
+permissions:
+  contents: read
+
+jobs:
+  deploy:
+    if: inputs.confirmation == 'DEPLOY'
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    environment: production
+    env:
+      SUPABASE_ACCESS_TOKEN: ${{ secrets.SUPABASE_ACCESS_TOKEN }}
+      SUPABASE_PROJECT_ID: ${{ secrets.SUPABASE_PROJECT_ID }}
+      VERCEL_ORG_ID: ${{ secrets.VERCEL_ORG_ID }}
+      VERCEL_PROJECT_ID: ${{ secrets.VERCEL_PROJECT_ID }}
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version-file: .nvmrc
+          cache: npm
+      - run: npm ci
+      - run: npm run ci
+      - name: Apply database migrations
+        run: npx supabase link --project-ref "$SUPABASE_PROJECT_ID" && npx supabase db push --linked
+      - name: Deploy Edge Functions
+        run: npx supabase functions deploy --project-ref "$SUPABASE_PROJECT_ID"
+      - name: Build and deploy Vercel production
+        run: |
+          npx vercel pull --yes --environment=production --token="${{ secrets.VERCEL_TOKEN }}"
+          npx vercel build --prod --token="${{ secrets.VERCEL_TOKEN }}"
+          DEPLOY_URL=$(npx vercel deploy --prebuilt --prod --token="${{ secrets.VERCEL_TOKEN }}")
+          echo "DEPLOY_URL=$DEPLOY_URL" >> "$GITHUB_ENV"
+      - name: Smoke test
+        run: SMOKE_URL="$DEPLOY_URL" npm run smoke
