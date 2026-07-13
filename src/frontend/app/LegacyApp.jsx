@@ -638,6 +638,7 @@ export function App() {
   const location = useLocation();
   const routerNavigate = useNavigate();
   const routeSyncing = React.useRef(false);
+  const initialRoute = parseAppRoute(location.pathname);
   const [objects, setObjects] = useState(loadObjects);
   const [doorMatrix, setDoorMatrix] = useState(() => {
     const saved = getDoorMatrix();
@@ -651,13 +652,13 @@ export function App() {
   const [users, setUsers] = useState(loadUsers);
   const [currentUserId, setCurrentUserId] = useState(() => dataProvider.auth.getSession()?.userId || "creator-1");
   const user = users.find((item) => item.id === currentUserId) ?? users[0];
-  const [screen, setScreen] = useState("objects");
-  const [selectedObjectId, setSelectedObjectId] = useState(objects[0].id);
+  const [screen, setScreen] = useState(initialRoute.screen === "login" ? "objects" : initialRoute.screen);
+  const [selectedObjectId, setSelectedObjectId] = useState(initialRoute.objectId ?? objects[0].id);
   const [selectedBuildingId, setSelectedBuildingId] = useState(
-    objects[0].buildings[0].id
+    initialRoute.buildingId ?? objects.find((object) => object.id === initialRoute.objectId)?.buildings[0]?.id ?? objects[0].buildings[0].id
   );
-  const [selectedFloorId, setSelectedFloorId] = useState("");
-  const [selectedDoorId, setSelectedDoorId] = useState("");
+  const [selectedFloorId, setSelectedFloorId] = useState(initialRoute.floorId ?? "");
+  const [selectedDoorId, setSelectedDoorId] = useState(initialRoute.doorId ?? "");
   const [taskVersion, setTaskVersion] = useState(0);
   const [taskContext, setTaskContext] = useState(null);
   const [notificationVersion, setNotificationVersion] = useState(0);
@@ -4213,6 +4214,7 @@ export {
   ManpowerPage,
   ManualTasksPage,
   NotificationsPage,
+  ObjectPage,
   ObjectsPage,
   ProblemCenterPage,
   ProfilePage,

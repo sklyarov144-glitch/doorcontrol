@@ -1,3 +1,7 @@
+import LZString from "lz-string";
+
+const COMPRESSED_PREFIX = "gross-lz:";
+
 const keys = {
   users: "gross-lean-montage.users.v1",
   objects: "gross-lean-montage.visual.mvp.v7",
@@ -18,14 +22,21 @@ const keys = {
 
 function readCollection(key) {
   try {
-    return JSON.parse(localStorage.getItem(key)) ?? [];
+    const stored = localStorage.getItem(key);
+    if (!stored) return [];
+    const json = stored.startsWith(COMPRESSED_PREFIX)
+      ? LZString.decompressFromUTF16(stored.slice(COMPRESSED_PREFIX.length))
+      : stored;
+    return JSON.parse(json) ?? [];
   } catch {
     return [];
   }
 }
 
 function writeCollection(key, rows) {
-  localStorage.setItem(key, JSON.stringify(rows));
+  const json = JSON.stringify(rows);
+  const compressed = `${COMPRESSED_PREFIX}${LZString.compressToUTF16(json)}`;
+  localStorage.setItem(key, compressed);
   return rows;
 }
 
