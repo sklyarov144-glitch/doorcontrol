@@ -70,6 +70,7 @@ import { dataProvider, dataProviderName } from "../../services/dataProvider";
 import { fileService } from "../../services/files";
 import { setMonitoringUser } from "../../services/monitoring";
 import FinancePage from "../pages/FinancePage";
+import { RemoteBrigadePlanPage, RemoteManpowerPage } from "../pages/RemoteWorkforcePage";
 import { AuthProvider } from "../contexts/AuthContext";
 import { permissionsFor } from "../domain/permissions";
 import { buildAppPath, parseAppRoute } from "./routes";
@@ -1446,8 +1447,8 @@ export function App() {
             />
           )}
           {screen === "documents" && <DocumentsPage />}
-          {screen === "brigade_plan" && <BrigadePlanPage objects={visibleObjects} user={user} users={users} />}
-          {screen === "manpower" && <ManpowerPage objects={visibleObjects} user={user} users={users} onNotify={refreshNotifications} />}
+          {screen === "brigade_plan" && (isRemoteAuth ? <RemoteBrigadePlanPage objects={visibleObjects} user={user} users={users} /> : <BrigadePlanPage objects={visibleObjects} user={user} users={users} />)}
+          {screen === "manpower" && (isRemoteAuth ? <RemoteManpowerPage objects={visibleObjects} user={user} users={users} onNotify={refreshNotifications} /> : <ManpowerPage objects={visibleObjects} user={user} users={users} onNotify={refreshNotifications} />)}
           {screen === "notifications" && (
             <NotificationsPage
               notifications={notifications}
