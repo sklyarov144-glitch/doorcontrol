@@ -26,6 +26,10 @@ const storageMigration = readFileSync(
   resolve("supabase/migrations/202607130007_storage_buckets.sql"),
   "utf8"
 );
+const auditMigration = readFileSync(
+  resolve("supabase/migrations/202607130008_audit_security.sql"),
+  "utf8"
+);
 
 describe("Supabase schema", () => {
   it("defines the core hierarchy and assignment tables", () => {
@@ -79,5 +83,12 @@ describe("Supabase schema", () => {
     expect(storageMigration).toContain("false, 52428800");
     expect(storageMigration).toContain("public.can_access_object");
     expect(storageMigration).toContain("auth.uid()::text");
+  });
+
+  it("audits business entities without retaining common PII fields", () => {
+    expect(auditMigration).toContain("audit_entity_change");
+    expect(auditMigration).toContain("activity_logs_immutable");
+    expect(auditMigration).toContain("array['email', 'phone', 'avatar_url', 'url']");
+    expect(auditMigration).toContain("revoke all on function public.audit_entity_change()");
   });
 });

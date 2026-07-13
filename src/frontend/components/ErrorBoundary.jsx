@@ -1,4 +1,5 @@
 import React from "react";
+import { captureApplicationError } from "../../services/monitoring";
 
 export class ErrorBoundary extends React.Component {
   constructor(props) {
@@ -12,6 +13,7 @@ export class ErrorBoundary extends React.Component {
 
   componentDidCatch(error, info) {
     console.error("Application error", error, info);
+    captureApplicationError(error, { componentStack: info.componentStack });
   }
 
   render() {

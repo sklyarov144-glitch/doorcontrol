@@ -68,6 +68,7 @@ import {
 } from "../storage";
 import { dataProvider, dataProviderName } from "../../services/dataProvider";
 import { fileService } from "../../services/files";
+import { setMonitoringUser } from "../../services/monitoring";
 import { AuthProvider } from "../contexts/AuthContext";
 import { permissionsFor } from "../domain/permissions";
 import { buildAppPath, parseAppRoute } from "./routes";
@@ -710,6 +711,9 @@ export function App() {
   const taskNoticeCount = useMemo(() => getManualTaskNoticeCount(manualTasks, user), [manualTasks, user]);
   const canCreateManualTask = ["creator", "company_head", "construction_director"].includes(user.role);
   const permissions = useMemo(() => permissionsFor(user), [user]);
+  React.useEffect(() => {
+    setMonitoringUser(isLoggedIn ? user : null);
+  }, [isLoggedIn, user]);
   const refreshManualTasks = async () => {
     if (isRemoteAuth) setRemoteTasks(await dataProvider.tasks.getAll());
     else setTaskVersion((value) => value + 1);
