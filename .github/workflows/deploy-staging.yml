@@ -24,6 +24,16 @@ jobs:
       APP_PUBLIC_URL: ${{ vars.APP_PUBLIC_URL }}
       VERCEL_ORG_ID: ${{ secrets.VERCEL_ORG_ID }}
       VERCEL_PROJECT_ID: ${{ secrets.VERCEL_PROJECT_ID }}
+      AUTH_SMOKE_SUPABASE_URL: ${{ secrets.AUTH_SMOKE_SUPABASE_URL }}
+      AUTH_SMOKE_SUPABASE_ANON_KEY: ${{ secrets.AUTH_SMOKE_SUPABASE_ANON_KEY }}
+      AUTH_SMOKE_CREATOR_EMAIL: ${{ secrets.AUTH_SMOKE_CREATOR_EMAIL }}
+      AUTH_SMOKE_CREATOR_PASSWORD: ${{ secrets.AUTH_SMOKE_CREATOR_PASSWORD }}
+      AUTH_SMOKE_COMPANY_HEAD_EMAIL: ${{ secrets.AUTH_SMOKE_COMPANY_HEAD_EMAIL }}
+      AUTH_SMOKE_COMPANY_HEAD_PASSWORD: ${{ secrets.AUTH_SMOKE_COMPANY_HEAD_PASSWORD }}
+      AUTH_SMOKE_CONSTRUCTION_DIRECTOR_EMAIL: ${{ secrets.AUTH_SMOKE_CONSTRUCTION_DIRECTOR_EMAIL }}
+      AUTH_SMOKE_CONSTRUCTION_DIRECTOR_PASSWORD: ${{ secrets.AUTH_SMOKE_CONSTRUCTION_DIRECTOR_PASSWORD }}
+      AUTH_SMOKE_ITR_EMAIL: ${{ secrets.AUTH_SMOKE_ITR_EMAIL }}
+      AUTH_SMOKE_ITR_PASSWORD: ${{ secrets.AUTH_SMOKE_ITR_PASSWORD }}
     steps:
       - uses: actions/checkout@v4
       - uses: actions/setup-node@v4
@@ -37,12 +47,17 @@ jobs:
         env:
           VERCEL_TOKEN: ${{ secrets.VERCEL_TOKEN }}
         run: |
-          if [[ -n "$SUPABASE_ACCESS_TOKEN" && -n "$SUPABASE_PROJECT_ID" && -n "$VERCEL_TOKEN" && -n "$VERCEL_ORG_ID" && -n "$VERCEL_PROJECT_ID" ]]; then
+          if [[ -n "$SUPABASE_ACCESS_TOKEN" && -n "$SUPABASE_PROJECT_ID" && -n "$APP_ALLOWED_ORIGINS" && -n "$APP_PUBLIC_URL" && -n "$VERCEL_TOKEN" && -n "$VERCEL_ORG_ID" && -n "$VERCEL_PROJECT_ID" ]]; then
             echo "enabled=true" >> "$GITHUB_OUTPUT"
           else
             echo "enabled=false" >> "$GITHUB_OUTPUT"
             echo "::notice::Staging deployment skipped until Supabase and Vercel secrets are configured. CI verification passed."
           fi
+      - name: Validate deployment configuration
+        if: steps.deployment-config.outputs.enabled == 'true'
+        env:
+          VERCEL_TOKEN: ${{ secrets.VERCEL_TOKEN }}
+        run: npm run verify:deployment
       - name: Apply database migrations
         if: steps.deployment-config.outputs.enabled == 'true'
         run: npx supabase link --project-ref "$SUPABASE_PROJECT_ID" && npx supabase db push --linked
@@ -61,3 +76,19 @@ jobs:
       - name: Smoke test
         if: steps.deployment-config.outputs.enabled == 'true'
         run: SMOKE_URL="$DEPLOY_URL" npm run smoke
+      - name: Check auth smoke configuration
+        if: steps.deployment-config.outputs.enabled == 'true'
+        id: auth-smoke-config
+        run: |
+          required=(AUTH_SMOKE_SUPABASE_URL AUTH_SMOKE_SUPABASE_ANON_KEY AUTH_SMOKE_CREATOR_EMAIL AUTH_SMOKE_CREATOR_PASSWORD AUTH_SMOKE_COMPANY_HEAD_EMAIL AUTH_SMOKE_COMPANY_HEAD_PASSWORD AUTH_SMOKE_CONSTRUCTION_DIRECTOR_EMAIL AUTH_SMOKE_CONSTRUCTION_DIRECTOR_PASSWORD AUTH_SMOKE_ITR_EMAIL AUTH_SMOKE_ITR_PASSWORD)
+          for name in "${required[@]}"; do
+            if [[ -z "${!name}" ]]; then
+              echo "enabled=false" >> "$GITHUB_OUTPUT"
+              echo "::notice::Auth role smoke skipped: $name is not configured."
+              exit 0
+            fi
+          done
+          echo "enabled=true" >> "$GITHUB_OUTPUT"
+      - name: Smoke test four authenticated roles
+        if: steps.deployment-config.outputs.enabled == 'true' && steps.auth-smoke-config.outputs.enabled == 'true'
+        run: npm run auth:smoke

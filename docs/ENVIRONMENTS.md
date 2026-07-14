@@ -33,6 +33,16 @@ Service role key, пароль БД и токены деплоя никогда 
 GitHub Environment variable (не secret):
 
 - `APP_ALLOWED_ORIGINS` — точный список frontend origins через запятую, например `https://app.gross.ru,https://gross-staging.vercel.app`. Production deployment останавливается, если значение не задано.
+- `APP_PUBLIC_URL` — канонический HTTPS origin среды без пути и завершающего `/`.
+
+Для автоматической проверки ролей в staging задаются отдельные тестовые аккаунты:
+
+- `AUTH_SMOKE_SUPABASE_URL`, `AUTH_SMOKE_SUPABASE_ANON_KEY`;
+- пары `AUTH_SMOKE_<ROLE>_EMAIL` / `AUTH_SMOKE_<ROLE>_PASSWORD` для
+  `CREATOR`, `COMPANY_HEAD`, `CONSTRUCTION_DIRECTOR`, `ITR`.
+
+Это только staging-пользователи без production-данных. Если набор неполный,
+workflow явно отмечает Auth smoke пропущенным и не выдаёт его за успешную проверку.
 
 Только для `production` backup:
 
@@ -48,3 +58,7 @@ Production environment должен требовать ручного approve в
 - Site URL: production-домен;
 - Redirect URLs: production-домен, staging-домен и только необходимые callback URL;
 - localhost разрешается только в локальном Supabase project.
+
+Перед выпуском выполните `npm run verify:deployment`. Скрипт проверяет HTTPS,
+совпадение `APP_PUBLIC_URL` с allowlist и наличие всех deployment credentials,
+не печатая значения секретов.
