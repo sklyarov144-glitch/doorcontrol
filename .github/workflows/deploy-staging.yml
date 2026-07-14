@@ -22,12 +22,6 @@ jobs:
       SUPABASE_PROJECT_ID: ${{ secrets.SUPABASE_PROJECT_ID }}
       APP_ALLOWED_ORIGINS: ${{ vars.APP_ALLOWED_ORIGINS }}
       APP_PUBLIC_URL: ${{ vars.APP_PUBLIC_URL }}
-      VITE_DATA_PROVIDER: supabase
-      VITE_SUPABASE_URL: ${{ secrets.VITE_SUPABASE_URL }}
-      VITE_SUPABASE_ANON_KEY: ${{ secrets.VITE_SUPABASE_ANON_KEY }}
-      VITE_SENTRY_DSN: ${{ secrets.VITE_SENTRY_DSN }}
-      VITE_APP_URL: ${{ vars.APP_PUBLIC_URL }}
-      VITE_APP_RELEASE: ${{ github.sha }}
       VERCEL_ORG_ID: ${{ secrets.VERCEL_ORG_ID }}
       VERCEL_PROJECT_ID: ${{ secrets.VERCEL_PROJECT_ID }}
       AUTH_SMOKE_SUPABASE_URL: ${{ secrets.AUTH_SMOKE_SUPABASE_URL }}
@@ -52,6 +46,8 @@ jobs:
         id: deployment-config
         env:
           VERCEL_TOKEN: ${{ secrets.VERCEL_TOKEN }}
+          VITE_SUPABASE_URL: ${{ secrets.VITE_SUPABASE_URL }}
+          VITE_SUPABASE_ANON_KEY: ${{ secrets.VITE_SUPABASE_ANON_KEY }}
         run: |
           if [[ -n "$SUPABASE_ACCESS_TOKEN" && -n "$SUPABASE_PROJECT_ID" && -n "$APP_ALLOWED_ORIGINS" && -n "$APP_PUBLIC_URL" && -n "$VERCEL_TOKEN" && -n "$VERCEL_ORG_ID" && -n "$VERCEL_PROJECT_ID" && -n "$VITE_SUPABASE_URL" && -n "$VITE_SUPABASE_ANON_KEY" ]]; then
             echo "enabled=true" >> "$GITHUB_OUTPUT"
@@ -64,6 +60,9 @@ jobs:
         env:
           VERCEL_TOKEN: ${{ secrets.VERCEL_TOKEN }}
           DEPLOY_ENV: staging
+          VITE_DATA_PROVIDER: supabase
+          VITE_SUPABASE_URL: ${{ secrets.VITE_SUPABASE_URL }}
+          VITE_SUPABASE_ANON_KEY: ${{ secrets.VITE_SUPABASE_ANON_KEY }}
         run: npm run verify:deployment && npm run verify:env
       - name: Apply database migrations
         if: steps.deployment-config.outputs.enabled == 'true'
@@ -75,6 +74,13 @@ jobs:
           npx supabase functions deploy --project-ref "$SUPABASE_PROJECT_ID"
       - name: Build and deploy Vercel staging
         if: steps.deployment-config.outputs.enabled == 'true'
+        env:
+          VITE_DATA_PROVIDER: supabase
+          VITE_SUPABASE_URL: ${{ secrets.VITE_SUPABASE_URL }}
+          VITE_SUPABASE_ANON_KEY: ${{ secrets.VITE_SUPABASE_ANON_KEY }}
+          VITE_SENTRY_DSN: ${{ secrets.VITE_SENTRY_DSN }}
+          VITE_APP_URL: ${{ vars.APP_PUBLIC_URL }}
+          VITE_APP_RELEASE: ${{ github.sha }}
         run: |
           npx vercel pull --yes --environment=preview --token="${{ secrets.VERCEL_TOKEN }}"
           npx vercel build --token="${{ secrets.VERCEL_TOKEN }}"
