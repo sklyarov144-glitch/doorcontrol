@@ -71,6 +71,7 @@ import { fileService } from "../../services/files";
 import { setMonitoringUser } from "../../services/monitoring";
 import FinancePage from "../pages/FinancePage";
 import RemoteDocumentsPage from "../pages/RemoteDocumentsPage";
+import RemoteExecutiveDashboard from "../pages/RemoteExecutiveDashboard";
 import RemoteTnIssuesPage from "../pages/RemoteTnIssuesPage";
 import { RemoteBrigadePlanPage, RemoteManpowerPage } from "../pages/RemoteWorkforcePage";
 import { AuthProvider } from "../contexts/AuthContext";
@@ -1539,7 +1540,7 @@ export function App() {
           {screen === "problem_center" && <ProblemCenterPage objects={visibleObjects} user={user} users={users} onOpen={openProblem} onCreateTask={openTaskModal} />}
           {screen === "reports" && <ReportsPage objects={visibleObjects} />}
           {screen === "finance" && <FinancePage objects={visibleObjects} user={user} />}
-          {screen === "company_dashboard" && <CompanyDashboard objects={visibleObjects} user={user} users={users} onOpen={openProblem} />}
+          {screen === "company_dashboard" && (isRemoteAuth ? <RemoteExecutiveDashboard objects={visibleObjects} users={users} onOpen={openProblem} /> : <CompanyDashboard objects={visibleObjects} user={user} users={users} onOpen={openProblem} />)}
           {screen === "users" && <UsersPage users={users} objects={objects} currentUser={user} remoteAuth={isRemoteAuth} onSave={async (nextUsers) => {
             if (isRemoteAuth) {
               const rows = await dataProvider.users.getAll();
