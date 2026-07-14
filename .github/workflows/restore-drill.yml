@@ -1,0 +1,105 @@
+name: Production backup restore drill
+
+on:
+  workflow_dispatch:
+    inputs:
+      backup_run_id:
+        description: Run ID of a successful encrypted production database backup
+        required: true
+        type: string
+
+permissions:
+  actions: read
+  contents: read
+
+jobs:
+  restore:
+    runs-on: ubuntu-latest
+    timeout-minutes: 35
+    environment: production
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version-file: .nvmrc
+          cache: npm
+      - run: npm ci
+      - name: Validate drill input and secret
+        env:
+          BACKUP_RUN_ID: ${{ inputs.backup_run_id }}
+          BACKUP_ENCRYPTION_PASSWORD: ${{ secrets.BACKUP_ENCRYPTION_PASSWORD }}
+        run: |
+          [[ "$BACKUP_RUN_ID" =~ ^[0-9]+$ ]] || { echo "::error::backup_run_id must be numeric"; exit 1; }
+          [[ -n "$BACKUP_ENCRYPTION_PASSWORD" ]] || { echo "::error::BACKUP_ENCRYPTION_PASSWORD is missing"; exit 1; }
+      - name: Download encrypted backup
+        uses: actions/download-artifact@v4
+        with:
+          name: gross-db-backup-${{ inputs.backup_run_id }}
+          path: encrypted-backup
+          run-id: ${{ inputs.backup_run_id }}
+          github-token: ${{ secrets.GITHUB_TOKEN }}
+      - name: Decrypt and verify backup
+        env:
+          BACKUP_ENCRYPTION_PASSWORD: ${{ secrets.BACKUP_ENCRYPTION_PASSWORD }}
+        run: |
+          BACKUP_FILE=$(find encrypted-backup -name 'gross-production-*.tar.gz.enc' -print -quit)
+          test -n "$BACKUP_FILE"
+          (cd "$(dirname "$BACKUP_FILE")" && sha256sum --check "$(basename "$BACKUP_FILE").sha256")
+          mkdir -p restored-backup
+          openssl enc -d -aes-256-cbc -pbkdf2 -in "$BACKUP_FILE" -out restored-backup/backup.tar.gz -pass env:BACKUP_ENCRYPTION_PASSWORD
+          tar -xzf restored-backup/backup.tar.gz -C restored-backup
+          node scripts/backup/verify-manifest.mjs restored-backup/manifest.json restored-backup
+          cp "$BACKUP_FILE" restored-backup/source.enc
+      - name: Start pristine isolated Supabase database
+        run: |
+          mv supabase/migrations supabase/project-migrations
+          mkdir supabase/migrations
+          mv supabase/seed.sql supabase/project-seed.sql
+          touch supabase/seed.sql
+          npx supabase start --exclude studio,imgproxy,inbucket,edge-runtime,functions,analytics,vector,realtime
+          sudo apt-get update -qq
+          sudo apt-get install -y -qq postgresql-client
+      - name: Restore roles, schema and data
+        env:
+          PGURL: postgresql://postgres:postgres@127.0.0.1:54322/postgres
+        run: |
+          STARTED_AT=$(date -u +%FT%TZ)
+          echo "RESTORE_STARTED_AT=$STARTED_AT" >> "$GITHUB_ENV"
+          psql "$PGURL" --set ON_ERROR_STOP=1 --file restored-backup/roles.sql
+          psql "$PGURL" --set ON_ERROR_STOP=1 --file restored-backup/schema.sql
+          psql "$PGURL" --set ON_ERROR_STOP=1 --file restored-backup/data.sql
+      - name: Verify restored domain data and create evidence
+        env:
+          PGURL: postgresql://postgres:postgres@127.0.0.1:54322/postgres
+          BACKUP_RUN_ID: ${{ inputs.backup_run_id }}
+        run: |
+          psql "$PGURL" --no-align --tuples-only --command "
+            select json_build_object(
+              'companies', (select count(*) from public.companies),
+              'profiles', (select count(*) from public.profiles),
+              'objects', (select count(*) from public.objects),
+              'buildings', (select count(*) from public.buildings),
+              'floors', (select count(*) from public.floors),
+              'doors', (select count(*) from public.doors),
+              'tasks', (select count(*) from public.tasks),
+              'documents', (select count(*) from public.document_items)
+            );" > restored-backup/counts.json
+          COMPLETED_AT=$(date -u +%FT%TZ)
+          node scripts/backup/create-restore-evidence.mjs \
+            restored-backup/restore-evidence.json \
+            restored-backup/counts.json \
+            restored-backup/source.enc \
+            "$BACKUP_RUN_ID" \
+            "$RESTORE_STARTED_AT" \
+            "$COMPLETED_AT"
+          cat restored-backup/restore-evidence.json
+      - name: Upload restore evidence
+        uses: actions/upload-artifact@v4
+        with:
+          name: restore-evidence-${{ github.run_id }}
+          path: restored-backup/restore-evidence.json
+          retention-days: 90
+          if-no-files-found: error
+      - name: Stop and remove isolated Supabase database
+        if: always()
+        run: npx supabase stop --no-backup || true

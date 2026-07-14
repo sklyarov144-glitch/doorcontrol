@@ -17,6 +17,7 @@
 - [ ] Supabase native backup/PITR включён.
 - [ ] Supabase Cron включён, job `gross-sync-overdue-door-tasks` активен и имеет успешный запуск.
 - [ ] Restore drill выполнен не более 30 дней назад.
+- [x] Restore drill автоматизирован и создаёт проверяемый evidence-артефакт в изолированном окружении.
 - [ ] Последний encrypted logical backup содержит роли, схему и данные и прошёл manifest verification.
 - [ ] Sentry alert и контакт ответственного проверены.
 - [ ] Runbook доступен техническому и бизнес-ответственному.
