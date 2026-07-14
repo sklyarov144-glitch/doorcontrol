@@ -22,4 +22,14 @@ if (missing.length) {
   process.exit(1);
 }
 
+if (target !== "local") {
+  const supabaseUrl = new URL(process.env.VITE_SUPABASE_URL);
+  if (supabaseUrl.protocol !== "https:" || !supabaseUrl.hostname.endsWith(".supabase.co")) {
+    throw new Error("VITE_SUPABASE_URL must be the HTTPS URL of a hosted Supabase project");
+  }
+  if (process.env.VITE_SUPABASE_ANON_KEY.length < 80) {
+    throw new Error("VITE_SUPABASE_ANON_KEY has an unexpected format");
+  }
+}
+
 console.log(`${target} environment contains all required public configuration values.`);

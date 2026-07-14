@@ -25,6 +25,12 @@ jobs:
       SUPABASE_PROJECT_ID: ${{ secrets.SUPABASE_PROJECT_ID }}
       APP_ALLOWED_ORIGINS: ${{ vars.APP_ALLOWED_ORIGINS }}
       APP_PUBLIC_URL: ${{ vars.APP_PUBLIC_URL }}
+      VITE_DATA_PROVIDER: supabase
+      VITE_SUPABASE_URL: ${{ secrets.VITE_SUPABASE_URL }}
+      VITE_SUPABASE_ANON_KEY: ${{ secrets.VITE_SUPABASE_ANON_KEY }}
+      VITE_SENTRY_DSN: ${{ secrets.VITE_SENTRY_DSN }}
+      VITE_APP_URL: ${{ vars.APP_PUBLIC_URL }}
+      VITE_APP_RELEASE: ${{ github.sha }}
       VERCEL_ORG_ID: ${{ secrets.VERCEL_ORG_ID }}
       VERCEL_PROJECT_ID: ${{ secrets.VERCEL_PROJECT_ID }}
     steps:
@@ -47,6 +53,9 @@ jobs:
           [[ -z "$VERCEL_TOKEN" ]] && missing+=(VERCEL_TOKEN)
           [[ -z "$VERCEL_ORG_ID" ]] && missing+=(VERCEL_ORG_ID)
           [[ -z "$VERCEL_PROJECT_ID" ]] && missing+=(VERCEL_PROJECT_ID)
+          [[ -z "$VITE_SUPABASE_URL" ]] && missing+=(VITE_SUPABASE_URL)
+          [[ -z "$VITE_SUPABASE_ANON_KEY" ]] && missing+=(VITE_SUPABASE_ANON_KEY)
+          [[ -z "$VITE_SENTRY_DSN" ]] && missing+=(VITE_SENTRY_DSN)
           if (( ${#missing[@]} )); then
             echo "::error::Production deployment is not configured. Missing secrets/variables: ${missing[*]}"
             exit 1
@@ -54,7 +63,8 @@ jobs:
       - name: Apply database migrations
         env:
           VERCEL_TOKEN: ${{ secrets.VERCEL_TOKEN }}
-        run: npm run verify:deployment && npx supabase link --project-ref "$SUPABASE_PROJECT_ID" && npx supabase db push --linked
+          DEPLOY_ENV: production
+        run: npm run verify:deployment && npm run verify:env && npx supabase link --project-ref "$SUPABASE_PROJECT_ID" && npx supabase db push --linked
       - name: Deploy Edge Functions
         run: |
           test -n "$APP_ALLOWED_ORIGINS"

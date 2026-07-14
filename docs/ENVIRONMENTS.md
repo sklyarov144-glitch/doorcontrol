@@ -29,6 +29,9 @@ Service role key, пароль БД и токены деплоя никогда 
 - `VERCEL_TOKEN`
 - `VERCEL_ORG_ID`
 - `VERCEL_PROJECT_ID`
+- `VITE_SUPABASE_URL`
+- `VITE_SUPABASE_ANON_KEY`
+- `VITE_SENTRY_DSN` (обязателен для production)
 
 GitHub Environment variable (не secret):
 
@@ -62,3 +65,7 @@ Production environment должен требовать ручного approve в
 Перед выпуском выполните `npm run verify:deployment`. Скрипт проверяет HTTPS,
 совпадение `APP_PUBLIC_URL` с allowlist и наличие всех deployment credentials,
 не печатая значения секретов.
+
+Deploy workflow также запускает `npm run verify:env` и принудительно собирает
+frontend с `VITE_DATA_PROVIDER=supabase`. Поэтому production-релиз не сможет
+незаметно перейти на browser localStorage при ошибке конфигурации Vercel.

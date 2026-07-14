@@ -6,6 +6,7 @@ const required = [
   ".github/workflows/ci.yml", ".github/workflows/deploy-staging.yml", ".github/workflows/deploy-production.yml",
   "scripts/auth/bootstrap-creator.mjs", "scripts/auth/role-smoke.mjs", "scripts/verify-deployment-config.mjs",
   "scripts/backup/create-manifest.mjs", "scripts/backup/verify-manifest.mjs",
+  "scripts/backup/create-restore-evidence.mjs", ".github/workflows/restore-drill.yml",
 ];
 const missing = required.filter((path) => !fs.existsSync(path));
 const migrations = fs.readdirSync("supabase/migrations").filter((name) => name.endsWith(".sql")).sort();
