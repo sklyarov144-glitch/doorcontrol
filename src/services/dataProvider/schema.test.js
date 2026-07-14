@@ -74,6 +74,10 @@ const scopedImmutableAudit = readFileSync(
   resolve("supabase/migrations/202607140019_scoped_immutable_audit.sql"),
   "utf8"
 );
+const grantAuditRead = readFileSync(
+  resolve("supabase/migrations/202607140020_grant_audit_read.sql"),
+  "utf8"
+);
 
 describe("Supabase schema", () => {
   it("defines the core hierarchy and assignment tables", () => {
@@ -165,6 +169,8 @@ describe("Supabase schema", () => {
     expect(scopedImmutableAudit).toContain("revoke insert, update, delete on public.activity_logs from anon, authenticated");
     expect(scopedImmutableAudit).toContain("public.can_access_object(object_id)");
     expect(scopedImmutableAudit).toContain("financial_transactions");
+    expect(grantAuditRead).toContain("grant select on public.activity_logs to authenticated");
+    expect(grantAuditRead).toContain("revoke insert, update, delete");
   });
 
   it("defines workforce, plan-fact and financial entities", () => {
