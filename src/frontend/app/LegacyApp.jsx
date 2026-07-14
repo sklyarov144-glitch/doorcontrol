@@ -945,8 +945,23 @@ export function App() {
   const linkManualTask = async (task, link) => {
     if (!link.url.trim()) return;
     if (isRemoteAuth) {
-      await dataProvider.tasks.addLink(task.id, link);
-      await refreshManualTasks();
+      const document = await dataProvider.documents.create({
+        companyId: user.companyId,
+        objectId: task.objectId,
+        buildingId: task.buildingId || null,
+        floorId: task.floorId || null,
+        doorId: task.doorId || null,
+        title: link.title.trim() || "Документ к задаче",
+        category: link.category === "акт АОХ" ? "custody_act" : link.category || "document",
+        url: link.url.trim(),
+        comment: link.comment?.trim() || `Добавлено из задачи «${task.title}»`,
+        createdBy: user.id,
+      });
+      await dataProvider.tasks.addLink(task.id, { ...link, documentId: document.id });
+      if (task.doorId && link.category === "акт АОХ") {
+        await updateCustodyAct(task.doorId, { custodyActUrl: link.url.trim(), storageAct: "акт загружен", documentId: document.id });
+      }
+      await Promise.all([refreshManualTasks(), refreshNotifications()]);
       return;
     }
     const savedLink = addTaskLink(task.id, { ...link, createdBy: user.id });
@@ -1232,8 +1247,8 @@ export function App() {
     if (!isRemoteAuth) return;
     try {
       const existingAct = await dataProvider.custodyActs.getForDoor(doorId);
-      let documentId = existingAct?.documentId ?? null;
-      if (nextUrl && nextUrl !== currentDoor.custodyActUrl) {
+      let documentId = values.documentId ?? existingAct?.documentId ?? null;
+      if (nextUrl && nextUrl !== currentDoor.custodyActUrl && !values.documentId) {
         const document = await dataProvider.documents.create({
           companyId: user.companyId,
           objectId: context.object.id,

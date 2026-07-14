@@ -50,6 +50,18 @@ const profileVisibilityRls = readFileSync(
   resolve("supabase/migrations/202607140013_profile_visibility_rls.sql"),
   "utf8"
 );
+const workStandardsVisibility = readFileSync(
+  resolve("supabase/migrations/202607140014_work_standards_visibility.sql"),
+  "utf8"
+);
+const deliverySummaryDistinctDoors = readFileSync(
+  resolve("supabase/migrations/202607140015_delivery_summary_distinct_doors.sql"),
+  "utf8"
+);
+const taskAccessAndNotifications = readFileSync(
+  resolve("supabase/migrations/202607140016_task_access_and_notifications.sql"),
+  "utf8"
+);
 
 describe("Supabase schema", () => {
   it("defines the core hierarchy and assignment tables", () => {
@@ -147,5 +159,27 @@ describe("Supabase schema", () => {
     expect(workforceFinanceRls).toContain("create policy financial_transactions_select");
     expect(workforceFinanceRls).toContain("public.has_admin_access()");
     expect(workforceFinanceRls).toContain("public.current_app_role() in ('creator', 'company_head')");
+  });
+
+  it("lets company users read standards while keeping management-only writes", () => {
+    expect(workStandardsVisibility).toContain("create policy work_standards_select");
+    expect(workStandardsVisibility).toContain("company_id = public.current_company_id()");
+    expect(workforceFinanceRls).toContain("create policy work_standards_write");
+    expect(workforceFinanceRls).toContain("public.has_admin_access()");
+  });
+
+  it("counts unique doors in delivery KPI views", () => {
+    expect(deliverySummaryDistinctDoors).toContain("count(distinct d.id) as doors_total");
+    expect(deliverySummaryDistinctDoors).toContain("count(distinct d.id) filter");
+    expect(deliverySummaryDistinctDoors).toContain("count(distinct i.id) filter");
+  });
+
+  it("restricts ITR task access and protects task business fields", () => {
+    expect(taskAccessAndNotifications).toContain("or t.assigned_to = auth.uid()");
+    expect(taskAccessAndNotifications).toContain("public.current_app_role() = 'construction_director'");
+    expect(taskAccessAndNotifications).toContain("create policy tasks_update");
+    expect(taskAccessAndNotifications).toContain("Assigned users may update only task status");
+    expect(taskAccessAndNotifications).toContain("task_comments_notify");
+    expect(taskAccessAndNotifications).toContain("task_links_notify");
   });
 });
