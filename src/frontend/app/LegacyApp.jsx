@@ -70,6 +70,7 @@ import { dataProvider, dataProviderName } from "../../services/dataProvider";
 import { fileService } from "../../services/files";
 import { setMonitoringUser } from "../../services/monitoring";
 import FinancePage from "../pages/FinancePage";
+import RemoteDocumentsPage from "../pages/RemoteDocumentsPage";
 import { RemoteBrigadePlanPage, RemoteManpowerPage } from "../pages/RemoteWorkforcePage";
 import { AuthProvider } from "../contexts/AuthContext";
 import { permissionsFor } from "../domain/permissions";
@@ -1189,22 +1190,61 @@ export function App() {
     setScreen("door");
   };
 
-  const updateCustodyAct = (doorId, values) => {
-    const currentDoor = objects
-      .flatMap((object) => object.buildings)
-      .flatMap((building) => building.floors)
-      .flatMap((floor) => floor.doors)
-      .find((door) => door.id === doorId);
-    if (!currentDoor) return;
+  const updateCustodyAct = async (doorId, values) => {
+    let context = null;
+    for (const object of objects) {
+      for (const building of object.buildings) {
+        for (const floor of building.floors) {
+          const door = floor.doors.find((item) => item.id === doorId);
+          if (door) context = { object, building, floor, door };
+        }
+      }
+    }
+    if (!context) return;
+    const currentDoor = context.door;
+    const nextStatus = values.storageAct ?? currentDoor.storageAct;
+    const nextUrl = values.custodyActUrl ?? currentDoor.custodyActUrl ?? "";
+    const uploadedAt = nextUrl ? new Date().toISOString() : currentDoor.custodyActUploadedAt;
+    const closedAt = nextStatus === "передано по акту" ? new Date().toISOString() : currentDoor.custodyActClosedAt;
     updateDoor(doorId, {
       doorStatus: currentDoor.doorStatus,
       openingStatus: currentDoor.openingStatus,
       issue: currentDoor.issue,
-      storageAct: values.storageAct ?? currentDoor.storageAct,
-      custodyActUrl: values.custodyActUrl ?? currentDoor.custodyActUrl ?? "",
-      custodyActUploadedAt: values.custodyActUrl ? new Date().toISOString().slice(0, 10) : currentDoor.custodyActUploadedAt,
-      custodyActClosedAt: values.storageAct === "передано по акту" ? new Date().toISOString().slice(0, 10) : currentDoor.custodyActClosedAt,
+      storageAct: nextStatus,
+      custodyActUrl: nextUrl,
+      custodyActUploadedAt: uploadedAt,
+      custodyActClosedAt: closedAt,
     });
+    if (!isRemoteAuth) return;
+    try {
+      const existingAct = await dataProvider.custodyActs.getForDoor(doorId);
+      let documentId = existingAct?.documentId ?? null;
+      if (nextUrl && nextUrl !== currentDoor.custodyActUrl) {
+        const document = await dataProvider.documents.create({
+          companyId: user.companyId,
+          objectId: context.object.id,
+          buildingId: context.building.id,
+          floorId: context.floor.id,
+          doorId,
+          title: `Акт ОХ · ${currentDoor.number ?? currentDoor.label ?? currentDoor.mark}`,
+          category: "custody_act",
+          url: nextUrl,
+          comment: "Добавлено из модуля контроля актов ОХ",
+          createdBy: user.id,
+        });
+        documentId = document.id;
+      }
+      await dataProvider.custodyActs.upsertForDoor(doorId, {
+        status: nextStatus,
+        documentId,
+        uploadedBy: nextUrl ? user.id : null,
+        uploadedAt: nextUrl ? uploadedAt : null,
+        closedAt: nextStatus === "передано по акту" ? closedAt : null,
+      });
+    } catch (error) {
+      console.error("Unable to persist custody act", error);
+      setPersistenceError("Акт не сохранён в реестре документов. Проверьте соединение и повторите действие.");
+    }
   };
 
   const openProblem = (problem) => {
@@ -1446,7 +1486,7 @@ export function App() {
               }}
             />
           )}
-          {screen === "documents" && <DocumentsPage />}
+          {screen === "documents" && (isRemoteAuth ? <RemoteDocumentsPage objects={visibleObjects} user={user} /> : <DocumentsPage />)}
           {screen === "brigade_plan" && (isRemoteAuth ? <RemoteBrigadePlanPage objects={visibleObjects} user={user} users={users} /> : <BrigadePlanPage objects={visibleObjects} user={user} users={users} />)}
           {screen === "manpower" && (isRemoteAuth ? <RemoteManpowerPage objects={visibleObjects} user={user} users={users} onNotify={refreshNotifications} /> : <ManpowerPage objects={visibleObjects} user={user} users={users} onNotify={refreshNotifications} />)}
           {screen === "notifications" && (

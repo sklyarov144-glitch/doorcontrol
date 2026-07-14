@@ -357,6 +357,9 @@ export const supabaseProvider = {
   documents: makeCrud("document_items"),
   custodyActs: {
     ...custodyActsCrud,
+    async getForDoor(doorId) {
+      return unwrap(await requireSupabase().from("custody_acts").select("*").eq("door_id", doorId).maybeSingle());
+    },
     async upsertForDoor(doorId, data) {
       return unwrap(await requireSupabase().from("custody_acts").upsert({
         door_id: doorId,
