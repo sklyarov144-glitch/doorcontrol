@@ -62,6 +62,10 @@ const taskAccessAndNotifications = readFileSync(
   resolve("supabase/migrations/202607140016_task_access_and_notifications.sql"),
   "utf8"
 );
+const scheduledOverdueTasks = readFileSync(
+  resolve("supabase/migrations/202607140017_scheduled_overdue_tasks.sql"),
+  "utf8"
+);
 
 describe("Supabase schema", () => {
   it("defines the core hierarchy and assignment tables", () => {
@@ -181,5 +185,15 @@ describe("Supabase schema", () => {
     expect(taskAccessAndNotifications).toContain("Assigned users may update only task status");
     expect(taskAccessAndNotifications).toContain("task_comments_notify");
     expect(taskAccessAndNotifications).toContain("task_links_notify");
+  });
+
+  it("schedules server-side overdue task control without browser access", () => {
+    expect(scheduledOverdueTasks).toContain("create extension if not exists pg_cron");
+    expect(scheduledOverdueTasks).toContain("function public.sync_all_overdue_door_tasks");
+    expect(scheduledOverdueTasks).toContain("security definer");
+    expect(scheduledOverdueTasks).toContain("on conflict (automatic_key) do nothing");
+    expect(scheduledOverdueTasks).toContain("revoke all on function public.sync_all_overdue_door_tasks() from public, anon, authenticated");
+    expect(scheduledOverdueTasks).toContain("gross-sync-overdue-door-tasks");
+    expect(scheduledOverdueTasks).toContain("*/30 * * * *");
   });
 });

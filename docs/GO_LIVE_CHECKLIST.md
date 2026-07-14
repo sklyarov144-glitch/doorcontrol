@@ -11,6 +11,7 @@
 - [ ] Production secrets заданы, MFA включена у администраторов.
 - [ ] Auth Site URL и redirect allowlist содержат production-домен.
 - [ ] Supabase native backup/PITR включён.
+- [ ] Supabase Cron включён, job `gross-sync-overdue-door-tasks` активен и имеет успешный запуск.
 - [ ] Restore drill выполнен не более 30 дней назад.
 - [ ] Sentry alert и контакт ответственного проверены.
 - [ ] Runbook доступен техническому и бизнес-ответственному.

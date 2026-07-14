@@ -21,6 +21,33 @@
 3. Проверить последнюю migration и audit log.
 4. При ошибке схемы выпускать forward-fix; не выполнять destructive rollback.
 
+## Автоматические задачи не создаются
+
+1. Проверить, что cron-задача активна:
+
+```sql
+select jobid, jobname, schedule, active
+from cron.job
+where jobname = 'gross-sync-overdue-door-tasks';
+```
+
+2. Проверить последние запуски и текст ошибки:
+
+```sql
+select status, return_message, start_time, end_time
+from cron.job_run_details
+where jobid = (
+  select jobid from cron.job where jobname = 'gross-sync-overdue-door-tasks'
+)
+order by start_time desc
+limit 10;
+```
+
+3. Запустить `select public.sync_all_overdue_door_tasks();` из SQL Editor под
+   серверной ролью и проверить новые строки в `tasks` и `notifications`.
+4. Убедиться, что у двери заполнены `mounted_at`, назначен ИТР и срок действительно
+   превышает два дня для ТН или три дня для акта АОХ.
+
 ## Инцидент безопасности
 
 1. Отозвать скомпрометированные токены/сессии.
