@@ -34,6 +34,21 @@ jobs:
           cache: npm
       - run: npm ci
       - run: npm run ci
+      - name: Validate production configuration
+        env:
+          VERCEL_TOKEN: ${{ secrets.VERCEL_TOKEN }}
+        run: |
+          missing=()
+          [[ -z "$SUPABASE_ACCESS_TOKEN" ]] && missing+=(SUPABASE_ACCESS_TOKEN)
+          [[ -z "$SUPABASE_PROJECT_ID" ]] && missing+=(SUPABASE_PROJECT_ID)
+          [[ -z "$APP_ALLOWED_ORIGINS" ]] && missing+=(APP_ALLOWED_ORIGINS)
+          [[ -z "$VERCEL_TOKEN" ]] && missing+=(VERCEL_TOKEN)
+          [[ -z "$VERCEL_ORG_ID" ]] && missing+=(VERCEL_ORG_ID)
+          [[ -z "$VERCEL_PROJECT_ID" ]] && missing+=(VERCEL_PROJECT_ID)
+          if (( ${#missing[@]} )); then
+            echo "::error::Production deployment is not configured. Missing secrets/variables: ${missing[*]}"
+            exit 1
+          fi
       - name: Apply database migrations
         run: npx supabase link --project-ref "$SUPABASE_PROJECT_ID" && npx supabase db push --linked
       - name: Deploy Edge Functions

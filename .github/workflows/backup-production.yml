@@ -20,6 +20,18 @@ jobs:
           node-version-file: .nvmrc
           cache: npm
       - run: npm ci
+      - name: Validate backup secrets
+        env:
+          SUPABASE_DB_URL: ${{ secrets.SUPABASE_DB_URL }}
+          BACKUP_ENCRYPTION_PASSWORD: ${{ secrets.BACKUP_ENCRYPTION_PASSWORD }}
+        run: |
+          missing=()
+          [[ -z "$SUPABASE_DB_URL" ]] && missing+=(SUPABASE_DB_URL)
+          [[ -z "$BACKUP_ENCRYPTION_PASSWORD" ]] && missing+=(BACKUP_ENCRYPTION_PASSWORD)
+          if (( ${#missing[@]} )); then
+            echo "::error::Production backup is not configured. Missing environment secrets: ${missing[*]}"
+            exit 1
+          fi
       - name: Export database
         env:
           SUPABASE_DB_URL: ${{ secrets.SUPABASE_DB_URL }}
