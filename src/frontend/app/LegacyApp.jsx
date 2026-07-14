@@ -71,6 +71,7 @@ import { fileService } from "../../services/files";
 import { setMonitoringUser } from "../../services/monitoring";
 import FinancePage from "../pages/FinancePage";
 import RemoteDocumentsPage from "../pages/RemoteDocumentsPage";
+import RemoteTnIssuesPage from "../pages/RemoteTnIssuesPage";
 import { RemoteBrigadePlanPage, RemoteManpowerPage } from "../pages/RemoteWorkforcePage";
 import { AuthProvider } from "../contexts/AuthContext";
 import { permissionsFor } from "../domain/permissions";
@@ -1087,9 +1088,20 @@ export function App() {
       .flatMap((building) => building.floors)
       .flatMap((floor) => floor.doors)
       .find((door) => door.id === doorId);
+    let persistencePromise = Promise.resolve();
     if (isRemoteAuth && persistedDoor) {
       setPersistenceError("");
-      dataProvider.doors.updateOperational(doorId, persistedDoor)
+      persistencePromise = Promise.all([
+        dataProvider.doors.updateOperational(doorId, persistedDoor),
+        dataProvider.tnIssues.syncForDoor(doorId, {
+          title: `Замечание ТН · ${persistedDoor.number ?? persistedDoor.label ?? persistedDoor.mark}`,
+          description: persistedDoor.openingComment || persistedDoor.comment || "Проверить замечание технадзора",
+          status: persistedDoor.issue === "есть замечание" ? "открыто" : "устранено",
+          priority: persistedDoor.issue === "есть замечание" ? "высокий" : "средний",
+          responsibleId: persistedDoor.assignedUserId || null,
+          resolvedAt: persistedDoor.issue === "есть замечание" ? null : new Date().toISOString(),
+        }),
+      ])
         .then(() => syncAutomation(nextObjects))
         .catch((error) => {
           console.error("Unable to save door", error);
@@ -1102,6 +1114,7 @@ export function App() {
     setDoorMatrix(nextMatrix);
     saveDoorMatrix(nextMatrix);
     if (!isRemoteAuth) syncAutomation(nextObjects);
+    return persistencePromise;
   };
 
   const updateMatrixCell = (rowId, field, value) => {
@@ -1521,7 +1534,7 @@ export function App() {
             />
           )}
           {screen === "custody_acts" && <CustodyActsPage objects={visibleObjects} user={user} users={users} onOpen={openProblem} onUpdateAct={updateCustodyAct} />}
-          {screen === "tn_issues" && <TnIssuesPage objects={visibleObjects} user={user} users={users} onOpen={openProblem} />}
+          {screen === "tn_issues" && (isRemoteAuth ? <RemoteTnIssuesPage objects={visibleObjects} users={users} onOpen={openProblem} onResolve={(doorId) => updateDoor(doorId, { issue: "устранено", tnIssues: "Нет" })} /> : <TnIssuesPage objects={visibleObjects} user={user} users={users} onOpen={openProblem} />)}
           {screen === "today_tasks" && <TodayTasksPage objects={visibleObjects} user={user} users={users} onOpen={openProblem} />}
           {screen === "problem_center" && <ProblemCenterPage objects={visibleObjects} user={user} users={users} onOpen={openProblem} onCreateTask={openTaskModal} />}
           {screen === "reports" && <ReportsPage objects={visibleObjects} />}

@@ -367,7 +367,27 @@ export const supabaseProvider = {
       }, { onConflict: "door_id" }).select().single());
     },
   },
-  tnIssues: makeCrud("tn_issues"),
+  tnIssues: {
+    ...makeCrud("tn_issues"),
+    async syncForDoor(doorId, data) {
+      const client = requireSupabase();
+      const { data: activeRows, error: selectError } = await client
+        .from("tn_issues")
+        .select("*")
+        .eq("door_id", doorId)
+        .neq("status", "устранено")
+        .order("created_at", { ascending: false });
+      if (selectError) throw selectError;
+      const active = activeRows?.[0];
+      if (data.status === "устранено") {
+        if (!activeRows?.length) return null;
+        return unwrap(await client.from("tn_issues").update(toDatabase({ status: "устранено", resolvedAt: data.resolvedAt ?? new Date().toISOString() })).eq("door_id", doorId).neq("status", "устранено").select());
+      }
+      const payload = { ...data, doorId, status: data.status ?? "открыто", resolvedAt: null };
+      if (active) return unwrap(await client.from("tn_issues").update(toDatabase(payload)).eq("id", active.id).select().single());
+      return unwrap(await client.from("tn_issues").insert(toDatabase(payload)).select().single());
+    },
+  },
   teams: makeCrud("teams"),
   employees: makeCrud("employees"),
   workers: makeCrud("employees"),
