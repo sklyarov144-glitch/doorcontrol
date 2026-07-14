@@ -428,7 +428,17 @@ export const supabaseProvider = {
       return unwrap(await requireSupabase().from("object_financial_summary").select("*").order("name"));
     },
   },
-  activityLogs: makeCrud("activity_logs"),
+  activityLogs: {
+    ...makeCrud("activity_logs"),
+    async getRecent(limit = 200) {
+      const safeLimit = Math.min(Math.max(Number(limit) || 200, 1), 500);
+      return unwrap(await requireSupabase()
+        .from("activity_logs")
+        .select("*")
+        .order("created_at", { ascending: false })
+        .limit(safeLimit));
+    },
+  },
   operations: {
     async syncOverdueTasks() {
       const { data, error } = await requireSupabase().rpc("sync_overdue_door_tasks");

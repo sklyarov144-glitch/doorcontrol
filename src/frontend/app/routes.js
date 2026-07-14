@@ -16,6 +16,7 @@ export const screenPaths = {
   finance: "/finance",
   tn_issues: "/tn-issues",
   roles: "/roles",
+  audit: "/audit",
 };
 
 export function parseAppRoute(pathname) {

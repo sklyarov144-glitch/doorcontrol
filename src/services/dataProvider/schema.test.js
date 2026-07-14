@@ -70,6 +70,10 @@ const transactionalPilotImport = readFileSync(
   resolve("supabase/migrations/202607140018_transactional_pilot_import.sql"),
   "utf8"
 );
+const scopedImmutableAudit = readFileSync(
+  resolve("supabase/migrations/202607140019_scoped_immutable_audit.sql"),
+  "utf8"
+);
 
 describe("Supabase schema", () => {
   it("defines the core hierarchy and assignment tables", () => {
@@ -153,6 +157,14 @@ describe("Supabase schema", () => {
     expect(auditMigration).toContain("activity_logs_immutable");
     expect(auditMigration).toContain("array['email', 'phone', 'avatar_url', 'url']");
     expect(auditMigration).toContain("revoke all on function public.audit_entity_change()");
+  });
+
+  it("scopes immutable audit events and blocks browser-side forgery", () => {
+    expect(scopedImmutableAudit).toContain("add column object_id uuid");
+    expect(scopedImmutableAudit).toContain("drop policy if exists activity_logs_insert");
+    expect(scopedImmutableAudit).toContain("revoke insert, update, delete on public.activity_logs from anon, authenticated");
+    expect(scopedImmutableAudit).toContain("public.can_access_object(object_id)");
+    expect(scopedImmutableAudit).toContain("financial_transactions");
   });
 
   it("defines workforce, plan-fact and financial entities", () => {

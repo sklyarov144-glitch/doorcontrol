@@ -116,7 +116,15 @@ export const localProvider = {
   objectWorkPlans: makeCrud(keys.objectWorkPlans, "work-plan"),
   dailyWorkReports: makeCrud(keys.dailyWorkReports, "daily-report"),
   manpowerRequests: makeCrud(keys.manpowerRequests, "manpower"),
-  activityLogs: makeCrud(keys.activityLogs, "activity"),
+  activityLogs: {
+    ...makeCrud(keys.activityLogs, "activity"),
+    getRecent(limit = 200) {
+      const safeLimit = Math.min(Math.max(Number(limit) || 200, 1), 500);
+      return readCollection(keys.activityLogs)
+        .sort((left, right) => String(right.createdAt ?? "").localeCompare(String(left.createdAt ?? "")))
+        .slice(0, safeLimit);
+    },
+  },
   contracts: makeCrud("gross-lean-montage.contracts.v1", "contract"),
   budgetItems: makeCrud("gross-lean-montage.budget-items.v1", "budget"),
   financialTransactions: makeCrud("gross-lean-montage.financial-transactions.v1", "transaction"),

@@ -74,6 +74,7 @@ import RemoteDocumentsPage from "../pages/RemoteDocumentsPage";
 import RemoteExecutiveDashboard from "../pages/RemoteExecutiveDashboard";
 import RemoteTnIssuesPage from "../pages/RemoteTnIssuesPage";
 import { RemoteBrigadePlanPage, RemoteManpowerPage } from "../pages/RemoteWorkforcePage";
+import AuditLogPage from "../pages/AuditLogPage";
 import { AuthProvider } from "../contexts/AuthContext";
 import { permissionsFor } from "../domain/permissions";
 import { buildAppPath, parseAppRoute } from "./routes";
@@ -1575,6 +1576,8 @@ export function App() {
           {screen === "problem_center" && <ProblemCenterPage objects={visibleObjects} user={user} users={users} onOpen={openProblem} onCreateTask={openTaskModal} />}
           {screen === "reports" && <ReportsPage objects={visibleObjects} />}
           {screen === "finance" && <FinancePage objects={visibleObjects} user={user} />}
+          {screen === "audit" && ["creator", "company_head", "construction_director"].includes(user.role) && <AuditLogPage objects={visibleObjects} users={users} />}
+          {screen === "audit" && !["creator", "company_head", "construction_director"].includes(user.role) && <PlaceholderPage screen="access_denied" />}
           {screen === "company_dashboard" && (isRemoteAuth ? <RemoteExecutiveDashboard objects={visibleObjects} users={users} onOpen={openProblem} /> : <CompanyDashboard objects={visibleObjects} user={user} users={users} onOpen={openProblem} />)}
           {screen === "users" && <UsersPage users={users} objects={objects} currentUser={user} remoteAuth={isRemoteAuth} onSave={async (nextUsers) => {
             if (isRemoteAuth) {
@@ -1734,9 +1737,9 @@ function LoginPage({ users, onLogin, isDemo = true }) {
 
 function Sidebar({ role, activeScreen, setScreen, onLogout, taskNoticeCount, collapsed, onToggleCollapsed }) {
   const menus = {
-    creator: [["company_dashboard", "Дашборд"], ["objects", "Объекты"], ["admin", "Админ-панель"], ["problem_center", "Центр проблем"], ["tasks", "Задачи"], ["manpower", "Расстановка"], ["notifications", "Уведомления"], ["custody_acts", "Акты ОХ"], ["tn_issues", "Замечания ТН"], ["brigade_plan", "План бригад"], ["reports", "Отчёты"], ["finance", "Финансы"], ["documents", "Документы"], ["users", "Пользователи"], ["roles", "Роли"], ["profile", "Личный кабинет"]],
-    company_head: [["company_dashboard", "Дашборд"], ["objects", "Объекты"], ["admin", "Админ-панель"], ["problem_center", "Центр проблем"], ["tasks", "Задачи"], ["manpower", "Расстановка"], ["notifications", "Уведомления"], ["custody_acts", "Акты ОХ"], ["tn_issues", "Замечания ТН"], ["brigade_plan", "План бригад"], ["reports", "Отчёты"], ["finance", "Финансы"], ["documents", "Документы"], ["users", "Пользователи"], ["profile", "Личный кабинет"]],
-    construction_director: [["company_dashboard", "Дашборд"], ["objects", "Мои объекты"], ["admin", "Админ-панель"], ["problem_center", "Центр проблем"], ["tasks", "Задачи"], ["manpower", "Расстановка"], ["notifications", "Уведомления"], ["custody_acts", "Акты ОХ"], ["tn_issues", "Замечания ТН"], ["brigade_plan", "План бригад"], ["reports", "Отчёты"], ["finance", "Финансы"], ["documents", "Документы"], ["users", "Пользователи"], ["profile", "Личный кабинет"]],
+    creator: [["company_dashboard", "Дашборд"], ["objects", "Объекты"], ["admin", "Админ-панель"], ["problem_center", "Центр проблем"], ["tasks", "Задачи"], ["manpower", "Расстановка"], ["notifications", "Уведомления"], ["custody_acts", "Акты ОХ"], ["tn_issues", "Замечания ТН"], ["brigade_plan", "План бригад"], ["reports", "Отчёты"], ["finance", "Финансы"], ["documents", "Документы"], ["users", "Пользователи"], ["roles", "Роли"], ["audit", "Журнал действий"], ["profile", "Личный кабинет"]],
+    company_head: [["company_dashboard", "Дашборд"], ["objects", "Объекты"], ["admin", "Админ-панель"], ["problem_center", "Центр проблем"], ["tasks", "Задачи"], ["manpower", "Расстановка"], ["notifications", "Уведомления"], ["custody_acts", "Акты ОХ"], ["tn_issues", "Замечания ТН"], ["brigade_plan", "План бригад"], ["reports", "Отчёты"], ["finance", "Финансы"], ["documents", "Документы"], ["users", "Пользователи"], ["audit", "Журнал действий"], ["profile", "Личный кабинет"]],
+    construction_director: [["company_dashboard", "Дашборд"], ["objects", "Мои объекты"], ["admin", "Админ-панель"], ["problem_center", "Центр проблем"], ["tasks", "Задачи"], ["manpower", "Расстановка"], ["notifications", "Уведомления"], ["custody_acts", "Акты ОХ"], ["tn_issues", "Замечания ТН"], ["brigade_plan", "План бригад"], ["reports", "Отчёты"], ["finance", "Финансы"], ["documents", "Документы"], ["users", "Пользователи"], ["audit", "Журнал действий"], ["profile", "Личный кабинет"]],
     itr: [["tasks", "Мои задачи"], ["objects", "Мои объекты"], ["manpower", "Заявка на рабочих"], ["brigade_plan", "План бригад"], ["documents", "Документы"], ["notifications", "Уведомления"], ["profile", "Личный кабинет"]],
   };
   const items = menus[role] ?? menus.itr;
@@ -1828,12 +1831,13 @@ function Header({
     custody_acts: "Акты ОХ",
     company_dashboard: "Дашборд компании",
     itr_team: "Команда ИТР",
+    audit: "Журнал действий",
   };
 
   return (
     <header className="page-header">
       <div>
-        {!(["admin", "profile", "companies", "users", "roles", "reports", "finance", "documents", "brigade_plan", "manpower", "tasks", "notifications", "tn_issues", "today_tasks", "problem_center", "custody_acts", "company_dashboard", "itr_team"].includes(screen)) && <div className="breadcrumbs">
+        {!(["admin", "profile", "companies", "users", "roles", "reports", "finance", "documents", "brigade_plan", "manpower", "tasks", "notifications", "tn_issues", "today_tasks", "problem_center", "custody_acts", "company_dashboard", "itr_team", "audit"].includes(screen)) && <div className="breadcrumbs">
           <button onClick={() => setScreen("objects")}>Мои объекты</button>
           {screen !== "objects" && (
             <>
