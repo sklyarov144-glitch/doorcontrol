@@ -246,7 +246,7 @@ export const supabaseProvider = {
       if (error) throw error;
       return data.user;
     },
-    async requestPasswordReset(email, redirectTo = window.location.origin) {
+    async requestPasswordReset(email, redirectTo = `${window.location.origin}/reset-password`) {
       const { error } = await requireSupabase().auth.resetPasswordForEmail(email, {
         redirectTo,
       });
@@ -293,10 +293,21 @@ export const supabaseProvider = {
     },
     async invite(data) {
       const result = await requireSupabase().functions.invoke("invite-user", {
-        body: toDatabase(data),
+        body: { ...toDatabase(data), action: "invite" },
       });
       const invited = unwrap(result);
-      return this.save({ ...data, id: invited.userId, status: "active" });
+      const profile = await this.save({ ...data, id: invited.userId, status: "active" });
+      return { ...profile, invitationId: invited.invitationId };
+    },
+    async setAccountStatus(id, status) {
+      return unwrap(await requireSupabase().functions.invoke("invite-user", {
+        body: { action: status === "disabled" ? "deactivate" : "reactivate", userId: id },
+      }));
+    },
+    async restoreAccess(id) {
+      return unwrap(await requireSupabase().functions.invoke("invite-user", {
+        body: { action: "restore_access", userId: id },
+      }));
     },
   },
   objects: {

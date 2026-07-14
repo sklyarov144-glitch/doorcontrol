@@ -659,6 +659,7 @@ export function App() {
   const routeSyncing = React.useRef(false);
   const initialRoute = parseAppRoute(location.pathname);
   const isRemoteAuth = dataProviderName === "supabase";
+  const isPasswordRecovery = isRemoteAuth && location.pathname === "/reset-password";
   const [objects, setObjects] = useState(loadObjects);
   const [doorMatrix, setDoorMatrix] = useState(() => {
     if (isRemoteAuth) return [];
@@ -1319,6 +1320,7 @@ export function App() {
 
   React.useEffect(() => {
     if (authLoading) return;
+    if (isPasswordRecovery) return;
     if (!isLoggedIn) {
       if (location.pathname !== "/login") routerNavigate("/login", { replace: true });
       return;
@@ -1340,7 +1342,7 @@ export function App() {
     if (route.buildingId) setSelectedBuildingId(route.buildingId);
     if (route.floorId) setSelectedFloorId(route.floorId);
     if (route.doorId) setSelectedDoorId(route.doorId);
-  }, [authLoading, isLoggedIn, location.pathname]);
+  }, [authLoading, isLoggedIn, location.pathname, isPasswordRecovery]);
 
   React.useEffect(() => {
     if (!isLoggedIn || location.pathname === "/login") return;
@@ -1412,12 +1414,21 @@ export function App() {
     permissions,
   };
 
-  if (authLoading || isLoggedIn && domainLoading) {
+  if (authLoading || !isPasswordRecovery && isLoggedIn && domainLoading) {
     return <main className="auth-loading" aria-live="polite">{authLoading ? "Проверяем сессию..." : "Загружаем объекты..."}</main>;
   }
 
+  if (isPasswordRecovery) {
+    return <PasswordRecoveryPage onSave={async (password) => {
+      await dataProvider.auth.updatePassword(password);
+      await dataProvider.auth.signOut();
+      setIsLoggedIn(false);
+      routerNavigate("/login", { replace: true });
+    }} />;
+  }
+
   if (!isLoggedIn) {
-    return <AuthProvider value={authValue}><LoginPage users={users} onLogin={loginUser} isDemo={!isRemoteAuth} /></AuthProvider>;
+    return <AuthProvider value={authValue}><LoginPage users={users} onLogin={loginUser} onResetPassword={isRemoteAuth ? (email) => dataProvider.auth.requestPasswordReset(email) : null} isDemo={!isRemoteAuth} /></AuthProvider>;
   }
 
   if (domainError) {
@@ -1669,11 +1680,12 @@ export function App() {
   );
 }
 
-function LoginPage({ users, onLogin, isDemo = true }) {
+function LoginPage({ users, onLogin, onResetPassword, isDemo = true }) {
   const [email, setEmail] = useState("creator@gross.ru");
   const [password, setPassword] = useState("");
   const [error, setError] = useState("");
   const [submitting, setSubmitting] = useState(false);
+  const [resetSent, setResetSent] = useState(false);
   const activeUsers = users;
 
   return (
@@ -1729,10 +1741,39 @@ function LoginPage({ users, onLogin, isDemo = true }) {
           </label>
           {error && <div className="form-error">{error}</div>}
           <button type="submit" disabled={submitting}>{submitting ? "Входим..." : "Войти"}</button>
+          {onResetPassword && <button className="login-recovery-button" type="button" disabled={submitting || !email.trim()} onClick={async () => {
+            setSubmitting(true);
+            setError("");
+            setResetSent(false);
+            try {
+              await onResetPassword(email.trim());
+              setResetSent(true);
+            } catch {
+              setError("Не удалось отправить письмо. Проверьте email и повторите попытку.");
+            } finally {
+              setSubmitting(false);
+            }
+          }}>Восстановить пароль</button>}
+          {resetSent && <div className="save-notice">Если аккаунт существует, ссылка для восстановления отправлена на email.</div>}
         </form>
       </section>
     </main>
   );
+}
+
+function PasswordRecoveryPage({ onSave }) {
+  const [password, setPassword] = useState("");
+  const [confirmation, setConfirmation] = useState("");
+  const [error, setError] = useState("");
+  const [saving, setSaving] = useState(false);
+  return <main className="login-page"><section className="password-recovery-card"><BrandMark variant="login" /><span>Безопасность аккаунта</span><h1>Задайте новый пароль</h1><p>Не менее 10 символов: заглавная и строчная латинские буквы и цифра.</p><form onSubmit={async (event) => {
+    event.preventDefault();
+    setError("");
+    if (!/^(?=.*[a-z])(?=.*[A-Z])(?=.*\d).{10,}$/.test(password)) return setError("Пароль не соответствует требованиям безопасности.");
+    if (password !== confirmation) return setError("Пароли не совпадают.");
+    setSaving(true);
+    try { await onSave(password); } catch { setError("Ссылка устарела или недействительна. Запросите восстановление повторно."); setSaving(false); }
+  }}><label>Новый пароль<input type="password" autoComplete="new-password" value={password} onChange={(event) => setPassword(event.target.value)} required /></label><label>Повторите пароль<input type="password" autoComplete="new-password" value={confirmation} onChange={(event) => setConfirmation(event.target.value)} required /></label>{error && <div className="form-error">{error}</div>}<button className="primary-button" disabled={saving}>{saving ? "Сохраняем..." : "Сохранить пароль"}</button></form></section></main>;
 }
 
 function Sidebar({ role, activeScreen, setScreen, onLogout, taskNoticeCount, collapsed, onToggleCollapsed }) {
@@ -2896,7 +2937,7 @@ function UsersPage({ users, objects, currentUser, onSave, remoteAuth }) {
   const objectNames = new Map(objects.map((object) => [object.id, object.name]));
   const buildingNames = new Map(objects.flatMap((object) => object.buildings.map((building) => [building.id, `${object.name} / ${building.name}`])));
   const saveUser = async (values) => {
-    const prepared = normalizeUser({ ...values, status: "active" });
+    const prepared = normalizeUser({ ...values, status: values.status ?? "active" });
     if (remoteAuth) {
       setSaving(true);
       setError("");
@@ -2921,6 +2962,31 @@ function UsersPage({ users, objects, currentUser, onSave, remoteAuth }) {
   const resetPassword = (userId) => {
     onSave(users.map((user) => user.id === userId ? { ...user, password: "123456", updatedAt: new Date().toISOString() } : user));
   };
+  const changeAccountStatus = async (account, status) => {
+    setSaving(true);
+    setError("");
+    try {
+      if (remoteAuth) await dataProvider.users.setAccountStatus(account.id, status);
+      else dataProvider.users.update(account.id, { status, isActive: status === "active" });
+      await onSave();
+    } catch (statusError) {
+      setError(statusError?.message ?? "Не удалось изменить статус аккаунта");
+    } finally {
+      setSaving(false);
+    }
+  };
+  const restoreAccountAccess = async (account) => {
+    setSaving(true);
+    setError("");
+    try {
+      await dataProvider.users.restoreAccess(account.id);
+      await onSave();
+    } catch (restoreError) {
+      setError(restoreError?.message ?? "Не удалось отправить письмо для восстановления доступа");
+    } finally {
+      setSaving(false);
+    }
+  };
 
   return (
     <section className="users-page">
@@ -2944,10 +3010,10 @@ function UsersPage({ users, objects, currentUser, onSave, remoteAuth }) {
                 <td>{user.position}</td>
                 <td>{user.email}</td>
                 <td>{user.phone || "—"}</td>
-                <td><StatusBadge value="active" /></td>
+                <td><StatusBadge value={user.status ?? "active"} /></td>
                 <td>{["creator", "company_head"].includes(user.role) && !user.assignedObjectIds?.length ? "Все" : user.assignedObjectIds?.map((id) => objectNames.get(id)).filter(Boolean).join(", ") || "—"}</td>
                 <td>{user.assignedBuildingIds?.map((id) => buildingNames.get(id)).filter(Boolean).join(", ") || "—"}</td>
-                <td><div className="task-actions">{canCreate && <button className="secondary-button slim" onClick={() => setEditingUser(user)}>Редактировать</button>}{canCreate && !remoteAuth && <button className="secondary-button slim" onClick={() => resetPassword(user.id)}>Сбросить пароль</button>}</div></td>
+                <td><div className="task-actions">{canCreate && <button className="secondary-button slim" onClick={() => setEditingUser(user)}>Редактировать</button>}{canCreate && user.id !== currentUser.id && (!remoteAuth || user.status !== "disabled") && <button className="secondary-button slim" disabled={saving} onClick={() => changeAccountStatus(user, "disabled")}>Отключить</button>}{canCreate && remoteAuth && user.id !== currentUser.id && <button className="secondary-button slim" disabled={saving} onClick={() => restoreAccountAccess(user)}>{user.status === "disabled" ? "Восстановить доступ" : "Отправить ссылку входа"}</button>}{canCreate && !remoteAuth && user.status === "disabled" && <button className="secondary-button slim" disabled={saving} onClick={() => changeAccountStatus(user, "active")}>Активировать</button>}{canCreate && !remoteAuth && <button className="secondary-button slim" onClick={() => resetPassword(user.id)}>Сбросить пароль</button>}</div></td>
               </tr>
             ))}
           </tbody>
@@ -2978,8 +3044,9 @@ function UserEditModal({ user, currentUser, objects, onClose, onSave, remoteAuth
           <label>Телефон<input value={form.phone} onChange={(event) => update("phone", event.target.value)} /></label>
           <label>Должность<input value={form.position} onChange={(event) => update("position", event.target.value)} /></label>
           <label>Роль<select value={form.role} onChange={(event) => update("role", event.target.value)}>{allowedRoles.map((role) => <option key={role} value={role}>{roleLabels[role]}</option>)}</select></label>
-          <label>Статус<input value="active" readOnly /></label>
-          {(!remoteAuth || isNew) && <label>Временный пароль<input type="password" minLength={remoteAuth ? 10 : 6} pattern={remoteAuth ? "(?=.*[a-z])(?=.*[A-Z])(?=.*\\d).{10,}" : undefined} title={remoteAuth ? "Минимум 10 символов, заглавная и строчная латинские буквы и цифра" : undefined} value={form.password} onChange={(event) => update("password", event.target.value)} required /></label>}
+          <label>Статус<input value={form.status ?? "active"} readOnly /></label>
+          {!remoteAuth && isNew && <label>Временный пароль<input type="password" minLength={6} value={form.password} onChange={(event) => update("password", event.target.value)} required /></label>}
+          {remoteAuth && isNew && <div className="invitation-hint">Пользователь получит письмо и самостоятельно задаст пароль по защищённой ссылке.</div>}
         </div>
         <h3 className="modal-subtitle">Назначенные объекты</h3>
         <div className="checkbox-grid">{objects.map((object) => <label key={object.id}><input type="checkbox" checked={form.assignedObjectIds.includes(object.id)} onChange={() => toggle("assignedObjectIds", object.id)} />{object.name}</label>)}</div>

@@ -86,6 +86,10 @@ const responsibleItrObjectAccess = readFileSync(
   resolve("supabase/migrations/202607140022_responsible_itr_object_access.sql"),
   "utf8"
 );
+const controlledUserInvitations = readFileSync(
+  resolve("supabase/migrations/202607140023_controlled_user_invitations.sql"),
+  "utf8"
+);
 
 describe("Supabase schema", () => {
   it("defines the core hierarchy and assignment tables", () => {
@@ -195,6 +199,15 @@ describe("Supabase schema", () => {
     expect(responsibleItrObjectAccess).toContain("create or replace function public.can_access_object");
     expect(responsibleItrObjectAccess).toContain("b.responsible_itr_id = auth.uid()");
     expect(responsibleItrObjectAccess).toContain("grant execute on function public.can_access_object(uuid) to authenticated");
+  });
+
+  it("creates profiles only from controlled, expiring invitations", () => {
+    expect(controlledUserInvitations).toContain("create table public.user_invitations");
+    expect(controlledUserInvitations).toContain("expires_at timestamptz");
+    expect(controlledUserInvitations).toContain("A valid user invitation is required");
+    expect(controlledUserInvitations).toContain("invitation.company_id");
+    expect(controlledUserInvitations).not.toContain("raw_user_meta_data ->> 'role'");
+    expect(controlledUserInvitations).toContain("grant select on public.user_invitations to authenticated");
   });
 
   it("defines workforce, plan-fact and financial entities", () => {

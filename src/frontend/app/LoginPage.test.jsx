@@ -21,4 +21,13 @@ describe("mock user login", () => {
     expect(screen.queryByLabelText("Демо-пользователь")).not.toBeInTheDocument();
     expect(screen.getByLabelText("Email")).toBeInTheDocument();
   });
+
+  it("requests a password recovery email in production auth mode", async () => {
+    const onResetPassword = vi.fn(() => Promise.resolve());
+    render(<LoginPage users={mockUsers} onLogin={() => ({ ok: false })} onResetPassword={onResetPassword} isDemo={false} />);
+    fireEvent.change(screen.getByLabelText("Email"), { target: { value: "itr@gross.ru" } });
+    fireEvent.click(screen.getByRole("button", { name: "Восстановить пароль" }));
+    await waitFor(() => expect(onResetPassword).toHaveBeenCalledWith("itr@gross.ru"));
+    expect(screen.getByText(/ссылка для восстановления отправлена/i)).toBeInTheDocument();
+  });
 });

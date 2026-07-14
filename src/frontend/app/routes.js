@@ -1,5 +1,6 @@
 export const screenPaths = {
   login: "/login",
+  reset_password: "/reset-password",
   objects: "/objects",
   company_dashboard: "/dashboard",
   tasks: "/tasks",

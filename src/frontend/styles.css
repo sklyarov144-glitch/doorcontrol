@@ -61,7 +61,8 @@ p {
 .login-page {
   min-height: 100vh;
   display: grid;
-  place-items: center;
+  align-items: safe center;
+  justify-items: center;
   padding: 24px;
   background:
     radial-gradient(circle at 25% 20%, rgba(183, 53, 61, 0.28), transparent 32%),
@@ -199,6 +200,94 @@ p {
   gap: 16px;
   margin-top: 0;
   padding: 16px;
+}
+
+.login-recovery-button {
+  color: #33465f !important;
+  background: #eef3f8 !important;
+  box-shadow: none !important;
+}
+
+.password-recovery-card {
+  width: min(520px, calc(100% - 32px));
+  display: grid;
+  gap: 14px;
+  padding: 38px;
+  border: 1px solid rgba(255, 255, 255, 0.14);
+  border-radius: 8px;
+  color: #172033;
+  background: rgba(255, 255, 255, 0.97);
+  box-shadow: 0 28px 70px rgba(0, 0, 0, 0.32);
+}
+
+.password-recovery-card h1,
+.password-recovery-card p {
+  margin: 0;
+}
+
+.password-recovery-card > span,
+.password-recovery-card p {
+  color: #6b778c;
+}
+
+.password-recovery-card form {
+  display: grid;
+  gap: 16px;
+  margin-top: 10px;
+}
+
+.invitation-hint {
+  align-self: end;
+  padding: 13px 15px;
+  border: 1px solid #dbe5ef;
+  border-radius: 8px;
+  color: #53657b;
+  background: #f5f8fb;
+  font-size: 14px;
+  line-height: 1.45;
+}
+
+@media (max-height: 850px) {
+  .login-page {
+    align-items: start;
+  }
+}
+
+@media (max-width: 600px) {
+  .login-page {
+    padding: 12px;
+  }
+
+  .login-panel {
+    min-width: 0;
+    gap: 14px;
+    padding: 14px;
+    border-radius: 18px;
+  }
+
+  .login-brand-zone,
+  .login-form {
+    min-width: 0;
+  }
+
+  .login-brand-zone {
+    padding: 20px;
+    border-radius: 14px;
+  }
+
+  .login-brand-zone h1 {
+    overflow-wrap: anywhere;
+    font-size: 32px;
+  }
+
+  .login-form {
+    padding: 4px;
+  }
+
+  .password-recovery-card {
+    width: 100%;
+    padding: 24px;
+  }
 }
 
 label {

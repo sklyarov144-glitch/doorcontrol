@@ -6,6 +6,13 @@ insert into public.companies (id, name) values
   ('20000000-0000-0000-0000-000000000001', 'Компания А'),
   ('20000000-0000-0000-0000-000000000002', 'Компания Б');
 
+insert into public.user_invitations (company_id, email, name, role) values
+  ('20000000-0000-0000-0000-000000000001', 'creator-a@example.test', 'Creator A', 'creator'),
+  ('20000000-0000-0000-0000-000000000001', 'head-a@example.test', 'Head A', 'company_head'),
+  ('20000000-0000-0000-0000-000000000001', 'director-a@example.test', 'Director A', 'construction_director'),
+  ('20000000-0000-0000-0000-000000000001', 'itr-a@example.test', 'ITR A', 'itr'),
+  ('20000000-0000-0000-0000-000000000002', 'head-b@example.test', 'Head B', 'company_head');
+
 insert into auth.users (id, email, raw_user_meta_data) values
   ('21000000-0000-0000-0000-000000000001', 'creator-a@example.test', '{"company_id":"20000000-0000-0000-0000-000000000001","name":"Creator A","role":"creator"}'),
   ('21000000-0000-0000-0000-000000000002', 'head-a@example.test', '{"company_id":"20000000-0000-0000-0000-000000000001","name":"Head A","role":"company_head"}'),

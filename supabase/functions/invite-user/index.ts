@@ -45,34 +45,86 @@ Deno.serve(async (request) => {
     }
 
     const body = await request.json();
+    const action = body.action ?? "invite";
+    if (!["invite", "deactivate", "reactivate", "restore_access"].includes(action)) {
+      throw new Error("Unsupported action");
+    }
+
+    if (action !== "invite") {
+      if (typeof body.userId !== "string") throw new Error("User id is required");
+      const { data: target, error: targetError } = await adminClient
+        .from("profiles")
+        .select("id, company_id, role, status, email")
+        .eq("id", body.userId)
+        .single();
+      if (targetError || target.company_id !== caller.company_id) throw new Error("User is unavailable");
+      const manageableRoles = caller.role === "creator"
+        ? ["creator", "company_head", "construction_director", "itr"]
+        : caller.role === "company_head" ? ["company_head", "construction_director", "itr"] : ["itr"];
+      if (!manageableRoles.includes(target.role) || target.id === callerAuth.user.id) throw new Error("Role is not allowed");
+
+      const nextStatus = action === "deactivate" ? "disabled" : "active";
+      const previousStatus = target.status;
+      const { error: profileUpdateError } = await callerClient.from("profiles").update({ status: nextStatus }).eq("id", target.id);
+      if (profileUpdateError) throw profileUpdateError;
+      const { error: authUpdateError } = await adminClient.auth.admin.updateUserById(target.id, {
+        ban_duration: action === "deactivate" ? "876000h" : "none",
+      });
+      if (authUpdateError) {
+        await callerClient.from("profiles").update({ status: previousStatus }).eq("id", target.id);
+        throw authUpdateError;
+      }
+      if (action === "restore_access") {
+        const redirectTo = `${Deno.env.get("APP_PUBLIC_URL") ?? origin}/reset-password`;
+        const { error: resetError } = await adminClient.auth.resetPasswordForEmail(target.email, { redirectTo });
+        if (resetError) {
+          await adminClient.auth.admin.updateUserById(target.id, {
+            ban_duration: previousStatus === "disabled" ? "876000h" : "none",
+          });
+          await callerClient.from("profiles").update({ status: previousStatus }).eq("id", target.id);
+          throw resetError;
+        }
+      }
+      return new Response(JSON.stringify({ user_id: target.id, status: nextStatus }), {
+        headers: { ...headers, "Content-Type": "application/json" },
+      });
+    }
+
     if (typeof body.name !== "string" || body.name.trim().length < 2 || body.name.length > 160) {
       throw new Error("Valid name is required");
     }
     if (typeof body.email !== "string" || !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(body.email)) {
       throw new Error("Valid email is required");
     }
-    if (typeof body.password !== "string" || body.password.length < 10 || !/[a-z]/.test(body.password) || !/[A-Z]/.test(body.password) || !/\d/.test(body.password)) {
-      throw new Error("Password must contain at least 10 characters, upper/lowercase letters and a digit");
-    }
     const allowedRoles = caller.role === "creator"
       ? ["creator", "company_head", "construction_director", "itr"]
       : caller.role === "company_head" ? ["construction_director", "itr"] : ["itr"];
     if (!allowedRoles.includes(body.role)) throw new Error("Role is not allowed");
 
-    const { data, error } = await adminClient.auth.admin.createUser({
-      email: body.email.trim().toLowerCase(),
-      password: body.password,
-      email_confirm: true,
-      user_metadata: {
-        company_id: caller.company_id,
-        name: body.name.trim(),
-        role: body.role,
-        position: body.position,
-      },
-    });
-    if (error) throw error;
+    const email = body.email.trim().toLowerCase();
+    await adminClient.from("user_invitations").update({ status: "revoked" })
+      .eq("company_id", caller.company_id).eq("email", email).eq("status", "pending");
+    const { data: invitation, error: invitationError } = await adminClient.from("user_invitations").insert({
+      company_id: caller.company_id,
+      email,
+      name: body.name.trim(),
+      role: body.role,
+      position: typeof body.position === "string" ? body.position.trim() : null,
+      invited_by: callerAuth.user.id,
+    }).select("id").single();
+    if (invitationError) throw invitationError;
 
-    return new Response(JSON.stringify({ user_id: data.user.id }), {
+    const redirectTo = `${Deno.env.get("APP_PUBLIC_URL") ?? origin}/reset-password`;
+    const { data, error } = await adminClient.auth.admin.inviteUserByEmail(email, {
+      redirectTo,
+      data: { invitation_id: invitation.id },
+    });
+    if (error) {
+      await adminClient.from("user_invitations").update({ status: "revoked" }).eq("id", invitation.id);
+      throw error;
+    }
+
+    return new Response(JSON.stringify({ user_id: data.user.id, invitation_id: invitation.id }), {
       headers: { ...headers, "Content-Type": "application/json" },
     });
   } catch (error) {

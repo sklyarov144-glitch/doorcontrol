@@ -11,6 +11,8 @@
 - [ ] Импорт прошёл preflight и контрольные суммы/количества сверены.
 - [ ] Production secrets заданы, MFA включена у администраторов.
 - [ ] Auth Site URL и redirect allowlist содержат production-домен.
+- [ ] Публичная регистрация Auth отключена, приглашение и восстановление пароля проверены через production SMTP.
+- [ ] `APP_PUBLIC_URL` и `APP_ALLOWED_ORIGINS` функций совпадают с production-доменом.
 - [ ] Supabase native backup/PITR включён.
 - [ ] Supabase Cron включён, job `gross-sync-overdue-door-tasks` активен и имеет успешный запуск.
 - [ ] Restore drill выполнен не более 30 дней назад.
