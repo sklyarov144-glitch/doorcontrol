@@ -63,14 +63,17 @@ select set_config('request.jwt.claim.sub', '22000000-0000-0000-0000-000000000002
 select is((select count(*)::integer from public.objects), 1, 'second company head sees only second company');
 
 select set_config('request.jwt.claim.sub', '21000000-0000-0000-0000-000000000004', true);
-select is((with changed as (
-  update public.doors set status = 'доставлена'
-  where id = '26000000-0000-0000-0000-000000000001' returning 1
-) select count(*)::integer from changed), 1, 'ITR can update assigned door');
-select is((with changed as (
-  update public.doors set status = 'доставлена'
-  where id = '26000000-0000-0000-0000-000000000003' returning 1
-) select count(*)::integer from changed), 0, 'ITR cannot update foreign door');
+update public.doors set status = 'доставлена'
+where id = '26000000-0000-0000-0000-000000000001';
+select is((select status from public.doors where id = '26000000-0000-0000-0000-000000000001'), 'доставлена', 'ITR can update assigned door');
+
+update public.doors set status = 'доставлена'
+where id = '26000000-0000-0000-0000-000000000003';
+reset role;
+select is((select status from public.doors where id = '26000000-0000-0000-0000-000000000003'), 'не начато', 'ITR cannot update foreign door');
+set local role authenticated;
+select set_config('request.jwt.claim.role', 'authenticated', true);
+select set_config('request.jwt.claim.sub', '21000000-0000-0000-0000-000000000004', true);
 select throws_ok(
   $$insert into public.objects (company_id, name) values ('20000000-0000-0000-0000-000000000001', 'Запрещённый объект ИТР')$$,
   '42501',
@@ -87,10 +90,9 @@ select throws_ok(
 );
 
 select set_config('request.jwt.claim.sub', '21000000-0000-0000-0000-000000000002', true);
-select is((with created as (
-  insert into public.objects (company_id, name)
-  values ('20000000-0000-0000-0000-000000000001', 'Объект руководителя') returning 1
-) select count(*)::integer from created), 1, 'company head can create object');
+insert into public.objects (company_id, name)
+values ('20000000-0000-0000-0000-000000000001', 'Объект руководителя');
+select is((select count(*)::integer from public.objects where name = 'Объект руководителя'), 1, 'company head can create object');
 
 select set_config('request.jwt.claim.sub', '21000000-0000-0000-0000-000000000004', true);
 select is((select count(*)::integer from public.financial_transactions), 0, 'ITR cannot read finance');

@@ -82,6 +82,10 @@ const authenticatedDomainGrants = readFileSync(
   resolve("supabase/migrations/202607140021_authenticated_domain_grants.sql"),
   "utf8"
 );
+const responsibleItrObjectAccess = readFileSync(
+  resolve("supabase/migrations/202607140022_responsible_itr_object_access.sql"),
+  "utf8"
+);
 
 describe("Supabase schema", () => {
   it("defines the core hierarchy and assignment tables", () => {
@@ -185,6 +189,12 @@ describe("Supabase schema", () => {
     expect(authenticatedDomainGrants).toContain("revoke all on table");
     expect(authenticatedDomainGrants).toContain("from anon");
     expect(authenticatedDomainGrants).toContain("revoke insert, update, delete on public.activity_logs");
+  });
+
+  it("lets a responsible ITR load the parent object of an assigned building", () => {
+    expect(responsibleItrObjectAccess).toContain("create or replace function public.can_access_object");
+    expect(responsibleItrObjectAccess).toContain("b.responsible_itr_id = auth.uid()");
+    expect(responsibleItrObjectAccess).toContain("grant execute on function public.can_access_object(uuid) to authenticated");
   });
 
   it("defines workforce, plan-fact and financial entities", () => {
