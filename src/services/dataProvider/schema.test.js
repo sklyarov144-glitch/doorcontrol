@@ -78,6 +78,10 @@ const grantAuditRead = readFileSync(
   resolve("supabase/migrations/202607140020_grant_audit_read.sql"),
   "utf8"
 );
+const authenticatedDomainGrants = readFileSync(
+  resolve("supabase/migrations/202607140021_authenticated_domain_grants.sql"),
+  "utf8"
+);
 
 describe("Supabase schema", () => {
   it("defines the core hierarchy and assignment tables", () => {
@@ -171,6 +175,16 @@ describe("Supabase schema", () => {
     expect(scopedImmutableAudit).toContain("financial_transactions");
     expect(grantAuditRead).toContain("grant select on public.activity_logs to authenticated");
     expect(grantAuditRead).toContain("revoke insert, update, delete");
+  });
+
+  it("grants authenticated clients domain privileges governed by RLS", () => {
+    expect(authenticatedDomainGrants).toContain("grant select, insert, update, delete on table");
+    expect(authenticatedDomainGrants).toContain("public.financial_transactions");
+    expect(authenticatedDomainGrants).toContain("public.object_delivery_summary");
+    expect(authenticatedDomainGrants).toContain("grant usage, select on all sequences in schema public");
+    expect(authenticatedDomainGrants).toContain("revoke all on table");
+    expect(authenticatedDomainGrants).toContain("from anon");
+    expect(authenticatedDomainGrants).toContain("revoke insert, update, delete on public.activity_logs");
   });
 
   it("defines workforce, plan-fact and financial entities", () => {
