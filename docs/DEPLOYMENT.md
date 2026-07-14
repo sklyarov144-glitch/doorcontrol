@@ -11,6 +11,10 @@
 
 ## Staging release
 
+До staging GitHub CI поднимает чистую локальную базу Supabase, применяет все
+миграции и seed, затем выполняет `supabase db lint --level error --fail-on error`. Релиз нельзя
+продолжать, если job `database` не прошёл, даже когда frontend job зелёный.
+
 Push в `main` запускает CI и staging deployment. Workflow последовательно:
 
 1. проверяет код;

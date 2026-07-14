@@ -20,3 +20,23 @@ jobs:
           cache: npm
       - run: npm ci
       - run: npm run ci
+
+  database:
+    runs-on: ubuntu-latest
+    timeout-minutes: 25
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version-file: .nvmrc
+          cache: npm
+      - run: npm ci
+      - name: Start local Supabase database
+        run: npx supabase start --exclude studio,imgproxy,inbucket,edge-runtime,functions,analytics,vector,realtime
+      - name: Apply migrations and seed from zero
+        run: npx supabase db reset --local
+      - name: Lint database schema
+        run: npx supabase db lint --local --level error --fail-on error
+      - name: Stop local Supabase
+        if: always()
+        run: npx supabase stop --no-backup

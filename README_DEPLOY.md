@@ -23,7 +23,8 @@ npm run dev
 
 ## Автоматизация
 
-- `CI`: lint, тесты, production build и аудит production-зависимостей.
+- `CI`: lint, тесты, production build, аудит production-зависимостей, применение
+  всех миграций с нуля и database lint в локальном Supabase.
 - `Deploy staging`: автоматически после успешного push в `main`, также запускается вручную.
 - `Deploy production`: только вручную, с подтверждением `DEPLOY` и защитой GitHub Environment.
 - `Encrypted production database backup`: ежедневный зашифрованный логический backup; основной механизм восстановления — Supabase backups/PITR.
