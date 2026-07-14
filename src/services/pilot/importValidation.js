@@ -1,4 +1,5 @@
 const allowedDoorTypes = new Set(["apartment", "mop", "Квартирная", "МОП"]);
+const uuidPattern = /^[0-9a-f]{8}-[0-9a-f]{4}-[1-5][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i;
 
 export function validatePilotImport(payload) {
   const errors = [];
@@ -25,6 +26,7 @@ export function validatePilotImport(payload) {
     counts.objects += 1;
     registerId(object.legacyId, `${objectPath}.legacyId`);
     requireText(object.name, `${objectPath}.name`);
+    if (object.responsibleDirectorId && !uuidPattern.test(object.responsibleDirectorId)) errors.push(`${objectPath}.responsibleDirectorId must be a UUID`);
     if (!Array.isArray(object.buildings) || object.buildings.length === 0) errors.push(`${objectPath}.buildings must not be empty`);
 
     (object.buildings ?? []).forEach((building, buildingIndex) => {
@@ -32,6 +34,7 @@ export function validatePilotImport(payload) {
       counts.buildings += 1;
       registerId(building.legacyId, `${buildingPath}.legacyId`);
       requireText(building.name, `${buildingPath}.name`);
+      if (building.responsibleItrId && !uuidPattern.test(building.responsibleItrId)) errors.push(`${buildingPath}.responsibleItrId must be a UUID`);
       if (!Number.isInteger(building.floorsCount) || building.floorsCount < 1) errors.push(`${buildingPath}.floorsCount must be a positive integer`);
       const floorNumbers = new Set();
 
@@ -66,6 +69,7 @@ export function validatePilotImport(payload) {
           if (![door.x, door.y].every((value) => Number.isFinite(value) && value >= 0 && value <= 100)) {
             errors.push(`${doorPath}.x and y must be percentages from 0 to 100`);
           }
+          if (door.assignedUserId && !uuidPattern.test(door.assignedUserId)) errors.push(`${doorPath}.assignedUserId must be a UUID`);
           if (!door.assignedUserId) warnings.push(`${doorPath} has no assigned user`);
         });
       });

@@ -34,4 +34,18 @@ describe("pilot import validation", () => {
     expect(result.valid).toBe(false);
     expect(result.errors.join(" ")).toMatch(/duplicates legacy id|duplicates Д-1|percentages/);
   });
+
+  it("rejects legacy user identifiers in production assignment fields", () => {
+    const payload = structuredClone(validPayload);
+    payload.objects[0].responsibleDirectorId = "director-1";
+    payload.objects[0].buildings[0].responsibleItrId = "itr-1";
+    payload.objects[0].buildings[0].floors[0].doors[0].assignedUserId = "itr-1";
+
+    const result = validatePilotImport(payload);
+
+    expect(result.valid).toBe(false);
+    expect(result.errors.join(" ")).toMatch(/responsibleDirectorId must be a UUID/);
+    expect(result.errors.join(" ")).toMatch(/responsibleItrId must be a UUID/);
+    expect(result.errors.join(" ")).toMatch(/assignedUserId must be a UUID/);
+  });
 });

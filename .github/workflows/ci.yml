@@ -37,6 +37,8 @@ jobs:
         run: npx supabase db reset --local
       - name: Lint database schema
         run: npx supabase db lint --local --level error --fail-on error
+      - name: Run database integration tests
+        run: npx supabase test db
       - name: Stop local Supabase
         if: always()
         run: npx supabase stop --no-backup

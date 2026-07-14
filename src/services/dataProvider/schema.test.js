@@ -66,6 +66,10 @@ const scheduledOverdueTasks = readFileSync(
   resolve("supabase/migrations/202607140017_scheduled_overdue_tasks.sql"),
   "utf8"
 );
+const transactionalPilotImport = readFileSync(
+  resolve("supabase/migrations/202607140018_transactional_pilot_import.sql"),
+  "utf8"
+);
 
 describe("Supabase schema", () => {
   it("defines the core hierarchy and assignment tables", () => {
@@ -195,5 +199,14 @@ describe("Supabase schema", () => {
     expect(scheduledOverdueTasks).toContain("revoke all on function public.sync_all_overdue_door_tasks() from public, anon, authenticated");
     expect(scheduledOverdueTasks).toContain("gross-sync-overdue-door-tasks");
     expect(scheduledOverdueTasks).toContain("*/30 * * * *");
+  });
+
+  it("imports pilot hierarchy atomically through a service-only function", () => {
+    expect(transactionalPilotImport).toContain("function public.import_pilot_hierarchy");
+    expect(transactionalPilotImport).toContain("pg_advisory_xact_lock");
+    expect(transactionalPilotImport).toContain("on conflict (legacy_id) do update");
+    expect(transactionalPilotImport).toContain("belongs to another company");
+    expect(transactionalPilotImport).toContain("revoke all on function public.import_pilot_hierarchy(uuid, jsonb) from public, anon, authenticated");
+    expect(transactionalPilotImport).toContain("grant execute on function public.import_pilot_hierarchy(uuid, jsonb) to service_role");
   });
 });
