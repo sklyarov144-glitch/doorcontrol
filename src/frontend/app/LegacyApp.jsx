@@ -1474,9 +1474,29 @@ export function App() {
               objects={objects}
               user={user}
               users={users}
-              onChange={(nextObjects) => {
+              onChange={async (nextObjects) => {
                 setObjects(nextObjects);
-                saveObjects(nextObjects);
+                setPersistenceError("");
+                try {
+                  await saveObjects(nextObjects);
+                  if (isRemoteAuth) {
+                    const persisted = await dataProvider.objects.getTree();
+                    const normalized = persisted.map(normalizeObject);
+                    setObjects(normalized);
+                    return normalized;
+                  }
+                  return nextObjects;
+                } catch (error) {
+                  console.error("Unable to save admin changes", error);
+                  setPersistenceError("Не удалось сохранить изменения админ-панели. Данные нужно проверить и повторить операцию.");
+                  if (isRemoteAuth) setDomainReload((value) => value + 1);
+                  throw error;
+                }
+              }}
+              onPlanUpload={async ({ objectId, buildingId, floorId }, file) => {
+                const uploaded = await fileService.uploadFloorPlan({ companyId: user.companyId, objectId, buildingId, floorId }, file);
+                const image = isRemoteAuth ? await fileService.createSignedUrl(uploaded.bucket, uploaded.path, 3600) : uploaded.uri;
+                return { image, imageStorageUri: uploaded.uri };
               }}
             />
           )}
@@ -2636,7 +2656,7 @@ function createTemplateRooms(count) {
   });
 }
 
-function AdminPanel({ objects, user, users, onChange }) {
+function AdminPanel({ objects, user, users, onChange, onPlanUpload }) {
   const [objectForm, setObjectForm] = useState({ name: "", address: "", metro: "" });
   const [buildingForm, setBuildingForm] = useState({ number: "", floors: 25 });
   const [templateForm, setTemplateForm] = useState({ apartments: 6, mop: 2 });
@@ -2649,12 +2669,15 @@ function AdminPanel({ objects, user, users, onChange }) {
   const [stair, setStair] = useState(selectedBuilding?.floorTemplate?.stair ?? { x: 43, y: 39, width: 18, height: 22 });
   const [arrow, setArrow] = useState(selectedBuilding?.floorTemplate?.arrow ?? { x: 51, y: 49, size: 46, angle: -90 });
   const [planImage, setPlanImage] = useState(selectedBuilding?.floorTemplate?.image ?? "");
+  const [planImageStorageUri, setPlanImageStorageUri] = useState(selectedBuilding?.floorTemplate?.imageStorageUri ?? "");
+  const [planUploading, setPlanUploading] = useState(false);
   const [editing, setEditing] = useState(false);
   const [selectedElement, setSelectedElement] = useState(null);
   const [notice, setNotice] = useState("");
   const canCreateObject = ["creator", "company_head"].includes(user.role);
   const canAssignResponsible = ["creator", "company_head", "construction_director"].includes(user.role);
-  const responsibleUsers = users.filter((item) => ["itr", "construction_director"].includes(item.role));
+  const responsibleDirectors = users.filter((item) => item.role === "construction_director" && item.status !== "disabled");
+  const responsibleItr = users.filter((item) => item.role === "itr" && item.status !== "disabled");
 
   React.useEffect(() => {
     setBuildingId(selectedObject?.buildings[0]?.id ?? "");
@@ -2666,9 +2689,21 @@ function AdminPanel({ objects, user, users, onChange }) {
     setStair(selectedBuilding?.floorTemplate?.stair ?? { x: 43, y: 39, width: 18, height: 22 });
     setArrow(selectedBuilding?.floorTemplate?.arrow ?? { x: 51, y: 49, size: 46, angle: -90 });
     setPlanImage(selectedBuilding?.floorTemplate?.image ?? "");
+    setPlanImageStorageUri(selectedBuilding?.floorTemplate?.imageStorageUri ?? "");
   }, [selectedBuilding?.id]);
 
-  const createObject = (event) => {
+  const persistAdminChange = async (next, successMessage) => {
+    try {
+      const persisted = await onChange(next);
+      setNotice(successMessage);
+      return persisted;
+    } catch {
+      setNotice("Изменения не сохранены. Проверьте доступ и соединение.");
+      return null;
+    }
+  };
+
+  const createObject = async (event) => {
     event.preventDefault();
     if (!canCreateObject) {
       setNotice("Создавать объект может только руководитель");
@@ -2682,23 +2717,32 @@ function AdminPanel({ objects, user, users, onChange }) {
       address: [objectForm.address.trim(), objectForm.metro.trim() && `метро «${objectForm.metro.trim()}»`].filter(Boolean).join(", "),
       metro: objectForm.metro.trim(),
       status: "В работе",
-      responsibleId: responsibleUsers[0]?.id ?? "",
+      responsibleDirectorId: responsibleDirectors[0]?.id ?? "",
       buildings: [],
     };
-    onChange([...objects, nextObject]);
-    setObjectId(id);
+    const persisted = await persistAdminChange([...objects, nextObject], "Объект создан");
+    if (!persisted) return;
+    const created = persisted.find((item) => item.id === id || item.legacyId === id);
+    setObjectId(created?.id ?? id);
     setObjectForm({ name: "", address: "", metro: "" });
-    setNotice("Объект создан");
   };
 
-  const assignResponsible = (responsibleId) => {
+  const assignResponsible = async (responsibleId) => {
     if (!selectedObject || !canAssignResponsible) return;
-    const next = objects.map((item) => item.id === selectedObject.id ? { ...item, responsibleId } : item);
-    onChange(next);
-    setNotice("Ответственный за объект назначен");
+    const next = objects.map((item) => item.id === selectedObject.id ? { ...item, responsibleId, responsibleDirectorId: responsibleId } : item);
+    await persistAdminChange(next, "Ответственный за объект назначен");
   };
 
-  const addBuilding = (event) => {
+  const assignBuildingItr = async (responsibleItrId) => {
+    if (!selectedObject || !selectedBuilding || !canAssignResponsible) return;
+    const next = objects.map((object) => object.id !== selectedObject.id ? object : {
+      ...object,
+      buildings: object.buildings.map((building) => building.id === selectedBuilding.id ? { ...building, responsibleItrId } : building),
+    });
+    await persistAdminChange(next, "Ответственный ИТР за корпус назначен");
+  };
+
+  const addBuilding = async (event) => {
     event.preventDefault();
     if (!selectedObject || !buildingForm.number.trim()) return;
     const id = `building-${Date.now()}`;
@@ -2711,10 +2755,13 @@ function AdminPanel({ objects, user, users, onChange }) {
       floors: Array.from({ length: floorCount }, (_, index) => ({ id: `floor-${index + 1}`, label: String(index + 1), number: index + 1, type: "floor", doors: [] })),
     };
     const next = objects.map((item) => item.id === selectedObject.id ? { ...item, buildings: [...item.buildings, building] } : item);
-    onChange(next);
-    setBuildingId(id);
+    const persisted = await persistAdminChange(next, "Корпус добавлен");
+    if (!persisted) return;
+    const persistedObject = persisted.find((item) => item.id === selectedObject.id || item.legacyId === selectedObject.id);
+    const created = persistedObject?.buildings.find((item) => item.id === id || item.legacyId === id);
+    setObjectId(persistedObject?.id ?? selectedObject.id);
+    setBuildingId(created?.id ?? id);
     setBuildingForm({ number: "", floors: floorCount });
-    setNotice("Корпус добавлен");
   };
 
   const generateTemplate = () => {
@@ -2752,9 +2799,9 @@ function AdminPanel({ objects, user, users, onChange }) {
     if (type === "arrow") setArrow((current) => ({ ...current, x: Number(x.toFixed(2)), y: Number(y.toFixed(2)) }));
   };
 
-  const saveTemplate = () => {
+  const saveTemplate = async () => {
     if (!selectedObject || !selectedBuilding || draftDoors.length === 0) return;
-    const template = { apartments: draftRooms.length, mopDoors: Number(templateForm.mop), image: planImage, rooms: draftRooms, stair, arrow, doors: draftDoors };
+    const template = { apartments: draftRooms.length, mopDoors: Number(templateForm.mop), image: planImage, imageStorageUri: planImageStorageUri || undefined, rooms: draftRooms, stair, arrow, doors: draftDoors };
     const next = objects.map((object) => object.id !== selectedObject.id ? object : {
       ...object,
       buildings: object.buildings.map((building) => building.id !== selectedBuilding.id ? building : {
@@ -2763,9 +2810,30 @@ function AdminPanel({ objects, user, users, onChange }) {
         floors: building.floors.map((floor) => ({ ...floor, doors: draftDoors.map((door) => ({ ...door, id: `${building.id}-${floor.id}-${door.id}`, history: [...door.history] })) })),
       }),
     });
-    onChange(next);
-    setEditing(false);
-    setNotice("Шаблон сохранён и применён ко всем этажам корпуса");
+    try {
+      await onChange(next);
+      setEditing(false);
+      setNotice("Шаблон сохранён и применён ко всем этажам корпуса");
+    } catch {
+      setNotice("Не удалось сохранить шаблон. Проверьте соединение и повторите попытку.");
+    }
+  };
+
+  const uploadPlan = async (file) => {
+    if (!file || !selectedObject || !selectedBuilding) return;
+    setPlanUploading(true);
+    setNotice("");
+    try {
+      const firstFloor = selectedBuilding.floors.find((floor) => floor.type === "floor");
+      const uploaded = await onPlanUpload({ objectId: selectedObject.id, buildingId: selectedBuilding.id, floorId: firstFloor?.id ?? "template" }, file);
+      setPlanImage(uploaded.image);
+      setPlanImageStorageUri(uploaded.imageStorageUri ?? "");
+      setNotice("План загружен. Сохраните шаблон этажа.");
+    } catch {
+      setNotice("Не удалось загрузить план. Допустимы PNG, JPEG, WebP или PDF до 20 МБ.");
+    } finally {
+      setPlanUploading(false);
+    }
   };
 
   return (
@@ -2773,12 +2841,12 @@ function AdminPanel({ objects, user, users, onChange }) {
       <div className="admin-intro"><div><h2>Настройка объекта</h2><p>Создайте структуру и расставьте двери типового этажа.</p></div>{notice && <span>{notice}</span>}</div>
       <div className="admin-steps">
         {canCreateObject && <form className="admin-card" onSubmit={createObject}><b>01</b><h3>Создание объекта</h3><label>Название<input value={objectForm.name} onChange={(e) => setObjectForm({ ...objectForm, name: e.target.value })} /></label><label>Район / адрес<input value={objectForm.address} onChange={(e) => setObjectForm({ ...objectForm, address: e.target.value })} /></label><label>Метро<input value={objectForm.metro} onChange={(e) => setObjectForm({ ...objectForm, metro: e.target.value })} /></label><button className="primary-button">Создать объект</button></form>}
-        <div className="admin-card"><b>{canCreateObject ? "02" : "01"}</b><h3>Ответственный за объект</h3><label>Объект<select value={selectedObject?.id ?? ""} onChange={(e) => setObjectId(e.target.value)}>{objects.map((item) => <option key={item.id} value={item.id}>{item.name}</option>)}</select></label><label>Ответственный<select value={selectedObject?.responsibleId ?? ""} disabled={!canAssignResponsible} onChange={(event) => assignResponsible(event.target.value)}><option value="">Не назначен</option>{responsibleUsers.map((item) => <option key={item.id} value={item.id}>{item.name} — {item.position}</option>)}</select></label><p>{canAssignResponsible ? "Руководитель может назначить ответственного за объект." : "Назначение ответственного доступно руководителю."}</p></div>
+        <div className="admin-card"><b>{canCreateObject ? "02" : "01"}</b><h3>Ответственные</h3><label>Объект<select value={selectedObject?.id ?? ""} onChange={(e) => setObjectId(e.target.value)}>{objects.map((item) => <option key={item.id} value={item.id}>{item.name}</option>)}</select></label><label>Директор объекта<select value={selectedObject?.responsibleDirectorId ?? ""} disabled={!canAssignResponsible} onChange={(event) => assignResponsible(event.target.value)}><option value="">Не назначен</option>{responsibleDirectors.map((item) => <option key={item.id} value={item.id}>{item.name} — {item.position}</option>)}</select></label><label>Корпус<select value={selectedBuilding?.id ?? ""} onChange={(event) => setBuildingId(event.target.value)}>{selectedObject?.buildings.map((item) => <option key={item.id} value={item.id}>{item.name}</option>)}</select></label><label>Ответственный ИТР<select value={selectedBuilding?.responsibleItrId ?? ""} disabled={!canAssignResponsible || !selectedBuilding} onChange={(event) => assignBuildingItr(event.target.value)}><option value="">Не назначен</option>{responsibleItr.map((item) => <option key={item.id} value={item.id}>{item.name} — {item.position}</option>)}</select></label></div>
         <form className="admin-card" onSubmit={addBuilding}><b>{canCreateObject ? "03" : "02"}</b><h3>Добавление корпуса</h3><label>Объект<select value={selectedObject?.id ?? ""} onChange={(e) => setObjectId(e.target.value)}>{objects.map((item) => <option key={item.id} value={item.id}>{item.name}</option>)}</select></label><label>Номер корпуса<input value={buildingForm.number} placeholder="4.1" onChange={(e) => setBuildingForm({ ...buildingForm, number: e.target.value })} /></label><label>Количество этажей<input type="number" min="1" value={buildingForm.floors} onChange={(e) => setBuildingForm({ ...buildingForm, floors: e.target.value })} /></label><button className="primary-button">Добавить корпус</button></form>
         <div className="admin-card"><b>{canCreateObject ? "04" : "03"}</b><h3>Типовой этаж</h3><label>Корпус<select value={selectedBuilding?.id ?? ""} onChange={(e) => setBuildingId(e.target.value)}>{selectedObject?.buildings.map((item) => <option key={item.id} value={item.id}>{item.name}</option>)}</select></label><label>Квартир на этаже<input type="number" min="1" value={templateForm.apartments} onChange={(e) => setTemplateForm({ ...templateForm, apartments: e.target.value })} /></label><label>МОП-дверей<input type="number" min="0" value={templateForm.mop} onChange={(e) => setTemplateForm({ ...templateForm, mop: e.target.value })} /></label><button className="primary-button" type="button" disabled={!selectedBuilding} onClick={generateTemplate}>Сгенерировать план</button></div>
       </div>
       <div className="admin-template-card">
-        <div className="admin-template-toolbar"><div><h3>Шаблон этажа</h3><p>{selectedBuilding?.name ?? "Сначала добавьте корпус"}</p></div><label className="file-button">Загрузить план<input type="file" accept="image/*" onChange={(event) => { const file = event.target.files?.[0]; if (!file) return; const reader = new FileReader(); reader.onload = () => setPlanImage(String(reader.result)); reader.readAsDataURL(file); }} /></label><button className="secondary-button" type="button" onClick={() => setEditing((value) => !value)}>{editing ? "Завершить расстановку" : "Редактировать расположение"}</button><button className="primary-button" type="button" onClick={saveTemplate}>Сохранить шаблон этажа</button></div>
+        <div className="admin-template-toolbar"><div><h3>Шаблон этажа</h3><p>{selectedBuilding?.name ?? "Сначала добавьте корпус"}</p></div><label className={`file-button ${planUploading ? "disabled" : ""}`}>{planUploading ? "Загрузка..." : "Загрузить план"}<input type="file" accept="image/png,image/jpeg,image/webp" disabled={planUploading || !selectedBuilding} onChange={(event) => uploadPlan(event.target.files?.[0])} /></label><button className="secondary-button" type="button" onClick={() => setEditing((value) => !value)}>{editing ? "Завершить расстановку" : "Редактировать расположение"}</button><button className="primary-button" type="button" onClick={saveTemplate}>Сохранить шаблон этажа</button></div>
         <div className="template-editor-grid">
           <div className={`admin-plan ${planImage ? "has-image" : ""} ${editing ? "editing" : ""}`} style={planImage ? { backgroundImage: `url(${planImage})` } : undefined} onDragOver={(event) => editing && event.preventDefault()} onDrop={(event) => moveElement(event, event.dataTransfer.getData("text/plain"))}>
             {!planImage && <div className="admin-plan-corridor" />}

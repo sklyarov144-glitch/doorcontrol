@@ -68,6 +68,20 @@ function mapDoorRecord(door) {
   };
 }
 
+async function hydrateFloorPlanTemplate(template = {}) {
+  const uri = template.imageStorageUri ?? template.image;
+  if (!uri?.startsWith("storage://floor-plans/")) return template;
+  const path = uri.slice("storage://floor-plans/".length);
+  const { data, error } = await requireSupabase().storage.from("floor-plans").createSignedUrl(path, 3600);
+  if (error) return { ...template, imageStorageUri: uri, image: "" };
+  return { ...template, imageStorageUri: uri, image: data.signedUrl };
+}
+
+export function toStoredFloorTemplate(template = {}) {
+  const { imageStorageUri, ...rest } = template;
+  return { ...rest, image: imageStorageUri ?? template.image ?? "" };
+}
+
 export function mapProfileAssignments(profile) {
   return {
     ...profile,
@@ -159,6 +173,7 @@ async function upsertObjectTree(objects) {
     }, { onConflict: "legacy_id" }).select().single());
 
     for (const building of object.buildings ?? []) {
+      const floorTemplate = building.floorTemplate ?? {};
       const buildingRow = unwrap(await client.from("buildings").upsert({
         legacy_id: building.legacyId ?? building.id,
         object_id: objectRow.id,
@@ -167,7 +182,7 @@ async function upsertObjectTree(objects) {
         has_parking: (building.floors ?? []).some((floor) => floor.type === "service" && floor.label === "Паркинг"),
         readiness: Number(building.readiness ?? 0),
         responsible_itr_id: asUuid(building.responsibleItrId),
-        floor_template: building.floorTemplate ?? {},
+        floor_template: toStoredFloorTemplate(floorTemplate),
       }, { onConflict: "legacy_id" }).select().single());
 
       for (const floor of (building.floors ?? []).filter((item) => item.type === "floor")) {
@@ -291,7 +306,14 @@ export const supabaseProvider = {
         .from("objects")
         .select("*, buildings(*, floors(*, doors(*)))")
         .order("created_at");
-      return mapObjectTree(unwrap(response));
+      const tree = mapObjectTree(unwrap(response));
+      return Promise.all(tree.map(async (object) => ({
+        ...object,
+        buildings: await Promise.all(object.buildings.map(async (building) => ({
+          ...building,
+          floorTemplate: await hydrateFloorPlanTemplate(building.floorTemplate),
+        }))),
+      })));
     },
     upsertTree: upsertObjectTree,
   },

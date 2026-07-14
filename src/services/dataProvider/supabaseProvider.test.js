@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { mapObjectTree, mapProfileAssignments, toDoorOperationalUpdate } from "./supabaseProvider";
+import { mapObjectTree, mapProfileAssignments, toDoorOperationalUpdate, toStoredFloorTemplate } from "./supabaseProvider";
 
 describe("Supabase object tree", () => {
   it("maps profile assignments to UI access lists", () => {
@@ -75,6 +75,17 @@ describe("Supabase object tree", () => {
       doorStatus: "смонтирована",
       storageAct: "не передана",
       swing: "down-right",
+    });
+  });
+
+  it("persists the stable floor-plan storage URI instead of a signed URL", () => {
+    expect(toStoredFloorTemplate({
+      image: "https://signed.example/floor.png?token=temporary",
+      imageStorageUri: "storage://floor-plans/company/object/building/floor/plan.png",
+      rooms: [{ id: "room-1" }],
+    })).toEqual({
+      image: "storage://floor-plans/company/object/building/floor/plan.png",
+      rooms: [{ id: "room-1" }],
     });
   });
 });
