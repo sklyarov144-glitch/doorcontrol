@@ -32,17 +32,42 @@ jobs:
             echo "::error::Production backup is not configured. Missing environment secrets: ${missing[*]}"
             exit 1
           fi
-      - name: Export database
+      - name: Export database roles, schema and data
         env:
           SUPABASE_DB_URL: ${{ secrets.SUPABASE_DB_URL }}
-        run: npx supabase db dump --db-url "$SUPABASE_DB_URL" --file gross-production.sql
+        run: |
+          mkdir -p backup
+          npx supabase db dump --db-url "$SUPABASE_DB_URL" --role-only --file backup/roles.sql
+          npx supabase db dump --db-url "$SUPABASE_DB_URL" --file backup/schema.sql
+          npx supabase db dump --db-url "$SUPABASE_DB_URL" --data-only --use-copy --file backup/data.sql
+          node scripts/backup/create-manifest.mjs backup/manifest.json backup/roles.sql backup/schema.sql backup/data.sql
+          tar -czf gross-production.tar.gz -C backup roles.sql schema.sql data.sql manifest.json
       - name: Encrypt backup
         env:
           BACKUP_ENCRYPTION_PASSWORD: ${{ secrets.BACKUP_ENCRYPTION_PASSWORD }}
-        run: openssl enc -aes-256-cbc -salt -pbkdf2 -in gross-production.sql -out gross-production-$(date -u +%F).sql.enc -pass env:BACKUP_ENCRYPTION_PASSWORD && rm gross-production.sql
+        run: |
+          BACKUP_FILE="gross-production-$(date -u +%F).tar.gz.enc"
+          openssl enc -aes-256-cbc -salt -pbkdf2 -in gross-production.tar.gz -out "$BACKUP_FILE" -pass env:BACKUP_ENCRYPTION_PASSWORD
+          sha256sum "$BACKUP_FILE" > "$BACKUP_FILE.sha256"
+          rm gross-production.tar.gz
+      - name: Verify encrypted backup can be decrypted
+        env:
+          BACKUP_ENCRYPTION_PASSWORD: ${{ secrets.BACKUP_ENCRYPTION_PASSWORD }}
+        run: |
+          BACKUP_FILE=$(find . -maxdepth 1 -name 'gross-production-*.tar.gz.enc' -print -quit)
+          test -n "$BACKUP_FILE"
+          sha256sum --check "$BACKUP_FILE.sha256"
+          mkdir -p restore-check
+          openssl enc -d -aes-256-cbc -pbkdf2 -in "$BACKUP_FILE" -out restore-check/backup.tar.gz -pass env:BACKUP_ENCRYPTION_PASSWORD
+          tar -xzf restore-check/backup.tar.gz -C restore-check
+          node scripts/backup/verify-manifest.mjs restore-check/manifest.json restore-check
+          grep -Eq 'COPY |INSERT INTO' restore-check/data.sql
+          rm -rf restore-check backup
       - uses: actions/upload-artifact@v4
         with:
           name: gross-db-backup-${{ github.run_id }}
-          path: "*.sql.enc"
+          path: |
+            *.tar.gz.enc
+            *.tar.gz.enc.sha256
           retention-days: 14
           if-no-files-found: error

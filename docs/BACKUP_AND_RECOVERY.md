@@ -3,7 +3,8 @@
 ## Политика
 
 - Основной механизм: managed backup и Point-in-Time Recovery Supabase production project.
-- Дополнительный механизм: ежедневный зашифрованный `supabase db dump` в GitHub Actions с хранением 14 дней.
+- Дополнительный механизм: ежедневный зашифрованный логический комплект Supabase
+  (`roles.sql`, `schema.sql`, `data.sql`) в GitHub Actions с хранением 14 дней.
 - Файлы Supabase Storage требуют отдельной политики экспорта/retention; database backup хранит метаданные, но не содержимое объектов Storage.
 - Доступ к backup имеют только два назначенных ответственных.
 
@@ -11,13 +12,27 @@
 
 ## Проверка backup
 
-Ежедневно контролируется успешность workflow. Раз в месяц выполняется restore drill в изолированный Supabase project:
+Каждый ежедневный workflow:
 
-1. скачать `.sql.enc`;
-2. расшифровать `openssl enc -d -aes-256-cbc -pbkdf2 -in backup.sql.enc -out backup.sql -pass env:BACKUP_ENCRYPTION_PASSWORD`;
-3. восстановить в пустую тестовую БД;
+1. выгружает роли, схему и данные отдельно;
+2. формирует manifest с размером и SHA-256 каждого компонента;
+3. шифрует единый архив AES-256-CBC/PBKDF2;
+4. проверяет checksum зашифрованного файла;
+5. расшифровывает временную копию и повторно проверяет все компоненты по manifest;
+6. отклоняет backup, если `data.sql` пуст или не содержит `COPY`/`INSERT`.
+
+Это проверка целостности копии, но не замена restore drill. Раз в месяц выполняется
+восстановление в изолированный Supabase project:
+
+1. скачать `.tar.gz.enc` и соседний `.sha256`, проверить `sha256sum --check`;
+2. расшифровать `openssl enc -d -aes-256-cbc -pbkdf2 -in backup.tar.gz.enc -out backup.tar.gz -pass env:BACKUP_ENCRYPTION_PASSWORD`;
+3. распаковать архив и применить `roles.sql`, `schema.sql`, затем `data.sql` в новый тестовый Supabase project;
 4. проверить количество компаний, пользователей, объектов, дверей, задач и документов;
 5. выполнить smoke и выборочную проверку RLS;
 6. удалить временные данные и зафиксировать результат drill.
 
 Нельзя выполнять пробное восстановление поверх production.
+
+Факт drill фиксируется датой, run id backup, SHA-256 архива, временем
+восстановления, сверенными количествами и ФИО ответственного. Сам архив и пароли
+в evidence не прикладываются.
