@@ -29,6 +29,10 @@ describe("staging deployment workflow", () => {
       .toBeLessThan(stagingWorkflow.indexOf("npm run auth:smoke"));
   });
 
+  it("bundles Edge Functions through the Supabase API without Docker registry dependency", () => {
+    expect(stagingWorkflow).toContain("supabase functions deploy --use-api");
+  });
+
   it("smokes the canonical staging origin and pins it to the release SHA", () => {
     expect(stagingWorkflow).toContain('SMOKE_URL="$APP_PUBLIC_URL"');
     expect(stagingWorkflow).toContain('SMOKE_EXPECT_RELEASE="$RELEASE_SHA"');
@@ -64,5 +68,6 @@ describe("production deployment workflow", () => {
     expect(productionWorkflow).toContain("EXPECTED_RELEASE_SHA: ${{ env.RELEASE_SHA }}");
     expect(productionWorkflow).toContain("UAT_EVIDENCE_JSON: ${{ secrets.UAT_EVIDENCE_JSON }}");
     expect(productionWorkflow).toContain("npm run supabase:auth:configure");
+    expect(productionWorkflow).toContain("supabase functions deploy --use-api");
   });
 });

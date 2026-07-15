@@ -13,6 +13,10 @@
 После первого staging import выполните `npm run auth:bootstrap:staging`, перенесите
 те же credentials в GitHub Environment `staging` и повторно запустите deployment.
 
+Edge Functions публикуются с `supabase functions deploy --use-api`: bundling
+выполняется на стороне Supabase и не зависит от доступности Docker registry в
+GitHub Actions.
+
 ## Staging release
 
 До staging GitHub CI поднимает чистую локальную базу Supabase, применяет все
