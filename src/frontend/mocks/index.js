@@ -1,1 +1,1 @@
-export { mockUsers } from "../app/LegacyApp";
+export { demoPassword, mockUsers } from "./demoUsers";

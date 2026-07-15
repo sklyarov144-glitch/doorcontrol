@@ -19,6 +19,14 @@ const bundle = files.map((path) => readFileSync(path, "utf8")).join("\n");
 if (!bundle.includes(expectedOrigin)) throw new Error("Production bundle does not contain the configured Supabase origin");
 
 const forbidden = [
+  "creator@example.test",
+  "head@example.test",
+  "director@example.test",
+  "itr@example.test",
+  "Демо: создатель",
+  "Демо: руководитель",
+  "Демо: директор",
+  "Демо: ИТР",
   "@gk-gross.ru",
   "@gk-gross.local",
   "gk-gross@yandex.ru",

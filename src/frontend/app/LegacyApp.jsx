@@ -438,13 +438,6 @@ function saveObjects(objects) {
   return dataProvider.objects.replaceAll(objects);
 }
 
-const mockUsers = [
-  { id: "creator-1", name: "Демо: создатель", role: "creator", position: "Создатель системы", email: "creator@example.test", phone: "", avatarUrl: "", status: "active", assignedObjectIds: [], assignedBuildingIds: [], password: "123456" },
-  { id: "head-1", name: "Демо: руководитель", role: "company_head", position: "Руководитель компании", email: "head@example.test", phone: "", avatarUrl: "", status: "active", assignedObjectIds: [], assignedBuildingIds: [], password: "123456" },
-  { id: "director-1", name: "Демо: директор", role: "construction_director", position: "Директор по строительству", email: "director@example.test", phone: "", avatarUrl: "", status: "active", assignedObjectIds: ["matveevsky-park", "prokshino", "salaryevo-park"], assignedBuildingIds: [], password: "123456" },
-  { id: "itr-1", name: "Демо: ИТР", role: "itr", position: "Инженер ИТР", email: "itr@example.test", phone: "", avatarUrl: "", status: "active", assignedObjectIds: ["matveevsky-park"], assignedBuildingIds: ["matveevsky-park-building-4-1", "matveevsky-park-building-4-2"], password: "123456" },
-];
-
 const retiredDemoUserIds = new Set([
   "itr-2",
   "user-garanin-sergey",
@@ -501,20 +494,20 @@ function getManpowerObjectOptions(objects) {
   return [...fromObjects, ...demoObjects];
 }
 
-function loadUsers() {
+function loadUsers(demoUsers) {
   if (dataProviderName === "supabase") return [];
   try {
     const saved = dataProvider.users.getAll();
     const activateUser = (user) => normalizeUser({ ...user, status: "active" });
     const savedById = new Map(saved.map((user) => [user.id, activateUser(user)]));
-    const merged = mockUsers.map((user) => activateUser({ ...(savedById.get(user.id) ?? {}), ...user }));
-    const mockIds = new Set(mockUsers.map((user) => user.id));
+    const merged = demoUsers.map((user) => activateUser({ ...(savedById.get(user.id) ?? {}), ...user }));
+    const mockIds = new Set(demoUsers.map((user) => user.id));
     return [
       ...merged,
       ...saved.map(activateUser).filter((user) => !mockIds.has(user.id) && !retiredDemoUserIds.has(user.id)),
     ];
   } catch {
-    return mockUsers.map((user) => normalizeUser({ ...user, status: "active" }));
+    return demoUsers.map((user) => normalizeUser({ ...user, status: "active" }));
   }
 }
 
@@ -536,7 +529,7 @@ function normalizeUser(user) {
     createdAt: user.createdAt ?? now,
     updatedAt: user.updatedAt ?? now,
     lastLoginAt: user.lastLoginAt ?? "",
-    password: user.password ?? "123456",
+    password: user.password ?? "",
   };
 }
 
@@ -604,7 +597,7 @@ function getDoorPlanTone(door, matrixRow) {
   return statusMeta[door.doorStatus]?.tone ?? "gray";
 }
 
-export function App() {
+export function App({ demoUsers = [], demoPassword = "" }) {
   const location = useLocation();
   const routerNavigate = useNavigate();
   const routeSyncing = React.useRef(false);
@@ -628,7 +621,7 @@ export function App() {
   const [domainError, setDomainError] = useState("");
   const [domainReload, setDomainReload] = useState(0);
   const [persistenceError, setPersistenceError] = useState("");
-  const [users, setUsers] = useState(() => isRemoteAuth ? [] : loadUsers());
+  const [users, setUsers] = useState(() => isRemoteAuth ? [] : loadUsers(demoUsers));
   const [currentUserId, setCurrentUserId] = useState(() => localSession?.userId || (isRemoteAuth ? "" : "creator-1"));
   const user = users.find((item) => item.id === currentUserId) ?? users[0] ?? { id: "", name: "", role: "itr", assignedObjectIds: [], assignedBuildingIds: [] };
   const [screen, setScreen] = useState(initialRoute.screen === "login" ? "objects" : initialRoute.screen);
@@ -1544,7 +1537,7 @@ export function App() {
           {screen === "audit" && ["creator", "company_head", "construction_director"].includes(user.role) && <AuditLogPage objects={visibleObjects} users={users} />}
           {screen === "audit" && !["creator", "company_head", "construction_director"].includes(user.role) && <PlaceholderPage screen="access_denied" />}
           {screen === "company_dashboard" && (isRemoteAuth ? <RemoteExecutiveDashboard objects={visibleObjects} users={users} onOpen={openProblem} /> : <CompanyDashboard objects={visibleObjects} user={user} users={users} onOpen={openProblem} />)}
-          {screen === "users" && <UsersPage users={users} objects={objects} currentUser={user} remoteAuth={isRemoteAuth} onSave={async (nextUsers) => {
+          {screen === "users" && <UsersPage users={users} objects={objects} currentUser={user} remoteAuth={isRemoteAuth} demoPassword={demoPassword} onSave={async (nextUsers) => {
             if (isRemoteAuth) {
               const rows = await dataProvider.users.getAll();
               setUsers(rows.map(normalizeUser));
@@ -1635,7 +1628,7 @@ export function App() {
 }
 
 function LoginPage({ users, onLogin, onResetPassword, isDemo = true }) {
-  const [email, setEmail] = useState(isDemo ? "creator@example.test" : "");
+  const [email, setEmail] = useState(isDemo ? users[0]?.email ?? "" : "");
   const [password, setPassword] = useState("");
   const [error, setError] = useState("");
   const [submitting, setSubmitting] = useState(false);
@@ -2901,7 +2894,7 @@ function RangeField({ label, value, min, max, onChange }) {
   return <label className="range-field"><span>{label}<b>{Math.round(value)}</b></span><input type="range" min={min} max={max} value={value} onChange={(event) => onChange(Number(event.target.value))} /></label>;
 }
 
-function UsersPage({ users, objects, currentUser, onSave, remoteAuth }) {
+function UsersPage({ users, objects, currentUser, onSave, remoteAuth, demoPassword = "" }) {
   const [editingUser, setEditingUser] = useState(null);
   const [saving, setSaving] = useState(false);
   const [error, setError] = useState("");
@@ -2933,7 +2926,7 @@ function UsersPage({ users, objects, currentUser, onSave, remoteAuth }) {
     setEditingUser(null);
   };
   const resetPassword = (userId) => {
-    onSave(users.map((user) => user.id === userId ? { ...user, password: "123456", updatedAt: new Date().toISOString() } : user));
+    onSave(users.map((user) => user.id === userId ? { ...user, password: demoPassword, updatedAt: new Date().toISOString() } : user));
   };
   const changeAccountStatus = async (account, status) => {
     setSaving(true);
@@ -4638,5 +4631,4 @@ export {
   ProfilePage,
   ReportsPage,
   UsersPage,
-  mockUsers,
 };

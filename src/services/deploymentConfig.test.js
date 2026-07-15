@@ -62,6 +62,14 @@ describe("production hosting security", () => {
   });
 });
 
+describe("production bundle verifier", () => {
+  it("forbids demo account markers", () => {
+    const source = readFileSync("scripts/verify-production-bundle.mjs", "utf8");
+    expect(source).toContain("creator@example.test");
+    expect(source).toContain("Демо: ИТР");
+  });
+});
+
 describe("public runtime configuration preflight", () => {
   it("accepts a hosted Supabase production runtime", () => {
     expect(verifyPublicEnvironment().status).toBe(0);

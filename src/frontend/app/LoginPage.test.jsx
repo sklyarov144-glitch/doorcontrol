@@ -1,7 +1,8 @@
 import React from "react";
 import { fireEvent, render, screen, waitFor } from "@testing-library/react";
 import { describe, expect, it, vi } from "vitest";
-import { LoginPage, mockUsers } from "./LegacyApp";
+import { LoginPage } from "./LegacyApp";
+import { mockUsers } from "../mocks/demoUsers";
 
 describe("mock user login", () => {
   it.each(["creator", "company_head", "construction_director", "itr"])("submits credentials for %s", async (role) => {
