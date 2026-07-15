@@ -18,7 +18,7 @@ export function validatePilotImport(payload) {
   };
 
   if (!payload || !Array.isArray(payload.objects) || payload.objects.length === 0) {
-    return { valid: false, errors: ["objects must be a non-empty array"], warnings, counts };
+    return { valid: false, ready: false, errors: ["objects must be a non-empty array"], warnings, counts };
   }
 
   payload.objects.forEach((object, objectIndex) => {
@@ -27,6 +27,7 @@ export function validatePilotImport(payload) {
     registerId(object.legacyId, `${objectPath}.legacyId`);
     requireText(object.name, `${objectPath}.name`);
     if (object.responsibleDirectorId && !uuidPattern.test(object.responsibleDirectorId)) errors.push(`${objectPath}.responsibleDirectorId must be a UUID`);
+    if (!object.responsibleDirectorId) warnings.push(`${objectPath} has no responsible director`);
     if (!Array.isArray(object.buildings) || object.buildings.length === 0) errors.push(`${objectPath}.buildings must not be empty`);
 
     (object.buildings ?? []).forEach((building, buildingIndex) => {
@@ -35,6 +36,7 @@ export function validatePilotImport(payload) {
       registerId(building.legacyId, `${buildingPath}.legacyId`);
       requireText(building.name, `${buildingPath}.name`);
       if (building.responsibleItrId && !uuidPattern.test(building.responsibleItrId)) errors.push(`${buildingPath}.responsibleItrId must be a UUID`);
+      if (!building.responsibleItrId) warnings.push(`${buildingPath} has no responsible ITR`);
       if (!Number.isInteger(building.floorsCount) || building.floorsCount < 1) errors.push(`${buildingPath}.floorsCount must be a positive integer`);
       const floorNumbers = new Set();
 
@@ -70,11 +72,11 @@ export function validatePilotImport(payload) {
             errors.push(`${doorPath}.x and y must be percentages from 0 to 100`);
           }
           if (door.assignedUserId && !uuidPattern.test(door.assignedUserId)) errors.push(`${doorPath}.assignedUserId must be a UUID`);
-          if (!door.assignedUserId) warnings.push(`${doorPath} has no assigned user`);
+          if (!door.assignedUserId && !building.responsibleItrId) warnings.push(`${doorPath} has no assigned user or building fallback`);
         });
       });
     });
   });
 
-  return { valid: errors.length === 0, errors, warnings, counts };
+  return { valid: errors.length === 0, ready: errors.length === 0 && warnings.length === 0, errors, warnings, counts };
 }

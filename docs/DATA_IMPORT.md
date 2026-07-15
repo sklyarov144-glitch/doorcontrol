@@ -8,6 +8,7 @@
 
 ```bash
 npm run pilot:validate -- /absolute/path/pilot-data.json
+npm run pilot:validate -- /absolute/path/pilot-data.json --strict
 npm run pilot:import -- /absolute/path/pilot-data.json
 ```
 
@@ -22,7 +23,11 @@ export SUPABASE_COMPANY_ID=...
 npm run pilot:import -- /absolute/path/pilot-data.json --apply
 ```
 
-Service role key используется только в доверенном terminal/CI и никогда не передаётся frontend. Сначала импорт выполняется только в staging. После импорта сверяются counts и выборочные двери, затем назначаются реальные UUID пользователей.
+Service role key используется только в доверенном terminal/CI и никогда не передаётся frontend. Сначала импорт выполняется только в staging. До применения файла создаются реальные пользователи, а их UUID указываются в `responsibleDirectorId`, `responsibleItrId` и при необходимости `assignedUserId`. После импорта сверяются counts и выборочные двери.
+
+Команда с `--apply` останавливается при неназначенной ответственности. Флаг
+`--allow-unassigned` разрешён только для контролируемого staging-ремонта и не
+должен использоваться при рабочем пилотном импорте.
 
 Импорт вызывает закрытую RPC `import_pilot_hierarchy`: весь файл применяется одной
 транзакцией и блокируется от параллельного импорта той же компании. При любой

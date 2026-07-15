@@ -18,7 +18,7 @@
 
 1. Развернуть staging и применить migrations.
 2. Создать компанию и пользователей через контролируемый invite flow.
-3. Заполнить import template, выполнить `npm run pilot:validate -- path.json`.
+3. Заполнить import template реальными UUID ответственных, выполнить `npm run pilot:validate -- path.json --strict`.
 4. Импортировать сначала в staging командой `npm run pilot:import -- path.json --apply`.
 5. Сверить количества объектов, корпусов, этажей и дверей с исходником.
 6. Выполнить UAT каждой ролью и тест RLS между двумя тестовыми компаниями.

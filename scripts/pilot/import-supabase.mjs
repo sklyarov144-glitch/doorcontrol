@@ -3,6 +3,7 @@ import { readAndValidate } from "./validate-import.mjs";
 
 const inputPath = process.argv.find((value) => value.endsWith(".json")) ?? "pilot/import-template.json";
 const apply = process.argv.includes("--apply");
+const allowUnassigned = process.argv.includes("--allow-unassigned");
 const companyId = process.env.SUPABASE_COMPANY_ID;
 const url = process.env.SUPABASE_URL;
 const serviceKey = process.env.SUPABASE_SERVICE_ROLE_KEY;
@@ -12,8 +13,14 @@ if (!result.valid) {
   result.errors.forEach((error) => console.error(`ERROR ${error}`));
   process.exit(1);
 }
+if (apply && result.warnings.length > 0 && !allowUnassigned) {
+  result.warnings.forEach((warning) => console.error(`UNASSIGNED ${warning}`));
+  console.error("Pilot import with --apply requires assigned responsibility. Use --allow-unassigned only for a controlled staging repair.");
+  process.exit(1);
+}
 
 console.log(`Validated ${result.counts.objects} objects, ${result.counts.buildings} buildings, ${result.counts.floors} floors and ${result.counts.doors} doors.`);
+result.warnings.forEach((warning) => console.warn(`WARN ${warning}`));
 if (!apply) {
   console.log("Dry run only. Add --apply with staging credentials to write data.");
   process.exit(0);

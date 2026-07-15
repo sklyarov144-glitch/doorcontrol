@@ -22,7 +22,20 @@ describe("pilot import validation", () => {
   it("accepts a consistent hierarchy and reports counts", () => {
     const result = validatePilotImport(validPayload);
     expect(result.valid).toBe(true);
+    expect(result.ready).toBe(false);
     expect(result.counts).toEqual({ objects: 1, buildings: 1, floors: 1, doors: 1 });
+  });
+
+  it("accepts building responsibility as a fallback for its doors", () => {
+    const payload = structuredClone(validPayload);
+    payload.objects[0].responsibleDirectorId = "11111111-1111-4111-8111-111111111111";
+    payload.objects[0].buildings[0].responsibleItrId = "22222222-2222-4222-8222-222222222222";
+
+    const result = validatePilotImport(payload);
+
+    expect(result.valid).toBe(true);
+    expect(result.ready).toBe(true);
+    expect(result.warnings).toEqual([]);
   });
 
   it("rejects duplicate ids, floor marks and invalid coordinates", () => {
