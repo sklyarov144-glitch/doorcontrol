@@ -25,14 +25,15 @@ npm run dev
 
 - `CI`: lint, тесты, production build, аудит production-зависимостей, применение
   всех миграций с нуля и database lint в локальном Supabase.
-- `Deploy staging`: автоматически после успешного push в `main`, также запускается вручную.
+- `Deploy staging`: автоматически только после полностью успешной CI для push в `main`, также запускается вручную.
 - `Deploy production`: только вручную, с подтверждением `DEPLOY` и защитой GitHub Environment.
 - `Encrypted production database backup`: ежедневный зашифрованный логический backup; основной механизм восстановления — Supabase backups/PITR.
 - `Production backup restore drill`: ручная проверка выбранного backup в одноразовом локальном Supabase с evidence-артефактом.
 
 Staging и production workflow явно требуют Supabase URL/anon key и собирают
 frontend только с `VITE_DATA_PROVIDER=supabase`; отсутствие runtime-конфигурации
-останавливает production до изменения базы или публикации сайта.
+останавливает staging/production до изменения базы или публикации сайта. Staging
+также требует smoke-аккаунты всех четырёх ролей и не пропускает эту проверку молча.
 
 После каждого деплоя выполняется smoke-проверка `/` и `/login`. Операционные действия при сбое описаны в [docs/RUNBOOK.md](docs/RUNBOOK.md).
 

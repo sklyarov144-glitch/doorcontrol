@@ -2,8 +2,9 @@ name: Deploy staging
 
 on:
   workflow_dispatch:
-  push:
-    branches: [main]
+  workflow_run:
+    workflows: [CI]
+    types: [completed]
 
 concurrency:
   group: staging
@@ -14,10 +15,12 @@ permissions:
 
 jobs:
   deploy:
+    if: github.event_name == 'workflow_dispatch' || (github.event.workflow_run.conclusion == 'success' && github.event.workflow_run.head_branch == 'main')
     runs-on: ubuntu-latest
     timeout-minutes: 25
     environment: staging
     env:
+      RELEASE_SHA: ${{ github.event.workflow_run.head_sha || github.sha }}
       SUPABASE_ACCESS_TOKEN: ${{ secrets.SUPABASE_ACCESS_TOKEN }}
       SUPABASE_PROJECT_ID: ${{ secrets.SUPABASE_PROJECT_ID }}
       APP_ALLOWED_ORIGINS: ${{ vars.APP_ALLOWED_ORIGINS }}
@@ -36,27 +39,15 @@ jobs:
       AUTH_SMOKE_ITR_PASSWORD: ${{ secrets.AUTH_SMOKE_ITR_PASSWORD }}
     steps:
       - uses: actions/checkout@v4
+        with:
+          ref: ${{ env.RELEASE_SHA }}
       - uses: actions/setup-node@v4
         with:
           node-version-file: .nvmrc
           cache: npm
       - run: npm ci
       - run: npm run ci
-      - name: Check deployment configuration
-        id: deployment-config
-        env:
-          VERCEL_TOKEN: ${{ secrets.VERCEL_TOKEN }}
-          VITE_SUPABASE_URL: ${{ secrets.VITE_SUPABASE_URL }}
-          VITE_SUPABASE_ANON_KEY: ${{ secrets.VITE_SUPABASE_ANON_KEY }}
-        run: |
-          if [[ -n "$SUPABASE_ACCESS_TOKEN" && -n "$SUPABASE_PROJECT_ID" && -n "$APP_ALLOWED_ORIGINS" && -n "$APP_PUBLIC_URL" && -n "$VERCEL_TOKEN" && -n "$VERCEL_ORG_ID" && -n "$VERCEL_PROJECT_ID" && -n "$VITE_SUPABASE_URL" && -n "$VITE_SUPABASE_ANON_KEY" ]]; then
-            echo "enabled=true" >> "$GITHUB_OUTPUT"
-          else
-            echo "enabled=false" >> "$GITHUB_OUTPUT"
-            echo "::notice::Staging deployment skipped until Supabase and Vercel secrets are configured. CI verification passed."
-          fi
       - name: Validate deployment configuration
-        if: steps.deployment-config.outputs.enabled == 'true'
         env:
           VERCEL_TOKEN: ${{ secrets.VERCEL_TOKEN }}
           DEPLOY_ENV: staging
@@ -65,22 +56,19 @@ jobs:
           VITE_SUPABASE_ANON_KEY: ${{ secrets.VITE_SUPABASE_ANON_KEY }}
         run: npm run verify:deployment && npm run verify:env
       - name: Apply database migrations
-        if: steps.deployment-config.outputs.enabled == 'true'
         run: npx supabase link --project-ref "$SUPABASE_PROJECT_ID" && npx supabase db push --linked
       - name: Deploy Edge Functions
-        if: steps.deployment-config.outputs.enabled == 'true'
         run: |
           if [[ -n "$APP_ALLOWED_ORIGINS" ]]; then npx supabase secrets set APP_ALLOWED_ORIGINS="$APP_ALLOWED_ORIGINS" APP_PUBLIC_URL="$APP_PUBLIC_URL" --project-ref "$SUPABASE_PROJECT_ID"; fi
           npx supabase functions deploy --project-ref "$SUPABASE_PROJECT_ID"
       - name: Build and deploy Vercel staging
-        if: steps.deployment-config.outputs.enabled == 'true'
         env:
           VITE_DATA_PROVIDER: supabase
           VITE_SUPABASE_URL: ${{ secrets.VITE_SUPABASE_URL }}
           VITE_SUPABASE_ANON_KEY: ${{ secrets.VITE_SUPABASE_ANON_KEY }}
           VITE_SENTRY_DSN: ${{ secrets.VITE_SENTRY_DSN }}
           VITE_APP_URL: ${{ vars.APP_PUBLIC_URL }}
-          VITE_APP_RELEASE: ${{ github.sha }}
+          VITE_APP_RELEASE: ${{ env.RELEASE_SHA }}
         run: |
           npx vercel pull --yes --environment=preview --token="${{ secrets.VERCEL_TOKEN }}"
           npx vercel build --token="${{ secrets.VERCEL_TOKEN }}"
@@ -88,24 +76,17 @@ jobs:
           DEPLOY_URL=$(npx vercel deploy --prebuilt --token="${{ secrets.VERCEL_TOKEN }}")
           echo "DEPLOY_URL=$DEPLOY_URL" >> "$GITHUB_ENV"
       - name: Smoke test
-        if: steps.deployment-config.outputs.enabled == 'true'
         run: SMOKE_URL="$DEPLOY_URL" SMOKE_REQUIRE_SECURITY_HEADERS=true npm run smoke
       - name: Check auth smoke configuration
-        if: steps.deployment-config.outputs.enabled == 'true'
-        id: auth-smoke-config
         run: |
           required=(AUTH_SMOKE_SUPABASE_URL AUTH_SMOKE_SUPABASE_ANON_KEY AUTH_SMOKE_CREATOR_EMAIL AUTH_SMOKE_CREATOR_PASSWORD AUTH_SMOKE_COMPANY_HEAD_EMAIL AUTH_SMOKE_COMPANY_HEAD_PASSWORD AUTH_SMOKE_CONSTRUCTION_DIRECTOR_EMAIL AUTH_SMOKE_CONSTRUCTION_DIRECTOR_PASSWORD AUTH_SMOKE_ITR_EMAIL AUTH_SMOKE_ITR_PASSWORD)
           for name in "${required[@]}"; do
             if [[ -z "${!name}" ]]; then
-              echo "enabled=false" >> "$GITHUB_OUTPUT"
-              echo "::notice::Auth role smoke skipped: $name is not configured."
-              exit 0
+              echo "::error::Auth role smoke is required for staging: $name is not configured."
+              exit 1
             fi
           done
-          echo "enabled=true" >> "$GITHUB_OUTPUT"
       - name: Smoke test four authenticated roles
-        if: steps.deployment-config.outputs.enabled == 'true' && steps.auth-smoke-config.outputs.enabled == 'true'
         run: npm run auth:smoke
       - name: Load smoke authenticated ITR domain
-        if: steps.deployment-config.outputs.enabled == 'true' && steps.auth-smoke-config.outputs.enabled == 'true'
         run: npm run load:domain
