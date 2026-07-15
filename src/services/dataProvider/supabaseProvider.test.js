@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { mapObjectTree, mapProfileAssignments, toDoorOperationalUpdate, toDoorWorkflowPayload, toStoredFloorTemplate } from "./supabaseProvider";
+import { mapObjectTree, mapProfileAssignments, toDoorOperationalUpdate, toDoorWorkflowPayload, toHierarchyPayload, toStoredFloorTemplate } from "./supabaseProvider";
 
 describe("Supabase object tree", () => {
   it("maps profile assignments to UI access lists", () => {
@@ -133,6 +133,65 @@ describe("Supabase object tree", () => {
     })).toEqual({
       image: "storage://floor-plans/company/object/building/floor/plan.png",
       rooms: [{ id: "room-1" }],
+    });
+  });
+
+  it("maps the UI hierarchy to one transactional payload", () => {
+    const payload = toHierarchyPayload([{
+      id: "object-legacy",
+      name: "ЖК Матвеевский парк",
+      developer: "ПИК",
+      buildings: [{
+        id: "building-legacy",
+        name: "Корпус 4.1",
+        floorTemplate: {
+          image: "https://signed.example/temporary.png",
+          imageStorageUri: "storage://floor-plans/company/object/building/template.png",
+        },
+        floors: [
+          { id: "parking", label: "Паркинг", type: "service", doors: [] },
+          {
+            id: "floor-1",
+            label: "1",
+            number: 1,
+            type: "floor",
+            doors: [{
+              id: "door-1",
+              number: "Квартира 1",
+              mark: "Д-1",
+              type: "Квартирная",
+              doorStatus: "смонтирована",
+              openingStatus: "готов",
+              issue: "нет",
+              storageAct: "не передана",
+              x: 25,
+              y: 40,
+              history: [{ text: "Монтаж завершён" }],
+            }],
+          },
+          { id: "roof", label: "Кровля", type: "service", doors: [] },
+        ],
+      }],
+    }]);
+
+    expect(payload.objects[0]).toMatchObject({
+      legacyId: "object-legacy",
+      meta: { developer: "ПИК" },
+    });
+    expect(payload.objects[0].buildings[0]).toMatchObject({
+      legacyId: "building-legacy",
+      floorsCount: 1,
+      hasParking: true,
+      floorTemplate: {
+        image: "storage://floor-plans/company/object/building/template.png",
+      },
+    });
+    expect(payload.objects[0].buildings[0].floors).toHaveLength(1);
+    expect(payload.objects[0].buildings[0].floors[0].doors[0]).toMatchObject({
+      legacyId: "door-1",
+      label: "Квартира 1",
+      status: "смонтирована",
+      meta: { history: [{ text: "Монтаж завершён" }] },
     });
   });
 });

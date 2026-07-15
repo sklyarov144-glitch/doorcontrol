@@ -98,6 +98,10 @@ const atomicCustodyActWorkflow = readFileSync(
   resolve("supabase/migrations/202607150025_atomic_custody_act_workflow.sql"),
   "utf8"
 );
+const transactionalAdminHierarchy = readFileSync(
+  resolve("supabase/migrations/202607150026_transactional_admin_hierarchy.sql"),
+  "utf8"
+);
 
 describe("Supabase schema", () => {
   it("defines the core hierarchy and assignment tables", () => {
@@ -174,6 +178,14 @@ describe("Supabase schema", () => {
     expect(atomicCustodyActWorkflow).toContain("insert into public.document_items");
     expect(atomicCustodyActWorkflow).toContain("on conflict (door_id) do update");
     expect(atomicCustodyActWorkflow).toContain("security invoker");
+  });
+
+  it("saves an authenticated admin hierarchy in one trusted transaction", () => {
+    expect(transactionalAdminHierarchy).toContain("function public.save_object_hierarchy");
+    expect(transactionalAdminHierarchy).toContain("Only company leadership can create objects");
+    expect(transactionalAdminHierarchy).toContain("public.can_access_object");
+    expect(transactionalAdminHierarchy).toContain("public.import_pilot_hierarchy");
+    expect(transactionalAdminHierarchy).toContain("grant execute on function public.save_object_hierarchy(jsonb) to authenticated");
   });
 
   it("protects every operational table with RLS", () => {

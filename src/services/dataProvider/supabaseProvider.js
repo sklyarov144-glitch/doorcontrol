@@ -159,78 +159,74 @@ export function mapObjectTree(rows) {
   }));
 }
 
-async function upsertObjectTree(objects) {
-  const client = requireSupabase();
-  const profile = await supabaseProvider.auth.getCurrentProfile();
-  if (!profile?.companyId) throw new Error("Current profile has no company");
-
-  for (const object of objects) {
-    const objectRow = unwrap(await client.from("objects").upsert({
-      legacy_id: object.legacyId ?? object.id,
-      company_id: profile.companyId,
+export function toHierarchyPayload(objects = []) {
+  return {
+    objects: objects.map((object) => ({
+      legacyId: object.legacyId ?? object.id,
       name: object.name,
-      address: object.address,
-      metro: object.metro,
-      status: object.status,
-      responsible_director_id: asUuid(object.responsibleDirectorId),
+      address: object.address ?? "",
+      district: object.district ?? "",
+      metro: object.metro ?? "",
+      status: object.status ?? "В работе",
+      responsibleDirectorId: asUuid(object.responsibleDirectorId ?? object.responsibleId),
       meta: {
+        ...(object.meta ?? {}),
         developer: object.developer,
         description: object.description,
         startDate: object.startDate,
         plannedEndDate: object.plannedEndDate,
       },
-    }, { onConflict: "legacy_id" }).select().single());
+      buildings: (object.buildings ?? []).map((building) => {
+        const floors = (building.floors ?? []).filter((floor) => floor.type === "floor");
+        return {
+          legacyId: building.legacyId ?? building.id,
+          name: building.name,
+          floorsCount: Number(building.floorsCount ?? floors.length),
+          hasParking: (building.floors ?? []).some((floor) => floor.label === "Паркинг"),
+          readiness: Number(building.readiness ?? building.readinessOffset ?? 0),
+          responsibleItrId: asUuid(building.responsibleItrId),
+          floorTemplate: toStoredFloorTemplate(building.floorTemplate ?? {}),
+          floors: floors.map((floor) => ({
+            legacyId: floor.legacyId ?? floor.id,
+            number: Number(floor.number ?? floor.label),
+            planImageUrl: floor.planImageUrl ?? "",
+            templateSnapshot: floor.templateSnapshot ?? {},
+            doors: (floor.doors ?? []).map((door) => ({
+              legacyId: door.legacyId ?? door.id,
+              label: door.number ?? door.label,
+              mark: door.mark,
+              type: door.type,
+              openingNumber: door.openingNumber ?? null,
+              status: door.doorStatus ?? door.status ?? "не начато",
+              openingStatus: door.openingStatus ?? "готов",
+              issueStatus: door.issue ?? door.issueStatus ?? "нет",
+              custodyActStatus: door.storageAct ?? door.custodyActStatus ?? "не передана",
+              tnStatus: door.tnStatus ?? (door.doorStatus === "принято технадзором" ? "принято ТН" : "не передано"),
+              assignedUserId: asUuid(door.assignedUserId),
+              x: Number(door.x ?? 50),
+              y: Number(door.y ?? 50),
+              model: door.model ?? "",
+              widthFact: door.widthFact ?? "",
+              heightFact: door.heightFact ?? "",
+              meta: {
+                ...(door.meta ?? {}),
+                history: door.history ?? [],
+                swing: door.swing,
+                custodyActUrl: door.custodyActUrl ?? "",
+                documentLinks: door.documentLinks ?? [],
+              },
+            })),
+          })),
+        };
+      }),
+    })),
+  };
+}
 
-    for (const building of object.buildings ?? []) {
-      const floorTemplate = building.floorTemplate ?? {};
-      const buildingRow = unwrap(await client.from("buildings").upsert({
-        legacy_id: building.legacyId ?? building.id,
-        object_id: objectRow.id,
-        name: building.name,
-        floors_count: building.floorsCount,
-        has_parking: (building.floors ?? []).some((floor) => floor.type === "service" && floor.label === "Паркинг"),
-        readiness: Number(building.readiness ?? 0),
-        responsible_itr_id: asUuid(building.responsibleItrId),
-        floor_template: toStoredFloorTemplate(floorTemplate),
-      }, { onConflict: "legacy_id" }).select().single());
-
-      for (const floor of (building.floors ?? []).filter((item) => item.type === "floor")) {
-        const floorRow = unwrap(await client.from("floors").upsert({
-          legacy_id: floor.legacyId ?? floor.id,
-          building_id: buildingRow.id,
-          floor_number: floor.number,
-          plan_image_url: floor.planImageUrl ?? null,
-          template_snapshot: floor.templateSnapshot ?? {},
-        }, { onConflict: "building_id,floor_number" }).select().single());
-
-        for (const door of floor.doors ?? []) {
-          await client.from("doors").upsert({
-            legacy_id: door.legacyId ?? door.id,
-            floor_id: floorRow.id,
-            label: door.number ?? door.label,
-            mark: door.mark,
-            type: door.type,
-            opening_number: door.openingNumber ?? null,
-            status: door.doorStatus ?? door.status,
-            opening_status: door.openingStatus,
-            issue_status: door.issue ?? door.issueStatus,
-            custody_act_status: door.storageAct ?? door.custodyActStatus,
-            assigned_user_id: asUuid(door.assignedUserId),
-            x: door.x,
-            y: door.y,
-            width_fact: door.widthFact || null,
-            height_fact: door.heightFact || null,
-            model: door.model || null,
-            mounted_at: door.mountedAt || null,
-            tn_accepted_at: door.tnAcceptedAt || null,
-            custody_act_uploaded_at: door.custodyActUploadedAt || null,
-            custody_act_closed_at: door.custodyActClosedAt || null,
-            meta: { history: door.history ?? [], swing: door.swing },
-          }, { onConflict: "legacy_id" }).throwOnError();
-        }
-      }
-    }
-  }
+async function upsertObjectTree(objects) {
+  unwrap(await requireSupabase().rpc("save_object_hierarchy", {
+    p_payload: toHierarchyPayload(objects),
+  }));
   return objects;
 }
 
