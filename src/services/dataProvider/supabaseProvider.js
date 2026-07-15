@@ -377,6 +377,15 @@ export const supabaseProvider = {
         documentId: link.documentId,
       })).select().single());
     },
+    async addDocumentWorkflow(taskId, document, link, door = null, act = null) {
+      return unwrap(await requireSupabase().rpc("add_task_document_workflow", {
+        p_task_id: taskId,
+        p_document: toDatabase(document),
+        p_link: toDatabase(link),
+        p_door: door ? toDatabase(toDoorOperationalUpdate(door)) : null,
+        p_act: act ? toDatabase(act) : null,
+      }));
+    },
   },
   notifications: {
     ...notificationsCrud,

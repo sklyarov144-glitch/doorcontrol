@@ -896,23 +896,42 @@ export function App() {
   const linkManualTask = async (task, link) => {
     if (!link.url.trim()) return;
     if (isRemoteAuth) {
-      const document = await dataProvider.documents.create({
-        companyId: user.companyId,
-        objectId: task.objectId,
-        buildingId: task.buildingId || null,
-        floorId: task.floorId || null,
-        doorId: task.doorId || null,
+      const isCustodyAct = Boolean(task.doorId && link.category === "акт АОХ");
+      const document = {
         title: link.title.trim() || "Документ к задаче",
-        category: link.category === "акт АОХ" ? "custody_act" : link.category || "document",
+        category: isCustodyAct ? "custody_act" : link.category || "document",
         url: link.url.trim(),
         comment: link.comment?.trim() || `Добавлено из задачи «${task.title}»`,
-        createdBy: user.id,
-      });
-      await dataProvider.tasks.addLink(task.id, { ...link, documentId: document.id });
-      if (task.doorId && link.category === "акт АОХ") {
-        await updateCustodyAct(task.doorId, { custodyActUrl: link.url.trim(), storageAct: "акт загружен", documentId: document.id });
+      };
+      let updatedDoor = null;
+      let nextObjects = objects;
+      let act = null;
+      if (isCustodyAct) {
+        const currentDoor = objects
+          .flatMap((object) => object.buildings)
+          .flatMap((building) => building.floors)
+          .flatMap((floor) => floor.doors)
+          .find((door) => door.id === task.doorId);
+        if (!currentDoor) throw new Error("Door is outside the loaded access scope");
+        const uploadedAt = new Date().toISOString();
+        const workflow = applyDoorWorkflow(objects, task.doorId, {
+          doorStatus: currentDoor.doorStatus,
+          openingStatus: currentDoor.openingStatus,
+          issue: currentDoor.issue,
+          storageAct: "акт загружен",
+          custodyActUrl: document.url,
+          custodyActUploadedAt: uploadedAt,
+          documentLinks: [{ ...document, id: `task-document-${task.id}` }, ...(currentDoor.documentLinks ?? [])],
+          quickHistory: "Акт ОХ добавлен из задачи",
+        }, user.name);
+        nextObjects = workflow.nextObjects;
+        updatedDoor = workflow.updatedDoor;
+        act = { status: "акт загружен", uploadedAt };
       }
+      await dataProvider.tasks.addDocumentWorkflow(task.id, document, link, updatedDoor, act);
+      if (updatedDoor) setObjects(nextObjects);
       await Promise.all([refreshManualTasks(), refreshNotifications()]);
+      if (updatedDoor) setDomainReload((value) => value + 1);
       return;
     }
     const savedLink = addTaskLink(task.id, { ...link, createdBy: user.id });
