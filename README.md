@@ -71,6 +71,7 @@ Production-сборка обязана использовать `VITE_DATA_PROVI
 - полный выпуск: [docs/DEPLOYMENT.md](docs/DEPLOYMENT.md);
 - запуск пилота: [docs/PILOT_PLAN.md](docs/PILOT_PLAN.md);
 - go-live: [docs/GO_LIVE_CHECKLIST.md](docs/GO_LIVE_CHECKLIST.md);
+- подтверждения staging-релиза: [docs/STAGING_EVIDENCE.md](docs/STAGING_EVIDENCE.md);
 - действия при сбое: [docs/RUNBOOK.md](docs/RUNBOOK.md).
 
 ## Текущий статус

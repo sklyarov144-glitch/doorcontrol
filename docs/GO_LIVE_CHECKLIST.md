@@ -2,14 +2,15 @@
 
 ## Обязательные условия
 
-- [ ] CI зелёный на release SHA.
-- [ ] Staging deployment и smoke успешны.
-- [ ] Все migrations применены к staging и проверены на копии структуры production.
+- [x] CI зелёный на release SHA.
+- [x] Staging deployment и smoke успешны.
+- [x] Все migrations применены к staging.
+- [ ] Структура production сверена со staging перед выпуском.
 - [ ] UAT evidence прошёл `npm run pilot:uat` и подписан владельцем продукта и представителем ИТР.
 - [ ] Production secret `UAT_EVIDENCE_JSON` содержит протокол именно для выпускаемого staging SHA.
 - [x] RLS автоматически проверен в CI минимум двумя компаниями и четырьмя ролями.
 - [ ] RLS повторно проверен на staging реальными Auth JWT минимум двумя компаниями и четырьмя ролями.
-- [ ] Staging `auth:smoke` прошёл четырьмя отдельными тестовыми аккаунтами.
+- [x] Staging `auth:smoke` прошёл четырьмя отдельными тестовыми аккаунтами.
 - [ ] Импорт прошёл preflight, а post-import reconciliation сохранён и не содержит расхождений.
 - [ ] Production secrets заданы, MFA включена у администраторов.
 - [ ] Auth Site URL и redirect allowlist содержат production-домен.
@@ -20,10 +21,12 @@
 - [ ] Restore drill выполнен не более 30 дней назад.
 - [x] Restore drill автоматизирован и создаёт проверяемый evidence-артефакт в изолированном окружении.
 - [ ] Последний encrypted backup содержит роли, схему, данные и приватные Storage-объекты и прошёл обе manifest verification.
-- [ ] Authenticated domain load smoke под ИТР прошёл с p95 не более 2,5 секунд.
+- [x] Authenticated domain load smoke под ИТР прошёл с p95 не более 2,5 секунд.
 - [ ] Sentry alert и контакт ответственного проверены.
 - [ ] Runbook доступен техническому и бизнес-ответственному.
 - [ ] План отката и окно выпуска согласованы.
+
+Подтверждения текущего staging-релиза: [STAGING_EVIDENCE.md](STAGING_EVIDENCE.md).
 
 ## После выпуска
 
