@@ -74,6 +74,7 @@ import RemoteDocumentsPage from "../pages/RemoteDocumentsPage";
 import RemoteExecutiveDashboard from "../pages/RemoteExecutiveDashboard";
 import RemoteTnIssuesPage from "../pages/RemoteTnIssuesPage";
 import RemoteProblemCenterPage from "../pages/RemoteProblemCenterPage";
+import RemoteCustodyActsPage from "../pages/RemoteCustodyActsPage";
 import { RemoteBrigadePlanPage, RemoteManpowerPage } from "../pages/RemoteWorkforcePage";
 import AuditLogPage from "../pages/AuditLogPage";
 import { AuthProvider } from "../contexts/AuthContext";
@@ -1511,7 +1512,9 @@ export function App() {
               onAddLink={linkManualTask}
             />
           )}
-          {screen === "custody_acts" && <CustodyActsPage objects={visibleObjects} user={user} users={users} onOpen={openProblem} onUpdateAct={updateCustodyAct} />}
+          {screen === "custody_acts" && (isRemoteAuth
+            ? <RemoteCustodyActsPage objects={visibleObjects} users={users} onOpen={openProblem} onUpdateAct={updateCustodyAct} />
+            : <CustodyActsPage objects={visibleObjects} user={user} users={users} onOpen={openProblem} onUpdateAct={updateCustodyAct} />)}
           {screen === "tn_issues" && (isRemoteAuth ? <RemoteTnIssuesPage objects={visibleObjects} users={users} onOpen={openProblem} onResolve={(doorId) => updateDoor(doorId, { issue: "устранено", tnIssues: "Нет" })} /> : <TnIssuesPage objects={visibleObjects} user={user} users={users} onOpen={openProblem} />)}
           {screen === "today_tasks" && <TodayTasksPage objects={visibleObjects} user={user} users={users} onOpen={openProblem} />}
           {screen === "problem_center" && (isRemoteAuth
