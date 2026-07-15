@@ -22,6 +22,12 @@ describe("staging deployment workflow", () => {
     expect(stagingWorkflow).toContain("Auth role smoke is required for staging");
     expect(stagingWorkflow).toMatch(/Auth role smoke is required[\s\S]+exit 1/);
   });
+
+  it("applies and verifies hosted Auth before running role smoke", () => {
+    expect(stagingWorkflow).toContain("npm run supabase:auth:configure");
+    expect(stagingWorkflow.indexOf("npm run supabase:auth:configure"))
+      .toBeLessThan(stagingWorkflow.indexOf("npm run auth:smoke"));
+  });
 });
 
 describe("GitHub Actions runtime", () => {
@@ -47,5 +53,6 @@ describe("production deployment workflow", () => {
     expect(productionWorkflow).toContain("Verify signed UAT for release SHA");
     expect(productionWorkflow).toContain("EXPECTED_RELEASE_SHA: ${{ env.RELEASE_SHA }}");
     expect(productionWorkflow).toContain("UAT_EVIDENCE_JSON: ${{ secrets.UAT_EVIDENCE_JSON }}");
+    expect(productionWorkflow).toContain("npm run supabase:auth:configure");
   });
 });

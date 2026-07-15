@@ -60,11 +60,19 @@ Production environment должен требовать ручного approve в
 
 ## Supabase Auth URLs
 
-В Authentication → URL Configuration:
+Deploy workflow применяет и затем читает обратно hosted Auth configuration командой
+`npm run supabase:auth:configure`. Инварианты для каждой среды:
 
-- Site URL: production-домен;
-- Redirect URLs: production-домен, staging-домен и только необходимые callback URL;
-- localhost разрешается только в локальном Supabase project.
+- Site URL равен `APP_PUBLIC_URL`;
+- allowlist содержит origin среды и `<origin>/reset-password`;
+- публичная регистрация отключена;
+- email/password вход приглашённых пользователей включён;
+- phone signup отключён, смена пароля требует повторной аутентификации.
+
+Для проверки без изменения конфигурации используйте `npm run supabase:auth:check`.
+Обе команды требуют `SUPABASE_ACCESS_TOKEN`, `SUPABASE_PROJECT_ID` и
+`APP_PUBLIC_URL`, не печатают токен и завершаются ошибкой при remote drift.
+Localhost остаётся только в локальном `supabase/config.toml`.
 
 Перед выпуском выполните `npm run verify:deployment`. Скрипт проверяет HTTPS,
 совпадение `APP_PUBLIC_URL` с allowlist, соответствие `VITE_SUPABASE_URL`

@@ -106,6 +106,8 @@ jobs:
           VITE_SUPABASE_ANON_KEY: ${{ secrets.VITE_SUPABASE_ANON_KEY }}
           VITE_SENTRY_DSN: ${{ secrets.VITE_SENTRY_DSN }}
         run: npm run verify:deployment && npm run verify:env && npx supabase link --project-ref "$SUPABASE_PROJECT_ID" && npx supabase db push --linked
+      - name: Configure and verify hosted Auth
+        run: npm run supabase:auth:configure
       - name: Deploy Edge Functions
         run: |
           test -n "$APP_ALLOWED_ORIGINS"

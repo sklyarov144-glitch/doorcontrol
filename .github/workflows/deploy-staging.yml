@@ -57,6 +57,8 @@ jobs:
         run: npm run verify:deployment && npm run verify:env
       - name: Apply database migrations
         run: npx supabase link --project-ref "$SUPABASE_PROJECT_ID" && npx supabase db push --linked
+      - name: Configure and verify hosted Auth
+        run: npm run supabase:auth:configure
       - name: Deploy Edge Functions
         run: |
           if [[ -n "$APP_ALLOWED_ORIGINS" ]]; then npx supabase secrets set APP_ALLOWED_ORIGINS="$APP_ALLOWED_ORIGINS" APP_PUBLIC_URL="$APP_PUBLIC_URL" --project-ref "$SUPABASE_PROJECT_ID"; fi
