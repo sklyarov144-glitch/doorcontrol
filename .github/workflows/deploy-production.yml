@@ -6,12 +6,16 @@ on:
       confirmation:
         description: Type DEPLOY to confirm production release
         required: true
+      release_sha:
+        description: Full commit SHA of the successful staging release
+        required: true
 
 concurrency:
   group: production
   cancel-in-progress: false
 
 permissions:
+  actions: read
   contents: read
 
 jobs:
@@ -21,6 +25,7 @@ jobs:
     timeout-minutes: 30
     environment: production
     env:
+      RELEASE_SHA: ${{ inputs.release_sha }}
       SUPABASE_ACCESS_TOKEN: ${{ secrets.SUPABASE_ACCESS_TOKEN }}
       SUPABASE_PROJECT_ID: ${{ secrets.SUPABASE_PROJECT_ID }}
       APP_ALLOWED_ORIGINS: ${{ vars.APP_ALLOWED_ORIGINS }}
@@ -29,10 +34,20 @@ jobs:
       VERCEL_PROJECT_ID: ${{ secrets.VERCEL_PROJECT_ID }}
     steps:
       - uses: actions/checkout@v7
+        with:
+          ref: main
       - uses: actions/setup-node@v7
         with:
           node-version-file: .nvmrc
           cache: npm
+      - name: Require successful staging release
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: |
+          node scripts/verify-release-provenance.mjs
+          git fetch --no-tags origin "$RELEASE_SHA"
+          git checkout --detach "$RELEASE_SHA"
+          test "$(git rev-parse HEAD)" = "$RELEASE_SHA"
       - run: npm ci
       - run: npm run ci
       - name: Validate production configuration
@@ -83,7 +98,7 @@ jobs:
           VITE_SUPABASE_ANON_KEY: ${{ secrets.VITE_SUPABASE_ANON_KEY }}
           VITE_SENTRY_DSN: ${{ secrets.VITE_SENTRY_DSN }}
           VITE_APP_URL: ${{ vars.APP_PUBLIC_URL }}
-          VITE_APP_RELEASE: ${{ github.sha }}
+          VITE_APP_RELEASE: ${{ env.RELEASE_SHA }}
         run: |
           npx vercel pull --yes --environment=production --token="${{ secrets.VERCEL_TOKEN }}"
           npx vercel build --prod --token="${{ secrets.VERCEL_TOKEN }}"
