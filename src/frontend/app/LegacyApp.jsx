@@ -611,7 +611,7 @@ export function App() {
   const initialRoute = parseAppRoute(location.pathname);
   const isRemoteAuth = dataProviderName === "supabase";
   const isPasswordRecovery = isRemoteAuth && location.pathname === "/reset-password";
-  const [objects, setObjects] = useState(loadObjects);
+  const [objects, setObjects] = useState(() => isRemoteAuth ? [] : loadObjects());
   const [doorMatrix, setDoorMatrix] = useState(() => {
     if (isRemoteAuth) return [];
     const saved = getDoorMatrix();
@@ -628,8 +628,8 @@ export function App() {
   const [domainError, setDomainError] = useState("");
   const [domainReload, setDomainReload] = useState(0);
   const [persistenceError, setPersistenceError] = useState("");
-  const [users, setUsers] = useState(loadUsers);
-  const [currentUserId, setCurrentUserId] = useState(() => localSession?.userId || "creator-1");
+  const [users, setUsers] = useState(() => isRemoteAuth ? [] : loadUsers());
+  const [currentUserId, setCurrentUserId] = useState(() => localSession?.userId || (isRemoteAuth ? "" : "creator-1"));
   const user = users.find((item) => item.id === currentUserId) ?? users[0] ?? { id: "", name: "", role: "itr", assignedObjectIds: [], assignedBuildingIds: [] };
   const [screen, setScreen] = useState(initialRoute.screen === "login" ? "objects" : initialRoute.screen);
   const [selectedObjectId, setSelectedObjectId] = useState(initialRoute.objectId ?? objects[0]?.id ?? "");
