@@ -67,6 +67,8 @@ describe("production bundle verifier", () => {
     const source = readFileSync("scripts/verify-production-bundle.mjs", "utf8");
     expect(source).toContain("creator@example.test");
     expect(source).toContain("Демо: ИТР");
+    expect(source).toContain("gross-lean-montage.visual.mvp.v7");
+    expect(source).toContain("gross-lean-montage.auth-session.v1");
   });
 });
 
