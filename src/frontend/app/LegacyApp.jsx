@@ -1,6 +1,5 @@
 import React, { useMemo, useState } from "react";
 import { useLocation, useNavigate } from "react-router-dom";
-import matveevskyParkImage from "../assets/matveevsky-park.jpg";
 import {
   addTask,
   addTaskComment,
@@ -78,14 +77,16 @@ import { RemoteBrigadePlanPage, RemoteManpowerPage } from "../pages/RemoteWorkfo
 import AuditLogPage from "../pages/AuditLogPage";
 import { AuthProvider } from "../contexts/AuthContext";
 import BrandMark from "../components/BrandMark";
+import { Detail, Metric, StatusBadge } from "../components/UiPrimitives";
 import LoginPage, { PasswordRecoveryPage } from "../pages/LoginPage";
+import ObjectsPage from "../pages/ObjectsPage";
 import { permissionsFor } from "../domain/permissions";
 import { roleLabels } from "../domain/roles";
+import { statusMeta } from "../domain/statuses";
 import { applyDoorWorkflow } from "../domain/doorWorkflow";
 import {
   allObjectDoors as getAllDoors,
   buildingReadiness as getBuildingReadiness,
-  objectMetrics as getMetrics,
   visibleObjectsForUser as getVisibleObjectsForUser,
   visibleUsersForManager as getVisibleUsersForManager,
 } from "../domain/objectAccess";
@@ -141,25 +142,6 @@ const delayReasonOptions = [
   "Погодные условия",
   "Другое",
 ];
-
-const statusMeta = {
-  "не начато": { tone: "gray", label: "не начато" },
-  доставлена: { tone: "blue", label: "доставлена" },
-  смонтирована: { tone: "green", label: "смонтирована" },
-  замечание: { tone: "red", label: "замечание" },
-  "принято технадзором": { tone: "teal", label: "принято технадзором" },
-  "передано по акту": { tone: "purple", label: "передано по акту" },
-  готов: { tone: "green", label: "готов" },
-  "требует корректировки": { tone: "orange", label: "требует корректировки" },
-  "передан на исправление": { tone: "orange", label: "передан на исправление" },
-  исправлен: { tone: "teal", label: "исправлен" },
-  нет: { tone: "gray", label: "нет" },
-  "есть замечание": { tone: "red", label: "есть замечание" },
-  устранено: { tone: "green", label: "устранено" },
-  "не передана": { tone: "gray", label: "не передана" },
-  "акт подготовлен": { tone: "blue", label: "акт подготовлен" },
-  "акт загружен": { tone: "teal", label: "акт загружен" },
-};
 
 const baseDoors = [
   {
@@ -1790,68 +1772,6 @@ function NotificationBell({ notifications, unreadCount, onOpen, onMarkRead, onMa
         </div>
       )}
     </div>
-  );
-}
-
-function ObjectsPage({ objects, onOpen }) {
-  return (
-    <section className="visual-panel">
-      <div className="view-heading">
-        <div>
-          <h2>Объекты в работе</h2>
-          <p>Выберите объект, чтобы перейти к корпусам и визуальному плану.</p>
-        </div>
-        <span>{objects.length} объект</span>
-      </div>
-      <div className="object-grid">
-        {objects.map((object) => (
-          <ObjectCard key={object.id} object={object} onOpen={() => onOpen(object.id)} />
-        ))}
-      </div>
-    </section>
-  );
-}
-
-function ObjectCard({ object, onOpen }) {
-  const metrics = getMetrics(object);
-
-  return (
-    <button
-      className="object-card visual-card"
-      aria-label={`Открыть объект ${object.name}`}
-      onClick={onOpen}
-    >
-      <div className="object-image">
-        <img src={matveevskyParkImage} alt="" />
-        <div className="object-image-overlay">
-          <StatusBadge value={object.status} />
-          <div>
-            <strong>{object.name}</strong>
-            <p>{object.address}</p>
-          </div>
-        </div>
-      </div>
-      <div className="object-card-body">
-        <div className="object-card-main">
-          <div>
-            <span className="metric-label">Готовность</span>
-            <strong className="readiness-value">{metrics.readiness}%</strong>
-          </div>
-          <span className="open-arrow">Перейти</span>
-        </div>
-        <div className="progress-bar">
-          <span style={{ width: `${metrics.readiness}%` }} />
-        </div>
-        <div className="metric-grid">
-          <Metric label="Замечания" value={metrics.issues} tone="warning" />
-          <Metric
-            label="Проемы на корректировке"
-            value={metrics.openingsOnCorrection}
-            tone="alert"
-          />
-        </div>
-      </div>
-    </button>
   );
 }
 
@@ -4473,29 +4393,6 @@ function ReportsPage({ objects }) {
         })}
       </div>
     </section>
-  );
-}
-
-function StatusBadge({ value }) {
-  const tone = statusMeta[value]?.tone ?? "blue";
-  return <span className={`status-badge status-${tone}`}>{value}</span>;
-}
-
-function Metric({ label, value, tone = "neutral" }) {
-  return (
-    <div className={`metric ${tone}`}>
-      <span>{label}</span>
-      <strong>{value}</strong>
-    </div>
-  );
-}
-
-function Detail({ label, value }) {
-  return (
-    <div className="detail">
-      <span>{label}</span>
-      <strong>{value}</strong>
-    </div>
   );
 }
 
