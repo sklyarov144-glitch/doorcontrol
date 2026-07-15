@@ -61,6 +61,11 @@ jobs:
         run: |
           if [[ -n "$APP_ALLOWED_ORIGINS" ]]; then npx supabase secrets set APP_ALLOWED_ORIGINS="$APP_ALLOWED_ORIGINS" APP_PUBLIC_URL="$APP_PUBLIC_URL" --project-ref "$SUPABASE_PROJECT_ID"; fi
           npx supabase functions deploy --project-ref "$SUPABASE_PROJECT_ID"
+      - name: Smoke test backend health
+        env:
+          SUPABASE_URL: ${{ secrets.VITE_SUPABASE_URL }}
+          SUPABASE_ANON_KEY: ${{ secrets.VITE_SUPABASE_ANON_KEY }}
+        run: npm run health:smoke
       - name: Build and deploy Vercel staging
         env:
           VITE_DATA_PROVIDER: supabase
