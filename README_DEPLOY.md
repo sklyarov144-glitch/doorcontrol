@@ -23,7 +23,8 @@ npm run dev
 
 ## Автоматизация
 
-- `CI`: lint, тесты, production build, аудит production-зависимостей, применение
+- `CI`: lint, тесты, local и Supabase production builds, проверка отсутствия
+  demo/PII в production bundle, аудит production-зависимостей, применение
   всех миграций с нуля и database lint в локальном Supabase.
 - `Deploy staging`: автоматически только после полностью успешной CI для push в `main`, также запускается вручную.
 - `Deploy production`: только вручную, с подтверждением `DEPLOY` и защитой GitHub Environment.
