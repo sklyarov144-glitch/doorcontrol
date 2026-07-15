@@ -11,6 +11,7 @@ const validEnv = {
   VERCEL_TOKEN: "token",
   VERCEL_ORG_ID: "org",
   VERCEL_PROJECT_ID: "project",
+  VITE_SUPABASE_URL: "https://abcdefghijklmnopqrst.supabase.co",
 };
 
 function verify(overrides = {}) {
@@ -47,6 +48,10 @@ describe("deployment configuration preflight", () => {
   it("rejects localhost and origins outside the allowlist", () => {
     expect(verify({ APP_PUBLIC_URL: "http://localhost:5173" }).status).not.toBe(0);
     expect(verify({ APP_ALLOWED_ORIGINS: "https://admin.example.ru" }).status).not.toBe(0);
+  });
+
+  it("rejects a frontend database URL for another Supabase project", () => {
+    expect(verify({ VITE_SUPABASE_URL: "https://bbbbbbbbbbbbbbbbbbbb.supabase.co" }).status).not.toBe(0);
   });
 });
 

@@ -63,7 +63,8 @@ Production environment должен требовать ручного approve в
 - localhost разрешается только в локальном Supabase project.
 
 Перед выпуском выполните `npm run verify:deployment`. Скрипт проверяет HTTPS,
-совпадение `APP_PUBLIC_URL` с allowlist и наличие всех deployment credentials,
+совпадение `APP_PUBLIC_URL` с allowlist, соответствие `VITE_SUPABASE_URL`
+конкретному `SUPABASE_PROJECT_ID` и наличие всех deployment credentials,
 не печатая значения секретов.
 
 Deploy workflow также запускает `npm run verify:env` и принудительно собирает
