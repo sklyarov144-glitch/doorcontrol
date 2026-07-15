@@ -28,6 +28,12 @@ describe("staging deployment workflow", () => {
     expect(stagingWorkflow.indexOf("npm run supabase:auth:configure"))
       .toBeLessThan(stagingWorkflow.indexOf("npm run auth:smoke"));
   });
+
+  it("smokes the canonical staging origin and pins it to the release SHA", () => {
+    expect(stagingWorkflow).toContain('SMOKE_URL="$APP_PUBLIC_URL"');
+    expect(stagingWorkflow).toContain('SMOKE_EXPECT_RELEASE="$RELEASE_SHA"');
+    expect(stagingWorkflow).not.toContain('SMOKE_URL="$DEPLOY_URL"');
+  });
 });
 
 describe("GitHub Actions runtime", () => {
@@ -46,6 +52,7 @@ describe("production deployment workflow", () => {
     expect(productionWorkflow).toContain('git checkout --detach "$RELEASE_SHA"');
     expect(productionWorkflow).toContain("VITE_APP_RELEASE: ${{ env.RELEASE_SHA }}");
     expect(productionWorkflow).toContain('SMOKE_URL="$APP_PUBLIC_URL"');
+    expect(productionWorkflow).toContain('SMOKE_EXPECT_RELEASE="$RELEASE_SHA"');
     expect(productionWorkflow).toContain("node scripts/create-release-evidence.mjs");
     expect(productionWorkflow).toContain("production-release-${{ env.RELEASE_SHA }}");
     expect(productionWorkflow).toContain("Smoke test four authenticated production roles");

@@ -133,9 +133,7 @@ jobs:
           DEPLOY_URL=$(npx vercel deploy --prebuilt --prod --token="${{ secrets.VERCEL_TOKEN }}")
           echo "DEPLOY_URL=$DEPLOY_URL" >> "$GITHUB_ENV"
       - name: Smoke test
-        run: SMOKE_URL="$DEPLOY_URL" SMOKE_REQUIRE_SECURITY_HEADERS=true npm run smoke
-      - name: Smoke test canonical production domain
-        run: SMOKE_URL="$APP_PUBLIC_URL" SMOKE_REQUIRE_SECURITY_HEADERS=true npm run smoke
+        run: SMOKE_URL="$APP_PUBLIC_URL" SMOKE_EXPECT_RELEASE="$RELEASE_SHA" SMOKE_RETRIES=12 SMOKE_REQUIRE_SECURITY_HEADERS=true npm run smoke
       - name: Smoke test four authenticated production roles
         run: npm run auth:smoke
       - name: Load smoke authenticated production ITR domain
