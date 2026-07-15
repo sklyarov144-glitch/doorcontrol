@@ -8,8 +8,8 @@ if (!url || !anonKey || !email || !password) {
   throw new Error("Authenticated ITR smoke credentials are required");
 }
 
-const requests = Number(process.env.DOMAIN_LOAD_REQUESTS ?? 100);
-const concurrency = Number(process.env.DOMAIN_LOAD_CONCURRENCY ?? 10);
+const requests = Number(process.env.DOMAIN_LOAD_REQUESTS ?? 200);
+const concurrency = Number(process.env.DOMAIN_LOAD_CONCURRENCY ?? 20);
 const p95Limit = Number(process.env.DOMAIN_LOAD_P95_LIMIT_MS ?? 2500);
 if (!Number.isInteger(requests) || requests < 1 || requests > 5000) throw new Error("Invalid request count");
 if (!Number.isInteger(concurrency) || concurrency < 1 || concurrency > 100) throw new Error("Invalid concurrency");
