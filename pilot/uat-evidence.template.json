@@ -1,0 +1,41 @@
+{
+  "environment": "staging",
+  "releaseSha": "REPLACE_WITH_FULL_40_CHARACTER_SHA",
+  "appUrl": "https://staging.example.ru",
+  "scenarios": [
+    { "id": "auth-login-recovery", "status": "pending", "executedBy": "", "executedAt": "", "defectUrl": "" },
+    { "id": "disabled-user-denied", "status": "pending", "executedBy": "", "executedAt": "", "defectUrl": "" },
+    { "id": "deep-link-refresh", "status": "pending", "executedBy": "", "executedAt": "", "defectUrl": "" },
+    { "id": "responsive-navigation", "status": "pending", "executedBy": "", "executedAt": "", "defectUrl": "" },
+    { "id": "safe-error-messages", "status": "pending", "executedBy": "", "executedAt": "", "defectUrl": "" },
+    { "id": "creator-scope", "status": "pending", "executedBy": "", "executedAt": "", "defectUrl": "" },
+    { "id": "company-head-isolation", "status": "pending", "executedBy": "", "executedAt": "", "defectUrl": "" },
+    { "id": "director-assignment-scope", "status": "pending", "executedBy": "", "executedAt": "", "defectUrl": "" },
+    { "id": "itr-assignment-scope", "status": "pending", "executedBy": "", "executedAt": "", "defectUrl": "" },
+    { "id": "cross-company-isolation", "status": "pending", "executedBy": "", "executedAt": "", "defectUrl": "" },
+    { "id": "database-enforced-access", "status": "pending", "executedBy": "", "executedAt": "", "defectUrl": "" },
+    { "id": "itr-door-route", "status": "pending", "executedBy": "", "executedAt": "", "defectUrl": "" },
+    { "id": "door-status-persistence", "status": "pending", "executedBy": "", "executedAt": "", "defectUrl": "" },
+    { "id": "workflow-dates", "status": "pending", "executedBy": "", "executedAt": "", "defectUrl": "" },
+    { "id": "door-priority-color", "status": "pending", "executedBy": "", "executedAt": "", "defectUrl": "" },
+    { "id": "task-comment-document-access", "status": "pending", "executedBy": "", "executedAt": "", "defectUrl": "" },
+    { "id": "executive-dashboard", "status": "pending", "executedBy": "", "executedAt": "", "defectUrl": "" },
+    { "id": "problem-task-context", "status": "pending", "executedBy": "", "executedAt": "", "defectUrl": "" },
+    { "id": "responsibility-assignments", "status": "pending", "executedBy": "", "executedAt": "", "defectUrl": "" },
+    { "id": "finance-hidden-from-itr", "status": "pending", "executedBy": "", "executedAt": "", "defectUrl": "" },
+    { "id": "report-source-reconciliation", "status": "pending", "executedBy": "", "executedAt": "", "defectUrl": "" },
+    { "id": "private-file-access", "status": "pending", "executedBy": "", "executedAt": "", "defectUrl": "" },
+    { "id": "signed-url-expiry", "status": "pending", "executedBy": "", "executedAt": "", "defectUrl": "" },
+    { "id": "audit-attribution", "status": "pending", "executedBy": "", "executedAt": "", "defectUrl": "" },
+    { "id": "audit-user-retention", "status": "pending", "executedBy": "", "executedAt": "", "defectUrl": "" },
+    { "id": "public-smoke-performance", "status": "pending", "executedBy": "", "executedAt": "", "defectUrl": "" },
+    { "id": "authenticated-domain-performance", "status": "pending", "executedBy": "", "executedAt": "", "defectUrl": "" },
+    { "id": "pilot-floor-responsiveness", "status": "pending", "executedBy": "", "executedAt": "", "defectUrl": "" },
+    { "id": "pilot-concurrency", "status": "pending", "executedBy": "", "executedAt": "", "defectUrl": "" }
+  ],
+  "defects": [],
+  "signoffs": {
+    "productOwner": { "approved": false, "name": "", "approvedAt": "" },
+    "itrRepresentative": { "approved": false, "name": "", "approvedAt": "" }
+  }
+}

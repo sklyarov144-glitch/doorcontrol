@@ -5,6 +5,7 @@
 .env
 .env.*
 !.env.example
+pilot/uat-evidence.json
 
 # Dependencies
 node_modules/
@@ -30,4 +31,3 @@ coverage/
 # IDE
 .idea/
 .vscode/
-
