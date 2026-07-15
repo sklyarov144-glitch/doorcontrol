@@ -4,7 +4,7 @@
 
 1. Создать отдельные Supabase projects для staging и production.
 2. Создать отдельные Vercel projects и GitHub environments.
-3. Заполнить секреты из `ENVIRONMENTS.md`.
+3. Заполнить секреты из `ENVIRONMENTS.md` вручную или проверяемой командой `npm run deployment:configure -- <environment> --apply`.
 4. Выполнить `npm run verify:deployment` с production-переменными.
 5. Связать staging workflow с staging project, production workflow — только с production project.
 6. Включить required reviewers для GitHub environment `production`.
