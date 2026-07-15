@@ -1,7 +1,7 @@
 import React from "react";
 import { fireEvent, render, screen, waitFor } from "@testing-library/react";
 import { describe, expect, it, vi } from "vitest";
-import { LoginPage } from "./LegacyApp";
+import LoginPage from "../pages/LoginPage";
 import { mockUsers } from "../mocks/demoUsers";
 
 describe("mock user login", () => {
