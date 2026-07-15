@@ -110,6 +110,10 @@ const atomicTaskStatusWorkflow = readFileSync(
   resolve("supabase/migrations/202607150028_atomic_task_status_workflow.sql"),
   "utf8"
 );
+const operationalQueryIndexes = readFileSync(
+  resolve("supabase/migrations/202607150029_operational_query_indexes.sql"),
+  "utf8"
+);
 
 describe("Supabase schema", () => {
   it("defines the core hierarchy and assignment tables", () => {
@@ -302,6 +306,21 @@ describe("Supabase schema", () => {
     expect(atomicTaskStatusWorkflow).toContain("for update");
     expect(atomicTaskStatusWorkflow).toContain("status_changed");
     expect(atomicTaskStatusWorkflow).toContain("task_completed");
+  });
+
+  it("indexes responsibility, overdue and operational relationship lookups", () => {
+    for (const indexName of [
+      "objects_responsible_director_idx",
+      "buildings_responsible_itr_idx",
+      "doors_mounted_pending_idx",
+      "document_items_door_idx",
+      "task_links_task_created_idx",
+      "tn_issues_responsible_status_idx",
+      "team_members_employee_idx",
+      "team_assignments_team_idx",
+    ]) {
+      expect(operationalQueryIndexes).toContain(indexName);
+    }
   });
 
   it("schedules server-side overdue task control without browser access", () => {
