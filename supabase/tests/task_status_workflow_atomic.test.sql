@@ -41,14 +41,17 @@ select lives_ok(
   'assigned ITR completes the task'
 );
 select is((select count(*)::integer from public.notifications where task_id = '62000000-0000-0000-0000-000000000001'), 1, 'creator receives one completion notification');
+set local role postgres;
 select is((select count(*)::integer from public.activity_logs where entity_id = '62000000-0000-0000-0000-000000000001' and action = 'status_changed'), 2, 'both status changes are audited');
 
+set local role authenticated;
 select set_config('request.jwt.claim.sub', '61000000-0000-0000-0000-000000000003', true);
 select throws_ok(
   $$select public.update_task_status_workflow('62000000-0000-0000-0000-000000000001', 'в работе')$$,
   'P0001', 'Task status update is not allowed',
   'unassigned ITR cannot change the task'
 );
+set local role postgres;
 select is((select status from public.tasks where id = '62000000-0000-0000-0000-000000000001'), 'выполнена', 'rejected update leaves task unchanged');
 
 select * from finish();
