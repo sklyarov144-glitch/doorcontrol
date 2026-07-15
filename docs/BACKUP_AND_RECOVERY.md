@@ -4,8 +4,8 @@
 
 - Основной механизм: managed backup и Point-in-Time Recovery Supabase production project.
 - Дополнительный механизм: ежедневный зашифрованный логический комплект Supabase
-  (`roles.sql`, `schema.sql`, `data.sql`) в GitHub Actions с хранением 14 дней.
-- Файлы Supabase Storage требуют отдельной политики экспорта/retention; database backup хранит метаданные, но не содержимое объектов Storage.
+  (`roles.sql`, `schema.sql`, `data.sql`) и содержимое приватных buckets
+  `documents`, `floor-plans`, `avatars` в GitHub Actions с хранением 14 дней.
 - Доступ к backup имеют только два назначенных ответственных.
 
 Целевые показатели для пилота: RPO до 24 часов для дополнительной копии, RPO согласно тарифу PITR для основной; RTO до 4 часов после принятия решения о восстановлении.
@@ -14,23 +14,25 @@
 
 Каждый ежедневный workflow:
 
-1. выгружает роли, схему и данные отдельно;
-2. формирует manifest с размером и SHA-256 каждого компонента;
-3. шифрует единый архив AES-256-CBC/PBKDF2;
-4. проверяет checksum зашифрованного файла;
-5. расшифровывает временную копию и повторно проверяет все компоненты по manifest;
-6. отклоняет backup, если `data.sql` пуст или не содержит `COPY`/`INSERT`.
+1. выгружает роли, схему, данные и приватные Storage-объекты;
+2. формирует отдельный Storage manifest с bucket/path, размером и SHA-256 каждого объекта;
+3. формирует общий manifest с размером и SHA-256 каждого компонента;
+4. шифрует единый архив AES-256-CBC/PBKDF2;
+5. проверяет checksum зашифрованного файла;
+6. расшифровывает временную копию и повторно проверяет БД и каждый Storage-объект;
+7. отклоняет backup, если `data.sql` пуст или не содержит `COPY`/`INSERT`.
 
 Это проверка целостности копии, но не замена restore drill. Раз в месяц запускается
 GitHub Actions workflow `Production backup restore drill`:
 
 1. открыть успешный запуск `Encrypted production database backup` и скопировать его numeric run ID;
 2. вручную запустить restore workflow с этим `backup_run_id` и подтвердить доступ к environment `production`;
-3. workflow скачает именно артефакт выбранного запуска, проверит checksum и manifest;
+3. workflow скачает именно артефакт выбранного запуска, проверит checksum, общий manifest и Storage manifest;
 4. поднимет чистый локальный Supabase на одноразовом GitHub runner без миграций приложения;
 5. применит `roles.sql`, `schema.sql`, затем `data.sql` с `ON_ERROR_STOP`;
-6. проверит ненулевые компании, профили, объекты, корпуса, этажи и двери;
-7. загрузит `restore-evidence-<run id>` с SHA-256, длительностью и количествами строк.
+6. создаст приватные buckets в чистом Supabase и восстановит все Storage-объекты;
+7. проверит ненулевые компании, профили, объекты, корпуса, этажи, двери и количество Storage-объектов;
+8. загрузит `restore-evidence-<run id>` с SHA-256, длительностью и количествами строк.
 
 Нельзя выполнять пробное восстановление поверх production.
 

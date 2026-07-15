@@ -16,7 +16,7 @@
     "verify:bundle": "node scripts/verify-production-bundle.mjs",
     "auth:bootstrap": "node scripts/auth/bootstrap-creator.mjs",
     "auth:smoke": "node scripts/auth/role-smoke.mjs",
-    "check:scripts": "node --check scripts/verify-deployment-config.mjs && node --check scripts/verify-production-bundle.mjs && node --check scripts/smoke-test.mjs && node --check scripts/auth/bootstrap-creator.mjs && node --check scripts/auth/role-smoke.mjs && node --check scripts/backup/create-manifest.mjs && node --check scripts/backup/verify-manifest.mjs && node --check scripts/backup/create-restore-evidence.mjs",
+    "check:scripts": "node --check scripts/verify-deployment-config.mjs && node --check scripts/verify-production-bundle.mjs && node --check scripts/smoke-test.mjs && node --check scripts/auth/bootstrap-creator.mjs && node --check scripts/auth/role-smoke.mjs && node --check scripts/backup/create-manifest.mjs && node --check scripts/backup/verify-manifest.mjs && node --check scripts/backup/export-storage.mjs && node --check scripts/backup/verify-storage-export.mjs && node --check scripts/backup/import-storage.mjs && node --check scripts/backup/create-restore-evidence.mjs",
     "smoke": "node scripts/smoke-test.mjs",
     "pilot:validate": "node scripts/pilot/validate-import.mjs",
     "pilot:import": "node scripts/pilot/import-supabase.mjs",

@@ -49,6 +49,9 @@ jobs:
           openssl enc -d -aes-256-cbc -pbkdf2 -in "$BACKUP_FILE" -out restored-backup/backup.tar.gz -pass env:BACKUP_ENCRYPTION_PASSWORD
           tar -xzf restored-backup/backup.tar.gz -C restored-backup
           node scripts/backup/verify-manifest.mjs restored-backup/manifest.json restored-backup
+          mkdir -p restored-backup/storage-check
+          tar -xzf restored-backup/storage.tar.gz -C restored-backup/storage-check
+          node scripts/backup/verify-storage-export.mjs restored-backup/storage-check/storage-manifest.json restored-backup/storage-check/storage
           cp "$BACKUP_FILE" restored-backup/source.enc
       - name: Start pristine isolated Supabase database
         run: |
@@ -68,6 +71,16 @@ jobs:
           psql "$PGURL" --set ON_ERROR_STOP=1 --file restored-backup/roles.sql
           psql "$PGURL" --set ON_ERROR_STOP=1 --file restored-backup/schema.sql
           psql "$PGURL" --set ON_ERROR_STOP=1 --file restored-backup/data.sql
+      - name: Restore private Storage objects
+        run: |
+          set -a
+          source <(npx supabase status -o env)
+          set +a
+          BACKUP_SUPABASE_URL="$API_URL" \
+          BACKUP_SUPABASE_SERVICE_ROLE_KEY="$SERVICE_ROLE_KEY" \
+          node scripts/backup/import-storage.mjs \
+            restored-backup/storage-check/storage-manifest.json \
+            restored-backup/storage-check/storage
       - name: Verify restored domain data and create evidence
         env:
           PGURL: postgresql://postgres:postgres@127.0.0.1:54322/postgres
@@ -82,7 +95,8 @@ jobs:
               'floors', (select count(*) from public.floors),
               'doors', (select count(*) from public.doors),
               'tasks', (select count(*) from public.tasks),
-              'documents', (select count(*) from public.document_items)
+              'documents', (select count(*) from public.document_items),
+              'storageObjects', (select count(*) from storage.objects)
             );" > restored-backup/counts.json
           COMPLETED_AT=$(date -u +%FT%TZ)
           node scripts/backup/create-restore-evidence.mjs \

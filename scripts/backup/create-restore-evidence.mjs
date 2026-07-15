@@ -11,7 +11,7 @@ if (!/^\d+$/.test(backupRunId)) throw new Error("Backup run id must be numeric")
 
 const counts = JSON.parse(readFileSync(countsPath, "utf8"));
 const required = ["companies", "profiles", "objects", "buildings", "floors", "doors"];
-for (const key of [...required, "tasks", "documents"]) {
+for (const key of [...required, "tasks", "documents", "storageObjects"]) {
   if (!Number.isInteger(counts[key]) || counts[key] < 0) {
     throw new Error(`Invalid restored row count: ${key}`);
   }

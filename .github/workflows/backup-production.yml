@@ -24,10 +24,14 @@ jobs:
         env:
           SUPABASE_DB_URL: ${{ secrets.SUPABASE_DB_URL }}
           BACKUP_ENCRYPTION_PASSWORD: ${{ secrets.BACKUP_ENCRYPTION_PASSWORD }}
+          BACKUP_SUPABASE_URL: ${{ secrets.BACKUP_SUPABASE_URL }}
+          BACKUP_SUPABASE_SERVICE_ROLE_KEY: ${{ secrets.BACKUP_SUPABASE_SERVICE_ROLE_KEY }}
         run: |
           missing=()
           [[ -z "$SUPABASE_DB_URL" ]] && missing+=(SUPABASE_DB_URL)
           [[ -z "$BACKUP_ENCRYPTION_PASSWORD" ]] && missing+=(BACKUP_ENCRYPTION_PASSWORD)
+          [[ -z "$BACKUP_SUPABASE_URL" ]] && missing+=(BACKUP_SUPABASE_URL)
+          [[ -z "$BACKUP_SUPABASE_SERVICE_ROLE_KEY" ]] && missing+=(BACKUP_SUPABASE_SERVICE_ROLE_KEY)
           if (( ${#missing[@]} )); then
             echo "::error::Production backup is not configured. Missing environment secrets: ${missing[*]}"
             exit 1
@@ -40,8 +44,15 @@ jobs:
           npx supabase db dump --db-url "$SUPABASE_DB_URL" --role-only --file backup/roles.sql
           npx supabase db dump --db-url "$SUPABASE_DB_URL" --file backup/schema.sql
           npx supabase db dump --db-url "$SUPABASE_DB_URL" --data-only --use-copy --file backup/data.sql
-          node scripts/backup/create-manifest.mjs backup/manifest.json backup/roles.sql backup/schema.sql backup/data.sql
-          tar -czf gross-production.tar.gz -C backup roles.sql schema.sql data.sql manifest.json
+      - name: Export private Storage buckets
+        env:
+          BACKUP_SUPABASE_URL: ${{ secrets.BACKUP_SUPABASE_URL }}
+          BACKUP_SUPABASE_SERVICE_ROLE_KEY: ${{ secrets.BACKUP_SUPABASE_SERVICE_ROLE_KEY }}
+        run: |
+          node scripts/backup/export-storage.mjs backup/storage backup/storage-manifest.json
+          tar -czf backup/storage.tar.gz -C backup storage storage-manifest.json
+          node scripts/backup/create-manifest.mjs backup/manifest.json backup/roles.sql backup/schema.sql backup/data.sql backup/storage.tar.gz
+          tar -czf gross-production.tar.gz -C backup roles.sql schema.sql data.sql storage.tar.gz manifest.json
       - name: Encrypt backup
         env:
           BACKUP_ENCRYPTION_PASSWORD: ${{ secrets.BACKUP_ENCRYPTION_PASSWORD }}
@@ -61,6 +72,9 @@ jobs:
           openssl enc -d -aes-256-cbc -pbkdf2 -in "$BACKUP_FILE" -out restore-check/backup.tar.gz -pass env:BACKUP_ENCRYPTION_PASSWORD
           tar -xzf restore-check/backup.tar.gz -C restore-check
           node scripts/backup/verify-manifest.mjs restore-check/manifest.json restore-check
+          mkdir -p restore-check/storage-check
+          tar -xzf restore-check/storage.tar.gz -C restore-check/storage-check
+          node scripts/backup/verify-storage-export.mjs restore-check/storage-check/storage-manifest.json restore-check/storage-check/storage
           grep -Eq 'COPY |INSERT INTO' restore-check/data.sql
           rm -rf restore-check backup
       - uses: actions/upload-artifact@v4

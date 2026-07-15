@@ -1,4 +1,5 @@
-import { mkdtempSync, readFileSync, writeFileSync } from "node:fs";
+import { createHash } from "node:crypto";
+import { mkdirSync, mkdtempSync, readFileSync, writeFileSync } from "node:fs";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
 import { spawnSync } from "node:child_process";
@@ -12,6 +13,30 @@ function run(script, args) {
 }
 
 describe("backup manifest", () => {
+  it("verifies every exported private Storage object", () => {
+    const root = mkdtempSync(join(tmpdir(), "gross-storage-backup-"));
+    const storage = join(root, "storage");
+    const objectPath = join(storage, "documents", "company-1", "object-1", "act.pdf");
+    mkdirSync(join(storage, "documents", "company-1", "object-1"), { recursive: true });
+    writeFileSync(objectPath, "custody-act");
+    const content = readFileSync(objectPath);
+    const manifest = join(root, "storage-manifest.json");
+    writeFileSync(manifest, JSON.stringify({
+      version: 1,
+      buckets: ["documents", "floor-plans", "avatars"],
+      entries: [{
+        bucket: "documents",
+        path: "company-1/object-1/act.pdf",
+        bytes: content.length,
+        sha256: createHash("sha256").update(content).digest("hex"),
+      }],
+    }));
+
+    expect(run("scripts/backup/verify-storage-export.mjs", [manifest, storage]).status).toBe(0);
+    writeFileSync(objectPath, "tampered");
+    expect(run("scripts/backup/verify-storage-export.mjs", [manifest, storage]).status).not.toBe(0);
+  });
+
   it("verifies all components and detects tampering", () => {
     const root = mkdtempSync(join(tmpdir(), "gross-backup-"));
     const files = ["roles.sql", "schema.sql", "data.sql"];
@@ -35,7 +60,7 @@ describe("backup manifest", () => {
     writeFileSync(archive, "encrypted-backup");
     writeFileSync(
       counts,
-      JSON.stringify({ companies: 1, profiles: 4, objects: 2, buildings: 3, floors: 25, doors: 100, tasks: 0, documents: 0 }),
+      JSON.stringify({ companies: 1, profiles: 4, objects: 2, buildings: 3, floors: 25, doors: 100, tasks: 0, documents: 0, storageObjects: 0 }),
     );
 
     const result = run("scripts/backup/create-restore-evidence.mjs", [
@@ -51,7 +76,7 @@ describe("backup manifest", () => {
     expect(report).toMatchObject({ result: "passed", backupRunId: 12345, durationSeconds: 180 });
     expect(report.archiveSha256).toMatch(/^[a-f0-9]{64}$/);
 
-    writeFileSync(counts, JSON.stringify({ companies: 0, profiles: 0, objects: 0, buildings: 0, floors: 0, doors: 0, tasks: 0, documents: 0 }));
+    writeFileSync(counts, JSON.stringify({ companies: 0, profiles: 0, objects: 0, buildings: 0, floors: 0, doors: 0, tasks: 0, documents: 0, storageObjects: 0 }));
     expect(
       run("scripts/backup/create-restore-evidence.mjs", [
         evidence,
