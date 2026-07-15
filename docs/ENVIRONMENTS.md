@@ -79,6 +79,17 @@ Localhost остаётся только в локальном `supabase/config.t
 конкретному `SUPABASE_PROJECT_ID` и наличие всех deployment credentials,
 не печатая значения секретов.
 
+Текущий состав GitHub Environments проверяется без чтения значений секретов:
+
+```bash
+npm run deployment:audit
+npm run deployment:audit -- production --strict
+```
+
+Второй вариант завершается ошибкой, пока обязательный production inventory не
+собран полностью. Отдельное предупреждение сообщает об отсутствии Sentry в
+staging, где DSN пока не является блокирующим deployment secret.
+
 ## Безопасная загрузка GitHub Environment
 
 После входа командой `gh auth login` экспортируйте значения в текущем терминале и
