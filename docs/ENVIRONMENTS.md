@@ -54,6 +54,7 @@ workflow завершается ошибкой и не выдаёт отсутс
 - `BACKUP_ENCRYPTION_PASSWORD` — отдельный длинный секрет, хранимый также в корпоративном password manager.
 - `BACKUP_SUPABASE_URL` — URL production Supabase для выгрузки Storage;
 - `BACKUP_SUPABASE_SERVICE_ROLE_KEY` — service role только для backup/restore workflow.
+- `UAT_EVIDENCE_JSON` — полный подписанный UAT JSON для конкретного staging SHA.
 
 Production environment должен требовать ручного approve владельцем продукта или техническим ответственным.
 
@@ -84,6 +85,8 @@ npm run deployment:configure -- staging
 stdin в GitHub CLI и не печатает их. Для production она дополнительно требует
 Sentry и полный набор encrypted backup/Storage secrets. Credentials четырёх
 role-smoke аккаунтов обязательны для обеих сред. Staging и production настраиваются отдельно.
+Production также требует `UAT_EVIDENCE_JSON`; workflow сверяет его `releaseSha`
+с выпускаемым SHA до применения миграций и не печатает содержимое протокола.
 
 Deploy workflow также запускает `npm run verify:env` и принудительно собирает
 frontend с `VITE_DATA_PROVIDER=supabase`. Поэтому production-релиз не сможет

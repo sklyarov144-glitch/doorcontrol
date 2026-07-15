@@ -27,6 +27,7 @@ describe("GitHub deployment environment configuration", () => {
     const secrets = environmentRequirements("production").secrets;
     expect(secrets).toContain("BACKUP_SUPABASE_SERVICE_ROLE_KEY");
     expect(secrets).toContain("VITE_SENTRY_DSN");
+    expect(secrets).toContain("UAT_EVIDENCE_JSON");
   });
 
   it("accepts a complete matched configuration", () => {

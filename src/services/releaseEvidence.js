@@ -22,6 +22,7 @@ export function createReleaseEvidence(input) {
     canonicalUrl: canonicalUrl.href,
     checks: {
       stagingProvenance: "passed",
+      signedUat: "passed",
       ci: "passed",
       configuration: "passed",
       databaseMigrations: "passed",

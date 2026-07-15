@@ -38,7 +38,7 @@ Push в `main` сначала запускает CI. Staging workflow старт
 
 ## Production release
 
-1. Убедиться, что staging acceptance checklist пройден.
+1. Убедиться, что staging acceptance checklist пройден, а подписанный JSON из `UAT_CHECKLIST.md` сохранён в production secret `UAT_EVIDENCE_JSON`.
 2. Проверить свежий backup и окно восстановления.
 3. Взять полный 40-символьный SHA из успешного `Deploy staging`, запустить `Deploy production`, указать этот SHA и ввести `DEPLOY`.
 4. Approver подтверждает GitHub environment.

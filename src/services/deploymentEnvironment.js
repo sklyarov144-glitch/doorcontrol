@@ -11,7 +11,7 @@ const roleSmokeSecrets = [
 ];
 const productionSecrets = [
   "VITE_SENTRY_DSN", "SUPABASE_DB_URL", "BACKUP_ENCRYPTION_PASSWORD",
-  "BACKUP_SUPABASE_URL", "BACKUP_SUPABASE_SERVICE_ROLE_KEY",
+  "BACKUP_SUPABASE_URL", "BACKUP_SUPABASE_SERVICE_ROLE_KEY", "UAT_EVIDENCE_JSON",
 ];
 
 export function environmentRequirements(environment) {

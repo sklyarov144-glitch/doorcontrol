@@ -30,10 +30,13 @@ export const requiredUatScenarios = [
   "pilot-concurrency",
 ];
 
-export function validateUatEvidence(evidence) {
+export function validateUatEvidence(evidence, expectedReleaseSha) {
   const errors = [];
   if (evidence?.environment !== "staging") errors.push("environment must be staging");
   if (!/^[0-9a-f]{40}$/i.test(evidence?.releaseSha ?? "")) errors.push("releaseSha must be a full commit SHA");
+  if (expectedReleaseSha && evidence?.releaseSha?.toLowerCase() !== expectedReleaseSha.toLowerCase()) {
+    errors.push(`releaseSha does not match expected staging release ${expectedReleaseSha.toLowerCase()}`);
+  }
   try {
     const url = new URL(evidence?.appUrl);
     if (url.protocol !== "https:") errors.push("appUrl must use HTTPS");

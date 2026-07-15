@@ -38,4 +38,11 @@ describe("pilot UAT evidence", () => {
     expect(result.errors.join(" ")).toContain("must pass");
     expect(result.errors.join(" ")).toContain("itrRepresentative sign-off is incomplete");
   });
+
+  it("binds acceptance to the expected staging SHA", () => {
+    const evidence = validEvidence();
+    const result = validateUatEvidence(evidence, "b".repeat(40));
+    expect(result.valid).toBe(false);
+    expect(result.errors.join(" ")).toContain("does not match expected staging release");
+  });
 });

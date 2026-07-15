@@ -6,6 +6,7 @@
 - [ ] Staging deployment и smoke успешны.
 - [ ] Все migrations применены к staging и проверены на копии структуры production.
 - [ ] UAT evidence прошёл `npm run pilot:uat` и подписан владельцем продукта и представителем ИТР.
+- [ ] Production secret `UAT_EVIDENCE_JSON` содержит протокол именно для выпускаемого staging SHA.
 - [x] RLS автоматически проверен в CI минимум двумя компаниями и четырьмя ролями.
 - [ ] RLS повторно проверен на staging реальными Auth JWT минимум двумя компаниями и четырьмя ролями.
 - [ ] Staging `auth:smoke` прошёл четырьмя отдельными тестовыми аккаунтами.

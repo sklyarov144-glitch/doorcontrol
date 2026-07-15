@@ -42,6 +42,7 @@ jobs:
       AUTH_SMOKE_CONSTRUCTION_DIRECTOR_PASSWORD: ${{ secrets.AUTH_SMOKE_CONSTRUCTION_DIRECTOR_PASSWORD }}
       AUTH_SMOKE_ITR_EMAIL: ${{ secrets.AUTH_SMOKE_ITR_EMAIL }}
       AUTH_SMOKE_ITR_PASSWORD: ${{ secrets.AUTH_SMOKE_ITR_PASSWORD }}
+      UAT_EVIDENCE_JSON: ${{ secrets.UAT_EVIDENCE_JSON }}
     steps:
       - uses: actions/checkout@v7
         with:
@@ -60,6 +61,15 @@ jobs:
           test "$(git rev-parse HEAD)" = "$RELEASE_SHA"
       - run: npm ci
       - run: npm run ci
+      - name: Verify signed UAT for release SHA
+        env:
+          EXPECTED_RELEASE_SHA: ${{ env.RELEASE_SHA }}
+        run: |
+          test -n "$UAT_EVIDENCE_JSON" || { echo "::error::UAT_EVIDENCE_JSON is required"; exit 1; }
+          umask 077
+          trap 'rm -f /tmp/uat-evidence.json' EXIT
+          printf '%s' "$UAT_EVIDENCE_JSON" > /tmp/uat-evidence.json
+          npm run pilot:uat -- /tmp/uat-evidence.json
       - name: Validate production configuration
         env:
           VERCEL_TOKEN: ${{ secrets.VERCEL_TOKEN }}
@@ -78,6 +88,7 @@ jobs:
           [[ -z "$VITE_SUPABASE_URL" ]] && missing+=(VITE_SUPABASE_URL)
           [[ -z "$VITE_SUPABASE_ANON_KEY" ]] && missing+=(VITE_SUPABASE_ANON_KEY)
           [[ -z "$VITE_SENTRY_DSN" ]] && missing+=(VITE_SENTRY_DSN)
+          [[ -z "$UAT_EVIDENCE_JSON" ]] && missing+=(UAT_EVIDENCE_JSON)
           required_auth=(AUTH_SMOKE_SUPABASE_URL AUTH_SMOKE_SUPABASE_ANON_KEY AUTH_SMOKE_CREATOR_EMAIL AUTH_SMOKE_CREATOR_PASSWORD AUTH_SMOKE_COMPANY_HEAD_EMAIL AUTH_SMOKE_COMPANY_HEAD_PASSWORD AUTH_SMOKE_CONSTRUCTION_DIRECTOR_EMAIL AUTH_SMOKE_CONSTRUCTION_DIRECTOR_PASSWORD AUTH_SMOKE_ITR_EMAIL AUTH_SMOKE_ITR_PASSWORD)
           for name in "${required_auth[@]}"; do [[ -z "${!name}" ]] && missing+=("$name"); done
           [[ "$AUTH_SMOKE_SUPABASE_URL" != "$VITE_SUPABASE_URL" ]] && missing+=(AUTH_SMOKE_SUPABASE_URL_MISMATCH)
