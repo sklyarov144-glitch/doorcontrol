@@ -86,4 +86,4 @@ jobs:
           DEPLOY_URL=$(npx vercel deploy --prebuilt --prod --token="${{ secrets.VERCEL_TOKEN }}")
           echo "DEPLOY_URL=$DEPLOY_URL" >> "$GITHUB_ENV"
       - name: Smoke test
-        run: SMOKE_URL="$DEPLOY_URL" npm run smoke
+        run: SMOKE_URL="$DEPLOY_URL" SMOKE_REQUIRE_SECURITY_HEADERS=true npm run smoke

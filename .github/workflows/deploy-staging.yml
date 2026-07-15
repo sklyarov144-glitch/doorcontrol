@@ -89,7 +89,7 @@ jobs:
           echo "DEPLOY_URL=$DEPLOY_URL" >> "$GITHUB_ENV"
       - name: Smoke test
         if: steps.deployment-config.outputs.enabled == 'true'
-        run: SMOKE_URL="$DEPLOY_URL" npm run smoke
+        run: SMOKE_URL="$DEPLOY_URL" SMOKE_REQUIRE_SECURITY_HEADERS=true npm run smoke
       - name: Check auth smoke configuration
         if: steps.deployment-config.outputs.enabled == 'true'
         id: auth-smoke-config

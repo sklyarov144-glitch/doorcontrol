@@ -1,4 +1,5 @@
 import { spawnSync } from "node:child_process";
+import { readFileSync } from "node:fs";
 import { describe, expect, it } from "vitest";
 
 const validEnv = {
@@ -46,6 +47,18 @@ describe("deployment configuration preflight", () => {
   it("rejects localhost and origins outside the allowlist", () => {
     expect(verify({ APP_PUBLIC_URL: "http://localhost:5173" }).status).not.toBe(0);
     expect(verify({ APP_ALLOWED_ORIGINS: "https://admin.example.ru" }).status).not.toBe(0);
+  });
+});
+
+describe("production hosting security", () => {
+  const vercel = JSON.parse(readFileSync("vercel.json", "utf8"));
+  const headers = Object.fromEntries(vercel.headers[0].headers.map(({ key, value }) => [key, value]));
+
+  it("enforces HTTPS, framing and opener isolation headers", () => {
+    expect(headers["Strict-Transport-Security"]).toContain("max-age=63072000");
+    expect(headers["X-Frame-Options"]).toBe("DENY");
+    expect(headers["Cross-Origin-Opener-Policy"]).toBe("same-origin");
+    expect(headers["Content-Security-Policy"]).toContain("frame-ancestors 'none'");
   });
 });
 
