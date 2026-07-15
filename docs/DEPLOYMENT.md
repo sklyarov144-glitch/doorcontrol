@@ -36,6 +36,10 @@ deployment URL могут быть закрыты Deployment Protection. HTML с
 `gross-release`, и workflow сверяет его с `RELEASE_SHA`, поэтому публичный alias
 не может незаметно отдать предыдущую версию. На обновление alias предусмотрены
 ограниченные повторные попытки; внешние редиректы, включая Vercel SSO, отклоняются.
+Staging использует отдельный Vercel project и публикуется в Production target
+этого staging-проекта (`vercel --prod`); только так его стабильный публичный alias
+атомарно переключается на проверяемый release. Настоящий production использует
+другой Vercel project и другой GitHub Environment.
 
 Пока secrets среды или четыре role-smoke аккаунта не настроены, staging workflow
 завершается ошибкой и не выдаёт отсутствие деплоя за успешный release. После

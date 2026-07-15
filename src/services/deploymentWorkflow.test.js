@@ -33,6 +33,9 @@ describe("staging deployment workflow", () => {
     expect(stagingWorkflow).toContain('SMOKE_URL="$APP_PUBLIC_URL"');
     expect(stagingWorkflow).toContain('SMOKE_EXPECT_RELEASE="$RELEASE_SHA"');
     expect(stagingWorkflow).not.toContain('SMOKE_URL="$DEPLOY_URL"');
+    expect(stagingWorkflow).toContain("vercel pull --yes --environment=production");
+    expect(stagingWorkflow).toContain("vercel build --prod");
+    expect(stagingWorkflow).toContain("vercel deploy --prebuilt --prod");
   });
 });
 
