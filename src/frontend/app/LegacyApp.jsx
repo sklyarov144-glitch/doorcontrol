@@ -73,6 +73,7 @@ import FinancePage from "../pages/FinancePage";
 import RemoteDocumentsPage from "../pages/RemoteDocumentsPage";
 import RemoteExecutiveDashboard from "../pages/RemoteExecutiveDashboard";
 import RemoteTnIssuesPage from "../pages/RemoteTnIssuesPage";
+import RemoteProblemCenterPage from "../pages/RemoteProblemCenterPage";
 import { RemoteBrigadePlanPage, RemoteManpowerPage } from "../pages/RemoteWorkforcePage";
 import AuditLogPage from "../pages/AuditLogPage";
 import { AuthProvider } from "../contexts/AuthContext";
@@ -1513,7 +1514,9 @@ export function App() {
           {screen === "custody_acts" && <CustodyActsPage objects={visibleObjects} user={user} users={users} onOpen={openProblem} onUpdateAct={updateCustodyAct} />}
           {screen === "tn_issues" && (isRemoteAuth ? <RemoteTnIssuesPage objects={visibleObjects} users={users} onOpen={openProblem} onResolve={(doorId) => updateDoor(doorId, { issue: "устранено", tnIssues: "Нет" })} /> : <TnIssuesPage objects={visibleObjects} user={user} users={users} onOpen={openProblem} />)}
           {screen === "today_tasks" && <TodayTasksPage objects={visibleObjects} user={user} users={users} onOpen={openProblem} />}
-          {screen === "problem_center" && <ProblemCenterPage objects={visibleObjects} user={user} users={users} onOpen={openProblem} onCreateTask={openTaskModal} />}
+          {screen === "problem_center" && (isRemoteAuth
+            ? <RemoteProblemCenterPage objects={visibleObjects} user={user} users={users} onOpen={openProblem} onCreateTask={openTaskModal} />
+            : <ProblemCenterPage objects={visibleObjects} user={user} users={users} onOpen={openProblem} onCreateTask={openTaskModal} />)}
           {screen === "reports" && <ReportsPage objects={visibleObjects} />}
           {screen === "finance" && <FinancePage objects={visibleObjects} user={user} />}
           {screen === "audit" && ["creator", "company_head", "construction_director"].includes(user.role) && <AuditLogPage objects={visibleObjects} users={users} />}
