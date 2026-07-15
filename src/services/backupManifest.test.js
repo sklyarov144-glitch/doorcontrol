@@ -29,6 +29,7 @@ describe("backup manifest", () => {
         path: "company-1/object-1/act.pdf",
         bytes: content.length,
         sha256: createHash("sha256").update(content).digest("hex"),
+        contentType: "application/pdf",
       }],
     }));
 

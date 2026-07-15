@@ -33,7 +33,7 @@ for (const entry of manifest.entries) {
   if (!target.startsWith(`${root}${sep}`)) throw new Error(`Unsafe storage manifest path: ${entry.bucket}/${entry.path}`);
   const content = await readFile(target);
   const { error } = await client.storage.from(entry.bucket).upload(entry.path, content, {
-    contentType: "application/octet-stream",
+    contentType: entry.contentType || "application/octet-stream",
     upsert: true,
   });
   if (error) throw error;

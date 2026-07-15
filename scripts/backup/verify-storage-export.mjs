@@ -17,6 +17,9 @@ const seen = new Set();
 let bytes = 0;
 for (const entry of manifest.entries) {
   const key = `${entry.bucket}/${entry.path}`;
+  if (entry.contentType && typeof entry.contentType !== "string") {
+    throw new Error(`Invalid storage content type: ${key}`);
+  }
   if (seen.has(key)) throw new Error(`Duplicate storage manifest entry: ${key}`);
   seen.add(key);
   const target = resolve(root, entry.bucket, ...entry.path.split("/"));

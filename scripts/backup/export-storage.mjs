@@ -68,6 +68,7 @@ for (const bucket of buckets) {
         path: objectPath,
         bytes: content.length,
         sha256: createHash("sha256").update(content).digest("hex"),
+        contentType: item.metadata?.mimetype ?? "application/octet-stream",
       });
     }
   }
