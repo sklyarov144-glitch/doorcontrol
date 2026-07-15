@@ -78,6 +78,13 @@ import AuditLogPage from "../pages/AuditLogPage";
 import { AuthProvider } from "../contexts/AuthContext";
 import { permissionsFor } from "../domain/permissions";
 import { applyDoorWorkflow } from "../domain/doorWorkflow";
+import {
+  allObjectDoors as getAllDoors,
+  buildingReadiness as getBuildingReadiness,
+  objectMetrics as getMetrics,
+  visibleObjectsForUser as getVisibleObjectsForUser,
+  visibleUsersForManager as getVisibleUsersForManager,
+} from "../domain/objectAccess";
 import { buildAppPath, parseAppRoute } from "./routes";
 import "../styles.css";
 
@@ -546,71 +553,6 @@ function canAssignRole(managerRole, targetRole) {
   if (managerRole === "company_head") return ["company_head", "construction_director", "itr"].includes(targetRole);
   if (managerRole === "construction_director") return targetRole === "itr";
   return false;
-}
-
-function getVisibleUsersForManager(currentUser, users, objects) {
-  if (["creator", "company_head"].includes(currentUser.role)) return users;
-  if (currentUser.role === "construction_director") {
-    const ownObjectIds = new Set(objects.filter((object) => [object.responsibleDirectorId, object.responsibleId].includes(currentUser.id) || currentUser.assignedObjectIds?.includes(object.id)).map((object) => object.id));
-    return users.filter((user) => user.id === currentUser.id || user.role === "itr" && user.assignedObjectIds?.some((id) => ownObjectIds.has(id)));
-  }
-  return users.filter((user) => user.id === currentUser.id);
-}
-
-function getVisibleObjectsForUser(user, objects) {
-  if (!user || ["creator", "company_head"].includes(user.role)) return objects;
-  if (user.role === "construction_director") {
-    return objects.filter((object) => [object.responsibleDirectorId, object.responsibleId].includes(user.id) || user.assignedObjectIds?.includes(object.id));
-  }
-  if (user.role === "itr") {
-    return objects
-      .map((object) => ({
-        ...object,
-        buildings: object.buildings.filter((building) =>
-          user.assignedObjectIds?.includes(object.id) ||
-          user.assignedBuildingIds?.includes(building.id) ||
-          object.responsibleItrIds?.includes(user.id) ||
-          building.responsibleItrId === user.id
-        ),
-      }))
-      .filter((object) => user.assignedObjectIds?.includes(object.id) || object.buildings.length > 0);
-  }
-  return objects;
-}
-
-function getAllDoors(object) {
-  return object.buildings.flatMap((building) =>
-    building.floors.flatMap((floor) => floor.doors)
-  );
-}
-
-function getMetrics(object) {
-  const doors = getAllDoors(object);
-  const ready = doors.filter((door) =>
-    ["смонтирована", "принято технадзором", "передано по акту"].includes(
-      door.doorStatus
-    )
-  ).length;
-
-  return {
-    readiness: doors.length ? Math.round((ready / doors.length) * 100) : 0,
-    issues: doors.filter((door) => door.issue === "есть замечание").length,
-    openingsOnCorrection: doors.filter((door) =>
-      ["требует корректировки", "передан на исправление"].includes(
-        door.openingStatus
-      )
-    ).length,
-  };
-}
-
-function getBuildingReadiness(building) {
-  const doors = building.floors.flatMap((floor) => floor.doors);
-  const ready = doors.filter((door) =>
-    ["смонтирована", "принято технадзором", "передано по акту"].includes(
-      door.doorStatus
-    )
-  ).length;
-  return doors.length ? Math.round((ready / doors.length) * 100) : 0;
 }
 
 function matrixPatchFromDoor(values) {
