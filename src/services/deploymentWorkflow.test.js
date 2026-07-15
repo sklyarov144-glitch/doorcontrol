@@ -42,5 +42,7 @@ describe("production deployment workflow", () => {
     expect(productionWorkflow).toContain('SMOKE_URL="$APP_PUBLIC_URL"');
     expect(productionWorkflow).toContain("node scripts/create-release-evidence.mjs");
     expect(productionWorkflow).toContain("production-release-${{ env.RELEASE_SHA }}");
+    expect(productionWorkflow).toContain("Smoke test four authenticated production roles");
+    expect(productionWorkflow).toContain("Load smoke authenticated production ITR domain");
   });
 });

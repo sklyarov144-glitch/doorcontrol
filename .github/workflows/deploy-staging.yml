@@ -83,6 +83,9 @@ jobs:
       - name: Smoke test
         run: SMOKE_URL="$DEPLOY_URL" SMOKE_REQUIRE_SECURITY_HEADERS=true npm run smoke
       - name: Check auth smoke configuration
+        env:
+          VITE_SUPABASE_URL: ${{ secrets.VITE_SUPABASE_URL }}
+          VITE_SUPABASE_ANON_KEY: ${{ secrets.VITE_SUPABASE_ANON_KEY }}
         run: |
           required=(AUTH_SMOKE_SUPABASE_URL AUTH_SMOKE_SUPABASE_ANON_KEY AUTH_SMOKE_CREATOR_EMAIL AUTH_SMOKE_CREATOR_PASSWORD AUTH_SMOKE_COMPANY_HEAD_EMAIL AUTH_SMOKE_COMPANY_HEAD_PASSWORD AUTH_SMOKE_CONSTRUCTION_DIRECTOR_EMAIL AUTH_SMOKE_CONSTRUCTION_DIRECTOR_PASSWORD AUTH_SMOKE_ITR_EMAIL AUTH_SMOKE_ITR_PASSWORD)
           for name in "${required[@]}"; do
@@ -91,6 +94,8 @@ jobs:
               exit 1
             fi
           done
+          [[ "$AUTH_SMOKE_SUPABASE_URL" = "$VITE_SUPABASE_URL" ]] || { echo "::error::Auth smoke URL does not match deployed Supabase project."; exit 1; }
+          [[ "$AUTH_SMOKE_SUPABASE_ANON_KEY" = "$VITE_SUPABASE_ANON_KEY" ]] || { echo "::error::Auth smoke anon key does not match deployed Supabase project."; exit 1; }
       - name: Smoke test four authenticated roles
         run: npm run auth:smoke
       - name: Load smoke authenticated ITR domain

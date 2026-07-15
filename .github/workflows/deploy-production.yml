@@ -32,6 +32,16 @@ jobs:
       APP_PUBLIC_URL: ${{ vars.APP_PUBLIC_URL }}
       VERCEL_ORG_ID: ${{ secrets.VERCEL_ORG_ID }}
       VERCEL_PROJECT_ID: ${{ secrets.VERCEL_PROJECT_ID }}
+      AUTH_SMOKE_SUPABASE_URL: ${{ secrets.AUTH_SMOKE_SUPABASE_URL }}
+      AUTH_SMOKE_SUPABASE_ANON_KEY: ${{ secrets.AUTH_SMOKE_SUPABASE_ANON_KEY }}
+      AUTH_SMOKE_CREATOR_EMAIL: ${{ secrets.AUTH_SMOKE_CREATOR_EMAIL }}
+      AUTH_SMOKE_CREATOR_PASSWORD: ${{ secrets.AUTH_SMOKE_CREATOR_PASSWORD }}
+      AUTH_SMOKE_COMPANY_HEAD_EMAIL: ${{ secrets.AUTH_SMOKE_COMPANY_HEAD_EMAIL }}
+      AUTH_SMOKE_COMPANY_HEAD_PASSWORD: ${{ secrets.AUTH_SMOKE_COMPANY_HEAD_PASSWORD }}
+      AUTH_SMOKE_CONSTRUCTION_DIRECTOR_EMAIL: ${{ secrets.AUTH_SMOKE_CONSTRUCTION_DIRECTOR_EMAIL }}
+      AUTH_SMOKE_CONSTRUCTION_DIRECTOR_PASSWORD: ${{ secrets.AUTH_SMOKE_CONSTRUCTION_DIRECTOR_PASSWORD }}
+      AUTH_SMOKE_ITR_EMAIL: ${{ secrets.AUTH_SMOKE_ITR_EMAIL }}
+      AUTH_SMOKE_ITR_PASSWORD: ${{ secrets.AUTH_SMOKE_ITR_PASSWORD }}
     steps:
       - uses: actions/checkout@v7
         with:
@@ -68,6 +78,10 @@ jobs:
           [[ -z "$VITE_SUPABASE_URL" ]] && missing+=(VITE_SUPABASE_URL)
           [[ -z "$VITE_SUPABASE_ANON_KEY" ]] && missing+=(VITE_SUPABASE_ANON_KEY)
           [[ -z "$VITE_SENTRY_DSN" ]] && missing+=(VITE_SENTRY_DSN)
+          required_auth=(AUTH_SMOKE_SUPABASE_URL AUTH_SMOKE_SUPABASE_ANON_KEY AUTH_SMOKE_CREATOR_EMAIL AUTH_SMOKE_CREATOR_PASSWORD AUTH_SMOKE_COMPANY_HEAD_EMAIL AUTH_SMOKE_COMPANY_HEAD_PASSWORD AUTH_SMOKE_CONSTRUCTION_DIRECTOR_EMAIL AUTH_SMOKE_CONSTRUCTION_DIRECTOR_PASSWORD AUTH_SMOKE_ITR_EMAIL AUTH_SMOKE_ITR_PASSWORD)
+          for name in "${required_auth[@]}"; do [[ -z "${!name}" ]] && missing+=("$name"); done
+          [[ "$AUTH_SMOKE_SUPABASE_URL" != "$VITE_SUPABASE_URL" ]] && missing+=(AUTH_SMOKE_SUPABASE_URL_MISMATCH)
+          [[ "$AUTH_SMOKE_SUPABASE_ANON_KEY" != "$VITE_SUPABASE_ANON_KEY" ]] && missing+=(AUTH_SMOKE_SUPABASE_ANON_KEY_MISMATCH)
           if (( ${#missing[@]} )); then
             echo "::error::Production deployment is not configured. Missing secrets/variables: ${missing[*]}"
             exit 1
@@ -109,6 +123,10 @@ jobs:
         run: SMOKE_URL="$DEPLOY_URL" SMOKE_REQUIRE_SECURITY_HEADERS=true npm run smoke
       - name: Smoke test canonical production domain
         run: SMOKE_URL="$APP_PUBLIC_URL" SMOKE_REQUIRE_SECURITY_HEADERS=true npm run smoke
+      - name: Smoke test four authenticated production roles
+        run: npm run auth:smoke
+      - name: Load smoke authenticated production ITR domain
+        run: npm run load:domain
       - name: Create release evidence
         run: node scripts/create-release-evidence.mjs release-evidence.json
       - name: Upload release evidence

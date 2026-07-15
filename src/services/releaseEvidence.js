@@ -30,6 +30,8 @@ export function createReleaseEvidence(input) {
       productionBundle: "passed",
       deploymentUrlSmoke: "passed",
       canonicalUrlSmoke: "passed",
+      fourRoleAuthSmoke: "passed",
+      authenticatedDomainLoad: "passed",
     },
   };
 }

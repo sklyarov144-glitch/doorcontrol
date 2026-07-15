@@ -38,14 +38,15 @@ GitHub Environment variable (не secret):
 - `APP_ALLOWED_ORIGINS` — точный список frontend origins через запятую, например `https://app.gross.ru,https://gross-staging.vercel.app`. Production deployment останавливается, если значение не задано.
 - `APP_PUBLIC_URL` — канонический HTTPS origin среды без пути и завершающего `/`.
 
-Для автоматической проверки ролей в staging задаются отдельные тестовые аккаунты:
+Для автоматической проверки ролей в staging и production задаются отдельные тестовые аккаунты соответствующей среды:
 
 - `AUTH_SMOKE_SUPABASE_URL`, `AUTH_SMOKE_SUPABASE_ANON_KEY`;
 - пары `AUTH_SMOKE_<ROLE>_EMAIL` / `AUTH_SMOKE_<ROLE>_PASSWORD` для
   `CREATOR`, `COMPANY_HEAD`, `CONSTRUCTION_DIRECTOR`, `ITR`.
 
-Это только staging-пользователи без production-данных. Если набор неполный,
-workflow явно отмечает Auth smoke пропущенным и не выдаёт его за успешную проверку.
+Это технические пользователи без персональных данных. Production-аккаунты должны
+быть назначены только на отдельный контрольный объект. Если набор неполный,
+workflow завершается ошибкой и не выдаёт отсутствие Auth smoke за успешную проверку.
 
 Только для `production` backup:
 
@@ -81,8 +82,8 @@ npm run deployment:configure -- staging
 
 Если preflight успешен, повторите с `--apply`. Команда передаёт secrets через
 stdin в GitHub CLI и не печатает их. Для production она дополнительно требует
-Sentry и полный набор encrypted backup/Storage secrets; для staging — credentials
-четырёх role-smoke аккаунтов. Staging и production настраиваются отдельно.
+Sentry и полный набор encrypted backup/Storage secrets. Credentials четырёх
+role-smoke аккаунтов обязательны для обеих сред. Staging и production настраиваются отдельно.
 
 Deploy workflow также запускает `npm run verify:env` и принудительно собирает
 frontend с `VITE_DATA_PROVIDER=supabase`. Поэтому production-релиз не сможет
