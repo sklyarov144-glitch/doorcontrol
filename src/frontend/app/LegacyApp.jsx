@@ -1,7 +1,7 @@
 import React, { useMemo, useState } from "react";
 import { useLocation, useNavigate } from "react-router-dom";
-import matveevskyParkImage from "../assets/matveevsky-park.png";
-import loginDoorHero from "../assets/login-door-hero.png";
+import matveevskyParkImage from "../assets/matveevsky-park.jpg";
+import loginDoorHero from "../assets/login-door-hero.jpg";
 import {
   addTask,
   addTaskComment,
