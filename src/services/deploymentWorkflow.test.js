@@ -39,5 +39,8 @@ describe("production deployment workflow", () => {
     expect(productionWorkflow).toContain("node scripts/verify-release-provenance.mjs");
     expect(productionWorkflow).toContain('git checkout --detach "$RELEASE_SHA"');
     expect(productionWorkflow).toContain("VITE_APP_RELEASE: ${{ env.RELEASE_SHA }}");
+    expect(productionWorkflow).toContain('SMOKE_URL="$APP_PUBLIC_URL"');
+    expect(productionWorkflow).toContain("node scripts/create-release-evidence.mjs");
+    expect(productionWorkflow).toContain("production-release-${{ env.RELEASE_SHA }}");
   });
 });

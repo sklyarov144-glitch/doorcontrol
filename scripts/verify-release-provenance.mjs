@@ -1,4 +1,5 @@
 import { findVerifiedStagingRun } from "../src/services/releaseProvenance.js";
+import fs from "node:fs";
 
 function required(name) {
   const value = process.env[name]?.trim();
@@ -24,4 +25,7 @@ const response = await fetch(endpoint, {
 });
 if (!response.ok) throw new Error(`GitHub workflow lookup failed with HTTP ${response.status}`);
 const verified = findVerifiedStagingRun(await response.json(), releaseSha);
+if (process.env.GITHUB_ENV) {
+  fs.appendFileSync(process.env.GITHUB_ENV, `STAGING_RUN_ID=${verified.id}\nSTAGING_RUN_URL=${verified.url}\n`);
+}
 console.log(`Verified staging release: ${verified.sha} (${verified.url}).`);

@@ -107,3 +107,14 @@ jobs:
           echo "DEPLOY_URL=$DEPLOY_URL" >> "$GITHUB_ENV"
       - name: Smoke test
         run: SMOKE_URL="$DEPLOY_URL" SMOKE_REQUIRE_SECURITY_HEADERS=true npm run smoke
+      - name: Smoke test canonical production domain
+        run: SMOKE_URL="$APP_PUBLIC_URL" SMOKE_REQUIRE_SECURITY_HEADERS=true npm run smoke
+      - name: Create release evidence
+        run: node scripts/create-release-evidence.mjs release-evidence.json
+      - name: Upload release evidence
+        uses: actions/upload-artifact@v4
+        with:
+          name: production-release-${{ env.RELEASE_SHA }}
+          path: release-evidence.json
+          retention-days: 90
+          if-no-files-found: error

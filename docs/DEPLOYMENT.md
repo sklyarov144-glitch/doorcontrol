@@ -43,7 +43,7 @@ Push в `main` сначала запускает CI. Staging workflow старт
 3. Взять полный 40-символьный SHA из успешного `Deploy staging`, запустить `Deploy production`, указать этот SHA и ввести `DEPLOY`.
 4. Approver подтверждает GitHub environment.
 5. После smoke-test вручную проверить вход и основной ИТР-маршрут.
-6. Зафиксировать SHA, время выпуска и ответственного в журнале релизов. Workflow отклонит SHA, для которого нет успешного staging deployment из ветки `main`.
+6. Скачать и сохранить artifact `production-release-<SHA>`: он содержит SHA, staging run, Supabase project, deployment URL, канонический домен, время, исполнителя и результаты обязательных smoke-проверок. Workflow отклонит SHA, для которого нет успешного staging deployment из ветки `main`.
 
 SQL migrations должны быть backward-compatible: сначала расширение схемы, затем код, удаление старых колонок — отдельным будущим релизом после проверки использования.
 
