@@ -26,6 +26,13 @@ Sentry включается только при наличии `VITE_SENTRY_DSN`
 отправляется; request headers/cookies удаляются, пользователь представлен только
 `id` и `role`.
 
+## Production bundle
+
+После `vercel build`, но до публикации, workflow запускает `verify:bundle`.
+Проверка подтверждает наличие настроенного Supabase origin и останавливает релиз
+при обнаружении legacy demo/PII-маркеров. Реальные ФИО, телефоны и demo-пароли
+не должны храниться в исходном mock-наборе или попадать в frontend bundle.
+
 ## HTTP
 
 Vercel добавляет CSP, запрет iframe, `nosniff`, строгий referrer policy и запрет

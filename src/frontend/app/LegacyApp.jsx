@@ -429,27 +429,30 @@ function saveObjects(objects) {
 }
 
 const mockUsers = [
-  { id: "creator-1", name: "Создатель системы", role: "creator", position: "Создатель системы", email: "creator@gross.ru", phone: "+7 900 100-00-01", avatarUrl: "", status: "active", assignedObjectIds: [], assignedBuildingIds: [], password: "123456" },
-  { id: "head-1", name: "Руководитель компании", role: "company_head", position: "Руководитель компании", email: "head@gross.ru", phone: "+7 900 100-00-02", avatarUrl: "", status: "active", assignedObjectIds: [], assignedBuildingIds: [], password: "123456" },
-  { id: "director-1", name: "Директор строительства", role: "construction_director", position: "Директор по строительству", email: "director@gross.ru", phone: "+7 900 100-00-03", avatarUrl: "", status: "active", assignedObjectIds: ["matveevsky-park", "prokshino", "salaryevo-park"], assignedBuildingIds: [], password: "123456" },
-  { id: "itr-1", name: "ИТР Матвеевский парк", role: "itr", position: "Инженер ИТР", email: "itr.matveevsky@gross.ru", phone: "+7 900 100-00-04", avatarUrl: "", status: "active", assignedObjectIds: ["matveevsky-park"], assignedBuildingIds: ["matveevsky-park-building-4-1", "matveevsky-park-building-4-2"], password: "123456" },
-  { id: "itr-2", name: "ИТР Прокшино", role: "itr", position: "Инженер ИТР", email: "itr.prokshino@gross.ru", phone: "+7 900 100-00-05", avatarUrl: "", status: "active", assignedObjectIds: ["prokshino"], assignedBuildingIds: ["prokshino-building-6-1", "prokshino-building-6-2"], password: "123456" },
-  { id: "user-garanin-sergey", name: "Гаранин Сергей", role: "construction_director", position: "Заместитель директора по строительству", email: "s.garanin@gk-gross.ru", phone: "+7(985)833 35 14", avatarUrl: "", status: "active", assignedObjectIds: ["matveevsky-park", "prokshino"], assignedBuildingIds: [], password: "123456" },
-  { id: "user-tkachenko-artemy", name: "Ткаченко Артемий", role: "construction_director", position: "Директор по строительству", email: "a.tkachenko@gk-gross.ru", phone: "+7 903 042 01 42", avatarUrl: "", status: "active", assignedObjectIds: ["matveevsky-park", "salaryevo-park"], assignedBuildingIds: [], password: "123456" },
-  { id: "user-meshkov-alexander", name: "Мешков Александр", role: "construction_director", position: "Руководитель проектов", email: "a.meshkov@gk-gross.ru", phone: "+7 906 968-99-03", avatarUrl: "", status: "active", assignedObjectIds: ["prokshino"], assignedBuildingIds: [], password: "123456" },
-  { id: "user-kostenko-sergey", name: "Костенко Сергей", role: "itr", position: "Начальник участка", email: "kostenko.sergey@gk-gross.local", phone: "+7 (901) 340-33-76", avatarUrl: "", status: "active", assignedObjectIds: ["matveevsky-park"], assignedBuildingIds: ["matveevsky-park-building-4-1"], password: "123456" },
-  { id: "user-popov-sergey", name: "Попов Сергей", role: "itr", position: "ИТР", email: "gk-gross@yandex.ru", phone: "+7(915) 584 10 97", avatarUrl: "", status: "active", assignedObjectIds: ["matveevsky-park"], assignedBuildingIds: ["matveevsky-park-building-4-2"], password: "123456" },
-  { id: "user-eremin-alexander", name: "Еремин Александр", role: "itr", position: "ИТР", email: "eremin@gk-gross.ru", phone: "+7(905) 703 65 28", avatarUrl: "", status: "active", assignedObjectIds: ["prokshino"], assignedBuildingIds: ["prokshino-building-6-1"], password: "123456" },
-  { id: "user-kuznetsov-alexander", name: "Кузнецов Александр", role: "itr", position: "ИТР", email: "a.kuznetsov@gk-gross.ru", phone: "+7 926 278-03-03", avatarUrl: "", status: "active", assignedObjectIds: ["prokshino"], assignedBuildingIds: ["prokshino-building-6-2"], password: "123456" },
-  { id: "user-sapozhnikov-alexander", name: "Сапожников Александр", role: "itr", position: "ИТР", email: "a.sapozhnikov@gk-gross.ru", phone: "+7 915 342 34 84", avatarUrl: "", status: "active", assignedObjectIds: ["salaryevo-park"], assignedBuildingIds: ["salaryevo-building-1"], password: "123456" },
-  { id: "user-tishin-ivan", name: "Тишин Иван", role: "itr", position: "ИТР", email: "i.tishin@gk-gross.ru", phone: "+7 916 828 13 59", avatarUrl: "", status: "active", assignedObjectIds: ["matveevsky-park"], assignedBuildingIds: ["matveevsky-park-building-4-3"], password: "123456" },
-  { id: "user-sklyarov-ivan", name: "Скляров Иван", role: "itr", position: "ИТР", email: "i.sklyarov@gk-gross.ru", phone: "+7 917 175 43 16", avatarUrl: "", status: "active", assignedObjectIds: ["matveevsky-park"], assignedBuildingIds: [], password: "123456" },
-  { id: "user-yampolsky-dmitry", name: "Ямпольский Дмитрий", role: "itr", position: "ИТР", email: "d.yampolsky@gk-gross.ru", phone: "+7 999 885 99 91", avatarUrl: "", status: "active", assignedObjectIds: ["prokshino"], assignedBuildingIds: [], password: "123456" },
-  { id: "user-razmakhin-gennady", name: "Размахнин Геннадий", role: "itr", position: "ИТР", email: "g.razmakhin@gk-gross.ru", phone: "+7 924 474 64 17", avatarUrl: "", status: "active", assignedObjectIds: ["salaryevo-park"], assignedBuildingIds: [], password: "123456" },
-  { id: "user-sharaev-vladimir", name: "Шараев Владимир", role: "construction_director", position: "Руководитель строительства", email: "v.sharaev@gk-gross.ru", phone: "+7 937 196-13-31", avatarUrl: "", status: "active", assignedObjectIds: ["matveevsky-park"], assignedBuildingIds: [], password: "123456" },
-  { id: "user-zhidkov-nikita", name: "Жидков Никита", role: "itr", position: "ИТР", email: "n.zhidkov@gk-gross.ru", phone: "+7 910 984 61 29", avatarUrl: "", status: "active", assignedObjectIds: ["matveevsky-park"], assignedBuildingIds: [], password: "123456" },
-  { id: "user-fattykhov-renat", name: "Фаттыхов Ренат", role: "itr", position: "ИТР", email: "r.fattykhov@gk-gross.ru", phone: "+7 996 402-84-77", avatarUrl: "", status: "active", assignedObjectIds: ["prokshino"], assignedBuildingIds: [], password: "123456" },
+  { id: "creator-1", name: "Демо: создатель", role: "creator", position: "Создатель системы", email: "creator@example.test", phone: "", avatarUrl: "", status: "active", assignedObjectIds: [], assignedBuildingIds: [], password: "123456" },
+  { id: "head-1", name: "Демо: руководитель", role: "company_head", position: "Руководитель компании", email: "head@example.test", phone: "", avatarUrl: "", status: "active", assignedObjectIds: [], assignedBuildingIds: [], password: "123456" },
+  { id: "director-1", name: "Демо: директор", role: "construction_director", position: "Директор по строительству", email: "director@example.test", phone: "", avatarUrl: "", status: "active", assignedObjectIds: ["matveevsky-park", "prokshino", "salaryevo-park"], assignedBuildingIds: [], password: "123456" },
+  { id: "itr-1", name: "Демо: ИТР", role: "itr", position: "Инженер ИТР", email: "itr@example.test", phone: "", avatarUrl: "", status: "active", assignedObjectIds: ["matveevsky-park"], assignedBuildingIds: ["matveevsky-park-building-4-1", "matveevsky-park-building-4-2"], password: "123456" },
 ];
+
+const retiredDemoUserIds = new Set([
+  "itr-2",
+  "user-garanin-sergey",
+  "user-tkachenko-artemy",
+  "user-meshkov-alexander",
+  "user-kostenko-sergey",
+  "user-popov-sergey",
+  "user-eremin-alexander",
+  "user-kuznetsov-alexander",
+  "user-sapozhnikov-alexander",
+  "user-tishin-ivan",
+  "user-sklyarov-ivan",
+  "user-yampolsky-dmitry",
+  "user-razmakhin-gennady",
+  "user-sharaev-vladimir",
+  "user-zhidkov-nikita",
+  "user-fattykhov-renat",
+]);
 
 const roleLabels = {
   creator: "Создатель сайта",
@@ -494,9 +497,12 @@ function loadUsers() {
     const saved = dataProvider.users.getAll();
     const activateUser = (user) => normalizeUser({ ...user, status: "active" });
     const savedById = new Map(saved.map((user) => [user.id, activateUser(user)]));
-    const merged = mockUsers.map((user) => activateUser({ ...user, ...(savedById.get(user.id) ?? {}) }));
+    const merged = mockUsers.map((user) => activateUser({ ...(savedById.get(user.id) ?? {}), ...user }));
     const mockIds = new Set(mockUsers.map((user) => user.id));
-    return [...merged, ...saved.map(activateUser).filter((user) => !mockIds.has(user.id))];
+    return [
+      ...merged,
+      ...saved.map(activateUser).filter((user) => !mockIds.has(user.id) && !retiredDemoUserIds.has(user.id)),
+    ];
   } catch {
     return mockUsers.map((user) => normalizeUser({ ...user, status: "active" }));
   }
@@ -1017,7 +1023,7 @@ export function App() {
     refreshNotifications();
   };
 
-  const quickAcceptTn = (notification) => {
+  const quickAcceptTn = async (notification) => {
     if (!notification.doorId) return;
     const currentDoor = objects
       .flatMap((object) => object.buildings)
@@ -1025,15 +1031,15 @@ export function App() {
       .flatMap((floor) => floor.doors)
       .find((door) => door.id === notification.doorId);
     if (!currentDoor) return;
-    updateDoor(notification.doorId, {
+    await updateDoor(notification.doorId, {
       doorStatus: "принято технадзором",
       openingStatus: currentDoor.openingStatus,
       issue: currentDoor.issue,
       storageAct: currentDoor.storageAct,
       tnAcceptedAt: new Date().toISOString().slice(0, 10),
     });
-    completeAutomaticTask(notification.taskId);
-    readNotification(notification.id);
+    await completeAutomaticTask(notification.taskId);
+    await readNotification(notification.id);
   };
 
   const updateDoor = (doorId, values) => {
@@ -1124,14 +1130,17 @@ export function App() {
         .catch((error) => {
           console.error("Unable to save door", error);
           setPersistenceError("Изменения не сохранены. Проверьте соединение и повторите сохранение.");
+          throw error;
         });
     } else {
       saveObjects(nextObjects);
     }
-    const nextMatrix = normalizeDoorMatrix(doorMatrix.map((row) => row.doorId !== doorId ? row : { ...row, ...matrixPatchFromDoor(effectiveValues) }));
-    setDoorMatrix(nextMatrix);
-    saveDoorMatrix(nextMatrix);
-    if (!isRemoteAuth) syncAutomation(nextObjects);
+    if (!isRemoteAuth) {
+      const nextMatrix = normalizeDoorMatrix(doorMatrix.map((row) => row.doorId !== doorId ? row : { ...row, ...matrixPatchFromDoor(effectiveValues) }));
+      setDoorMatrix(nextMatrix);
+      saveDoorMatrix(nextMatrix);
+      syncAutomation(nextObjects);
+    }
     return persistencePromise;
   };
 
@@ -1237,7 +1246,7 @@ export function App() {
     const nextUrl = values.custodyActUrl ?? currentDoor.custodyActUrl ?? "";
     const uploadedAt = nextUrl ? new Date().toISOString() : currentDoor.custodyActUploadedAt;
     const closedAt = nextStatus === "передано по акту" ? new Date().toISOString() : currentDoor.custodyActClosedAt;
-    updateDoor(doorId, {
+    await updateDoor(doorId, {
       doorStatus: currentDoor.doorStatus,
       openingStatus: currentDoor.openingStatus,
       issue: currentDoor.issue,
@@ -1681,7 +1690,7 @@ export function App() {
 }
 
 function LoginPage({ users, onLogin, onResetPassword, isDemo = true }) {
-  const [email, setEmail] = useState("creator@gross.ru");
+  const [email, setEmail] = useState(isDemo ? "creator@example.test" : "");
   const [password, setPassword] = useState("");
   const [error, setError] = useState("");
   const [submitting, setSubmitting] = useState(false);
@@ -1720,7 +1729,7 @@ function LoginPage({ users, onLogin, onResetPassword, isDemo = true }) {
               autoComplete="username"
               value={email}
               onChange={(event) => setEmail(event.target.value)}
-              placeholder="creator@gross.ru"
+              placeholder="name@company.ru"
             />
           </label>
           {isDemo && <label>
@@ -1736,7 +1745,7 @@ function LoginPage({ users, onLogin, onResetPassword, isDemo = true }) {
               autoComplete="current-password"
               value={password}
               onChange={(event) => setPassword(event.target.value)}
-              placeholder="123456"
+              placeholder="Введите пароль"
             />
           </label>
           {error && <div className="form-error">{error}</div>}
@@ -2428,6 +2437,8 @@ function DoorDetails({ object, building, floor, door, user, onSave, onBack, onCr
     storageAct: door.storageAct,
   });
   const [saved, setSaved] = useState(false);
+  const [saving, setSaving] = useState(false);
+  const [saveError, setSaveError] = useState("");
   const [actModalOpen, setActModalOpen] = useState(false);
   const [commentModalOpen, setCommentModalOpen] = useState(false);
 
@@ -2439,6 +2450,7 @@ function DoorDetails({ object, building, floor, door, user, onSave, onBack, onCr
       storageAct: door.storageAct,
     });
     setSaved(false);
+    setSaveError("");
   }, [door.id]);
 
   const handleChange = (field, value) => {
@@ -2446,13 +2458,28 @@ function DoorDetails({ object, building, floor, door, user, onSave, onBack, onCr
     setSaved(false);
   };
 
-  const handleSubmit = (event) => {
-    event.preventDefault();
-    onSave(door.id, form);
-    setSaved(true);
+  const persist = async (values) => {
+    setSaving(true);
+    setSaved(false);
+    setSaveError("");
+    try {
+      await onSave(door.id, values);
+      setSaved(true);
+      return true;
+    } catch {
+      setSaveError("Не удалось сохранить изменения. Проверьте соединение и повторите попытку.");
+      return false;
+    } finally {
+      setSaving(false);
+    }
   };
 
-  const saveFastAction = (patch, message) => {
+  const handleSubmit = async (event) => {
+    event.preventDefault();
+    await persist(form);
+  };
+
+  const saveFastAction = async (patch, message) => {
     const nextForm = {
       ...form,
       doorStatus: patch.doorStatus ?? form.doorStatus,
@@ -2461,11 +2488,10 @@ function DoorDetails({ object, building, floor, door, user, onSave, onBack, onCr
       storageAct: patch.storageAct ?? form.storageAct,
     };
     setForm(nextForm);
-    onSave(door.id, { ...nextForm, ...patch, quickHistory: message });
-    setSaved(true);
+    return persist({ ...nextForm, ...patch, quickHistory: message });
   };
 
-  const saveActLink = ({ title, url, comment }) => {
+  const saveActLink = async ({ title, url, comment }) => {
     const link = {
       id: `door-act-${door.id}-${Date.now()}`,
       title: title || "Акт АОХ",
@@ -2474,7 +2500,7 @@ function DoorDetails({ object, building, floor, door, user, onSave, onBack, onCr
       comment,
       createdAt: new Date().toLocaleString("ru-RU"),
     };
-    saveFastAction(
+    const success = await saveFastAction(
       {
         storageAct: "акт загружен",
         custodyActUrl: url,
@@ -2482,12 +2508,11 @@ function DoorDetails({ object, building, floor, door, user, onSave, onBack, onCr
       },
       `Добавлена ссылка на акт АОХ${comment ? `: ${comment}` : ""}`
     );
-    setActModalOpen(false);
+    if (success) setActModalOpen(false);
   };
 
-  const saveComment = (text) => {
-    saveFastAction({}, `Комментарий: ${text}`);
-    setCommentModalOpen(false);
+  const saveComment = async (text) => {
+    if (await saveFastAction({}, `Комментарий: ${text}`)) setCommentModalOpen(false);
   };
 
   return (
@@ -2541,26 +2566,27 @@ function DoorDetails({ object, building, floor, door, user, onSave, onBack, onCr
             <p>Частые операции без переходов и лишних экранов.</p>
           </div>
           <div className="itr-fast-actions">
-            <button type="button" onClick={() => saveFastAction({ doorStatus: "доставлена", ordered: "Да", arrived: "Да" }, "Дверь отмечена как пришедшая")}>Пришло</button>
-            <button type="button" onClick={() => saveFastAction({ lifted: "Да" }, "Дверь поднята на этаж")}>Поднято</button>
-            <button type="button" onClick={() => saveFastAction({ doorStatus: "смонтирована", installed: "Да" }, "Дверь смонтирована")}>Смонтировано</button>
-            <button type="button" onClick={() => saveFastAction({ tnTransferredAt: new Date().toISOString().slice(0, 10) }, "Дверь передана ТН")}>Передать ТН</button>
-            <button type="button" onClick={() => saveFastAction({ doorStatus: "принято технадзором", acceptedTN: "Да" }, "Дверь принята ТН")}>Принято ТН</button>
-            <button type="button" onClick={() => setActModalOpen(true)}>Добавить акт ОХ</button>
-            <button type="button" onClick={() => saveFastAction({ storageAct: "передано по акту", custodyAct: "Да" }, "Дверь передана по акту ОХ")}>Передано по акту</button>
-            <button type="button" onClick={() => saveFastAction({ issue: "есть замечание", tnIssues: "Да" }, "Есть замечание ТН")}>Есть замечание ТН</button>
-            <button type="button" onClick={() => saveFastAction({ issue: "устранено", tnIssues: "Нет" }, "Замечание устранено")}>Устранено</button>
-            <button type="button" onClick={() => setCommentModalOpen(true)}>Добавить комментарий</button>
+            <button type="button" disabled={saving} onClick={() => saveFastAction({ doorStatus: "доставлена", ordered: "Да", arrived: "Да" }, "Дверь отмечена как пришедшая")}>Пришло</button>
+            <button type="button" disabled={saving} onClick={() => saveFastAction({ lifted: "Да" }, "Дверь поднята на этаж")}>Поднято</button>
+            <button type="button" disabled={saving} onClick={() => saveFastAction({ doorStatus: "смонтирована", installed: "Да" }, "Дверь смонтирована")}>Смонтировано</button>
+            <button type="button" disabled={saving} onClick={() => saveFastAction({ tnTransferredAt: new Date().toISOString().slice(0, 10) }, "Дверь передана ТН")}>Передать ТН</button>
+            <button type="button" disabled={saving} onClick={() => saveFastAction({ doorStatus: "принято технадзором", acceptedTN: "Да" }, "Дверь принята ТН")}>Принято ТН</button>
+            <button type="button" disabled={saving} onClick={() => setActModalOpen(true)}>Добавить акт ОХ</button>
+            <button type="button" disabled={saving} onClick={() => saveFastAction({ storageAct: "передано по акту", custodyAct: "Да" }, "Дверь передана по акту ОХ")}>Передано по акту</button>
+            <button type="button" disabled={saving} onClick={() => saveFastAction({ issue: "есть замечание", tnIssues: "Да" }, "Есть замечание ТН")}>Есть замечание ТН</button>
+            <button type="button" disabled={saving} onClick={() => saveFastAction({ issue: "устранено", tnIssues: "Нет" }, "Замечание устранено")}>Устранено</button>
+            <button type="button" disabled={saving} onClick={() => setCommentModalOpen(true)}>Добавить комментарий</button>
           </div>
         </div>
         <div className="form-actions">
           <button className="secondary-button" type="button" onClick={onBack}>
             Назад к плану
           </button>
-          <button className="primary-button" type="submit">
-            Сохранить изменения
+          <button className="primary-button" type="submit" disabled={saving}>
+            {saving ? "Сохраняем..." : "Сохранить изменения"}
           </button>
         </div>
+        {saveError && <div className="form-error" role="alert">{saveError}</div>}
         {saved && <div className="save-notice">Изменения сохранены</div>}
         {door.documentLinks?.length > 0 && (
           <div className="linked-documents">
