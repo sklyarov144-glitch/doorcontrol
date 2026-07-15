@@ -35,6 +35,23 @@ describe("Supabase object tree", () => {
     });
   });
 
+  it("keeps linked door documents in the persisted metadata", () => {
+    expect(toDoorOperationalUpdate({
+      number: "Квартира 1",
+      mark: "Д-1",
+      type: "Квартирная",
+      doorStatus: "смонтирована",
+      openingStatus: "готов",
+      issue: "нет",
+      storageAct: "акт загружен",
+      x: 20,
+      y: 30,
+      documentLinks: [{ id: "document-1", url: "https://disk.example/act" }],
+    }).meta.documentLinks).toEqual([
+      { id: "document-1", url: "https://disk.example/act" },
+    ]);
+  });
+
   it("builds one atomic RPC payload for the door and its TN issue", () => {
     expect(toDoorWorkflowPayload("door-1", {
       number: "Квартира 1",

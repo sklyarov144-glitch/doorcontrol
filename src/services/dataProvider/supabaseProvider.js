@@ -116,6 +116,7 @@ export function toDoorOperationalUpdate(door) {
       history: door.history ?? [],
       swing: door.swing,
       custodyActUrl: door.custodyActUrl ?? "",
+      documentLinks: door.documentLinks ?? [],
     },
   };
 }
@@ -412,6 +413,14 @@ export const supabaseProvider = {
         door_id: doorId,
         ...toDatabase(data),
       }, { onConflict: "door_id" }).select().single());
+    },
+    async saveWorkflow(doorId, door, act, document = null) {
+      return unwrap(await requireSupabase().rpc("save_custody_act_workflow", {
+        p_door_id: doorId,
+        p_door: toDatabase(toDoorOperationalUpdate(door)),
+        p_act: toDatabase(act),
+        p_document: document ? toDatabase(document) : null,
+      }));
     },
   },
   tnIssues: {

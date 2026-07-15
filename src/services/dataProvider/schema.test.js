@@ -94,6 +94,10 @@ const atomicDoorWorkflow = readFileSync(
   resolve("supabase/migrations/202607150024_atomic_door_workflow.sql"),
   "utf8"
 );
+const atomicCustodyActWorkflow = readFileSync(
+  resolve("supabase/migrations/202607150025_atomic_custody_act_workflow.sql"),
+  "utf8"
+);
 
 describe("Supabase schema", () => {
   it("defines the core hierarchy and assignment tables", () => {
@@ -162,6 +166,14 @@ describe("Supabase schema", () => {
     expect(atomicDoorWorkflow).toContain("security invoker");
     expect(atomicDoorWorkflow).toContain("tn_issues_one_active_per_door_idx");
     expect(atomicDoorWorkflow).toContain("grant execute");
+  });
+
+  it("saves the custody act, document and door in one transaction", () => {
+    expect(atomicCustodyActWorkflow).toContain("function public.save_custody_act_workflow");
+    expect(atomicCustodyActWorkflow).toContain("public.update_door_workflow");
+    expect(atomicCustodyActWorkflow).toContain("insert into public.document_items");
+    expect(atomicCustodyActWorkflow).toContain("on conflict (door_id) do update");
+    expect(atomicCustodyActWorkflow).toContain("security invoker");
   });
 
   it("protects every operational table with RLS", () => {

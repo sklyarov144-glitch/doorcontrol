@@ -1184,45 +1184,66 @@ export function App() {
     const nextUrl = values.custodyActUrl ?? currentDoor.custodyActUrl ?? "";
     const uploadedAt = nextUrl ? new Date().toISOString() : currentDoor.custodyActUploadedAt;
     const closedAt = nextStatus === "передано по акту" ? new Date().toISOString() : currentDoor.custodyActClosedAt;
-    await updateDoor(doorId, {
-      doorStatus: currentDoor.doorStatus,
-      openingStatus: currentDoor.openingStatus,
-      issue: currentDoor.issue,
+    const workflowValues = {
+      ...values,
+      doorStatus: values.doorStatus ?? currentDoor.doorStatus,
+      openingStatus: values.openingStatus ?? currentDoor.openingStatus,
+      issue: values.issue ?? currentDoor.issue,
       storageAct: nextStatus,
       custodyActUrl: nextUrl,
       custodyActUploadedAt: uploadedAt,
       custodyActClosedAt: closedAt,
-    });
-    if (!isRemoteAuth) return;
-    try {
-      const existingAct = await dataProvider.custodyActs.getForDoor(doorId);
-      let documentId = values.documentId ?? existingAct?.documentId ?? null;
-      if (nextUrl && nextUrl !== currentDoor.custodyActUrl && !values.documentId) {
-        const document = await dataProvider.documents.create({
-          companyId: user.companyId,
-          objectId: context.object.id,
-          buildingId: context.building.id,
-          floorId: context.floor.id,
-          doorId,
-          title: `Акт ОХ · ${currentDoor.number ?? currentDoor.label ?? currentDoor.mark}`,
-          category: "custody_act",
+      quickHistory: values.quickHistory ?? `Акт ОХ: ${nextStatus}`,
+    };
+    if (!isRemoteAuth) return updateDoor(doorId, workflowValues);
+
+    const link = nextUrl && nextUrl !== currentDoor.custodyActUrl
+      ? {
+          id: `door-act-${doorId}-${Date.now()}`,
+          title: values.actTitle || `Акт ОХ · ${currentDoor.number ?? currentDoor.label ?? currentDoor.mark}`,
           url: nextUrl,
-          comment: "Добавлено из модуля контроля актов ОХ",
-          createdBy: user.id,
-        });
-        documentId = document.id;
-      }
-      await dataProvider.custodyActs.upsertForDoor(doorId, {
+          category: "акт АОХ",
+          comment: values.actComment || "Добавлено из модуля контроля актов ОХ",
+          createdAt: new Date().toISOString(),
+        }
+      : null;
+    const { nextObjects, updatedDoor } = applyDoorWorkflow(objects, doorId, {
+      ...workflowValues,
+      documentLinks: link ? [link, ...(currentDoor.documentLinks ?? [])] : currentDoor.documentLinks,
+    }, user.name);
+    if (!updatedDoor) throw new Error("Door is outside the loaded access scope");
+
+    setPersistenceError("");
+    try {
+      await dataProvider.custodyActs.saveWorkflow(doorId, updatedDoor, {
         status: nextStatus,
-        documentId,
-        uploadedBy: nextUrl ? user.id : null,
+        documentId: values.documentId ?? null,
         uploadedAt: nextUrl ? uploadedAt : null,
         closedAt: nextStatus === "передано по акту" ? closedAt : null,
-      });
+      }, link && !values.documentId ? {
+        title: link.title,
+        url: link.url,
+        comment: link.comment,
+      } : null);
+      setObjects(nextObjects);
+      await syncAutomation(nextObjects);
     } catch (error) {
       console.error("Unable to persist custody act", error);
       setPersistenceError("Акт не сохранён в реестре документов. Проверьте соединение и повторите действие.");
+      throw error;
     }
+  };
+
+  const saveDoorDetails = (doorId, values) => {
+    const currentDoor = objects
+      .flatMap((object) => object.buildings)
+      .flatMap((building) => building.floors)
+      .flatMap((floor) => floor.doors)
+      .find((door) => door.id === doorId);
+    if (currentDoor && (values.custodyActUrl || values.storageAct !== currentDoor.storageAct)) {
+      return updateCustodyAct(doorId, values);
+    }
+    return updateDoor(doorId, values);
   };
 
   const openProblem = (problem) => {
@@ -1593,7 +1614,7 @@ export function App() {
               floor={selectedFloor}
               door={selectedDoor}
               user={user}
-              onSave={updateDoor}
+              onSave={saveDoorDetails}
               onBack={() => setScreen("floor")}
               onCreateTask={openTaskModal}
               canCreateTask={canCreateManualTask}
@@ -2442,6 +2463,8 @@ function DoorDetails({ object, building, floor, door, user, onSave, onBack, onCr
       {
         storageAct: "акт загружен",
         custodyActUrl: url,
+        actTitle: link.title,
+        actComment: comment,
         documentLinks: [link, ...(door.documentLinks ?? [])],
       },
       `Добавлена ссылка на акт АОХ${comment ? `: ${comment}` : ""}`
