@@ -106,3 +106,6 @@ jobs:
       - name: Smoke test four authenticated roles
         if: steps.deployment-config.outputs.enabled == 'true' && steps.auth-smoke-config.outputs.enabled == 'true'
         run: npm run auth:smoke
+      - name: Load smoke authenticated ITR domain
+        if: steps.deployment-config.outputs.enabled == 'true' && steps.auth-smoke-config.outputs.enabled == 'true'
+        run: npm run load:domain

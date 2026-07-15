@@ -72,3 +72,21 @@ describe("public runtime configuration preflight", () => {
     expect(verifyPublicEnvironment({ VITE_SUPABASE_URL: "http://localhost:54321" }).status).not.toBe(0);
   });
 });
+
+describe("authenticated domain load smoke", () => {
+  it("refuses to run without dedicated ITR credentials", () => {
+    const result = spawnSync(globalThis.process.execPath, ["scripts/pilot/domain-load-smoke.mjs"], {
+      cwd: globalThis.process.cwd(),
+      env: {
+        ...globalThis.process.env,
+        AUTH_SMOKE_SUPABASE_URL: "",
+        AUTH_SMOKE_SUPABASE_ANON_KEY: "",
+        AUTH_SMOKE_ITR_EMAIL: "",
+        AUTH_SMOKE_ITR_PASSWORD: "",
+      },
+      encoding: "utf8",
+    });
+    expect(result.status).not.toBe(0);
+    expect(result.stderr).toContain("Authenticated ITR smoke credentials are required");
+  });
+});

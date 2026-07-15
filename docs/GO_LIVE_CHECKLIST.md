@@ -18,7 +18,8 @@
 - [ ] Supabase Cron включён, job `gross-sync-overdue-door-tasks` активен и имеет успешный запуск.
 - [ ] Restore drill выполнен не более 30 дней назад.
 - [x] Restore drill автоматизирован и создаёт проверяемый evidence-артефакт в изолированном окружении.
-- [ ] Последний encrypted logical backup содержит роли, схему и данные и прошёл manifest verification.
+- [ ] Последний encrypted backup содержит роли, схему, данные и приватные Storage-объекты и прошёл обе manifest verification.
+- [ ] Authenticated domain load smoke под ИТР прошёл с p95 не более 2,5 секунд.
 - [ ] Sentry alert и контакт ответственного проверены.
 - [ ] Runbook доступен техническому и бизнес-ответственному.
 - [ ] План отката и окно выпуска согласованы.
