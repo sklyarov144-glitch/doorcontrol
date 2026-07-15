@@ -9,6 +9,7 @@ const required = [
   "scripts/backup/export-storage.mjs", "scripts/backup/verify-storage-export.mjs", "scripts/backup/import-storage.mjs",
   "scripts/backup/create-restore-evidence.mjs", ".github/workflows/backup-production.yml", ".github/workflows/restore-drill.yml",
   "scripts/pilot/domain-load-smoke.mjs",
+  "scripts/pilot/reconcile-import.mjs",
 ];
 const missing = required.filter((path) => !fs.existsSync(path));
 const migrations = fs.readdirSync("supabase/migrations").filter((name) => name.endsWith(".sql")).sort();

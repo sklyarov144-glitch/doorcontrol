@@ -1,0 +1,53 @@
+import { describe, expect, it } from "vitest";
+import { reconcilePilotImport } from "./importReconciliation";
+
+const payload = {
+  objects: [{
+    legacyId: "object-1", name: "ЖК Тест", responsibleDirectorId: "director-1",
+    buildings: [{
+      legacyId: "building-1", name: "Корпус 1", floorsCount: 1, responsibleItrId: "itr-1",
+      floors: [{
+        legacyId: "floor-1", number: 1,
+        doors: [{ legacyId: "door-1", label: "Квартира 1", mark: "Д-1", type: "apartment", openingNumber: 1, x: 20, y: 30 }],
+      }],
+    }],
+  }],
+};
+
+const actual = {
+  objects: [{ legacyId: "object-1", name: "ЖК Тест", district: null, metro: null, status: "В работе", responsibleDirectorId: "director-1" }],
+  buildings: [{ legacyId: "building-1", objectLegacyId: "object-1", name: "Корпус 1", floorsCount: 1, hasParking: false, responsibleItrId: "itr-1" }],
+  floors: [{ legacyId: "floor-1", buildingLegacyId: "building-1", number: 1, planImageUrl: null }],
+  doors: [{
+    legacyId: "door-1", floorLegacyId: "floor-1", label: "Квартира 1", mark: "Д-1", type: "apartment",
+    openingNumber: 1, status: "не начато", openingStatus: "готов", issueStatus: "нет",
+    custodyActStatus: "не передана", tnStatus: "не передано", assignedUserId: null, x: 20, y: 30,
+    model: null, widthFact: null, heightFact: null,
+  }],
+};
+
+describe("pilot import reconciliation", () => {
+  it("accepts an exact imported hierarchy", () => {
+    const result = reconcilePilotImport(payload, actual);
+    expect(result.valid).toBe(true);
+    expect(result.actualCounts).toEqual({ objects: 1, buildings: 1, floors: 1, doors: 1 });
+  });
+
+  it("reports missing rows and field mismatches", () => {
+    const changed = structuredClone(actual);
+    changed.buildings[0].floorsCount = 25;
+    changed.doors = [];
+    const result = reconcilePilotImport(payload, changed);
+    expect(result.valid).toBe(false);
+    expect(result.errors.join(" ")).toContain("expected 1, received 25");
+    expect(result.errors.join(" ")).toContain("doors door-1 is missing");
+  });
+
+  it("rejects stale rows left under an imported hierarchy", () => {
+    const changed = structuredClone(actual);
+    changed.floors.push({ legacyId: "floor-extra", buildingLegacyId: "building-1", number: 2, planImageUrl: null });
+    const result = reconcilePilotImport(payload, changed);
+    expect(result.valid).toBe(false);
+    expect(result.errors.join(" ")).toContain("floors floor-extra was not present");
+  });
+});

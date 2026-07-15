@@ -23,7 +23,7 @@ export SUPABASE_COMPANY_ID=...
 npm run pilot:import -- /absolute/path/pilot-data.json --apply
 ```
 
-Service role key используется только в доверенном terminal/CI и никогда не передаётся frontend. Сначала импорт выполняется только в staging. До применения файла создаются реальные пользователи, а их UUID указываются в `responsibleDirectorId`, `responsibleItrId` и при необходимости `assignedUserId`. После импорта сверяются counts и выборочные двери.
+Service role key используется только в доверенном terminal/CI и никогда не передаётся frontend. Сначала импорт выполняется только в staging. До применения файла создаются реальные пользователи, а их UUID указываются в `responsibleDirectorId`, `responsibleItrId` и при необходимости `assignedUserId`.
 
 Команда с `--apply` останавливается при неназначенной ответственности. Флаг
 `--allow-unassigned` разрешён только для контролируемого staging-ремонта и не
@@ -36,3 +36,16 @@ upsert с теми же `legacyId`; идентификаторы уже загр
 
 Поля `responsibleDirectorId`, `responsibleItrId` и `assignedUserId` принимают
 только реальные UUID активных профилей той же компании и правильной роли.
+
+## Обязательная сверка после импорта
+
+Тем же файлом и теми же credentials выполните:
+
+```bash
+npm run pilot:reconcile -- /absolute/path/pilot-data.json
+```
+
+Команда читает фактическое состояние Supabase и проверяет принадлежность компании,
+полноту иерархии, отсутствие старых лишних строк, основные поля, координаты и
+ответственных. Успешный ответ RPC без успешной сверки не считается подтверждением
+переноса данных.
