@@ -80,6 +80,7 @@ import BrandMark from "../components/BrandMark";
 import { Detail, Metric, StatusBadge } from "../components/UiPrimitives";
 import LoginPage, { PasswordRecoveryPage } from "../pages/LoginPage";
 import ObjectsPage from "../pages/ObjectsPage";
+import BuildingVisualization from "../pages/BuildingPage";
 import { permissionsFor } from "../domain/permissions";
 import { roleLabels } from "../domain/roles";
 import { statusMeta } from "../domain/statuses";
@@ -1960,64 +1961,6 @@ function BuildingEditModal({ building, users, teams, onClose, onSave }) {
         </div>
         <div className="form-actions"><button className="secondary-button" type="button" onClick={onClose}>Отмена</button><button className="primary-button">Сохранить корпус</button></div>
       </form>
-    </div>
-  );
-}
-
-function BuildingVisualization({ building, objectId, selectedFloorId, onSelectFloor, onCreateTask, canCreateTask }) {
-  const selectedNumber = selectedFloorId.startsWith("floor-")
-    ? Number(selectedFloorId.replace("floor-", ""))
-    : null;
-  const selectedFloor = building.floors.find((floor) => floor.id === selectedFloorId);
-  const metricDoors = selectedFloor?.doors ?? [];
-  const floorIssues = metricDoors.filter((door) => door.issue === "есть замечание").length;
-  const floorOpenings = metricDoors.filter((door) =>
-    ["требует корректировки", "передан на исправление"].includes(door.openingStatus)
-  ).length;
-  const readyDoors = metricDoors.filter((door) =>
-    ["смонтирована", "принято технадзором", "передано по акту"].includes(door.doorStatus)
-  ).length;
-  const floorReadiness = metricDoors.length ? Math.round((readyDoors / metricDoors.length) * 100) : 0;
-  const actualFloors = building.floors
-    .filter((floor) => floor.type === "floor")
-    .sort((a, b) => b.number - a.number);
-  const parking = building.floors.find((floor) => floor.id === "parking" || floor.type === "parking");
-
-  return (
-    <div className="building-hero">
-      <div className="building-hero-copy">
-        <StatusBadge value="В работе" />
-        <h2>{building.name}</h2>
-        <p>{building.floorsCount ?? building.floors.filter((floor) => floor.type === "floor").length} этажей</p>
-        {canCreateTask && <button className="secondary-button slim building-task-button" onClick={() => onCreateTask({ objectId, buildingId: building.id })}>Поставить задачу по корпусу</button>}
-      </div>
-      <div className="building-visual">
-        <div className="roof-line">Кровля</div>
-        {actualFloors.map((floor) => {
-          const floorNumber = floor.number;
-          return (
-            <button
-              className={
-                floorNumber === selectedNumber ? "facade-floor active" : "facade-floor"
-              }
-              key={floor.id}
-              onClick={() => onSelectFloor(floor.id)}
-            >
-              <span>{floorNumber}</span>
-              <i />
-              <i />
-              <i />
-              <i />
-            </button>
-          );
-        })}
-        {parking && <button className="parking-line" onClick={() => onSelectFloor(parking.id)}>Паркинг</button>}
-      </div>
-      <div className="building-metrics">
-        <Metric label="Замечаний" value={floorIssues} tone="warning" />
-        <Metric label="Проемов на корректировке" value={floorOpenings} tone="alert" />
-        <Metric label="Готовность" value={`${floorReadiness}%`} />
-      </div>
     </div>
   );
 }
