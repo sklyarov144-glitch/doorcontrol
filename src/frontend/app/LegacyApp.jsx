@@ -77,6 +77,7 @@ import { RemoteBrigadePlanPage, RemoteManpowerPage } from "../pages/RemoteWorkfo
 import AuditLogPage from "../pages/AuditLogPage";
 import { AuthProvider } from "../contexts/AuthContext";
 import { permissionsFor } from "../domain/permissions";
+import { applyDoorWorkflow } from "../domain/doorWorkflow";
 import { buildAppPath, parseAppRoute } from "./routes";
 import "../styles.css";
 
@@ -1043,75 +1044,14 @@ export function App() {
   };
 
   const updateDoor = (doorId, values) => {
-    const today = new Date().toISOString().slice(0, 10);
-    const effectiveValues = {
-      ...values,
-      doorStatus: values.acceptedTN === "Да" ? "принято технадзором" : values.installed === "Да" && values.doorStatus === "не начато" ? "смонтирована" : values.doorStatus,
-      issue: values.tnIssues === "Да" ? "есть замечание" : values.issue,
-      storageAct: values.custodyAct === "Да" ? "передано по акту" : values.storageAct,
-    };
-    const { quickHistory, ...doorValues } = effectiveValues;
-    const nextObjects = objects.map((object) => ({
-      ...object,
-      buildings: object.buildings.map((building) => ({
-        ...building,
-        floors: building.floors.map((floor) => ({
-          ...floor,
-          doors: floor.doors.map((door) => {
-            if (door.id !== doorId) {
-              return door;
-            }
-
-            const changed = [];
-            if (door.doorStatus !== effectiveValues.doorStatus) {
-              changed.push(`Статус двери: ${door.doorStatus} -> ${effectiveValues.doorStatus}`);
-            }
-            if (door.openingStatus !== effectiveValues.openingStatus) {
-              changed.push(
-                `Статус проема: ${door.openingStatus} -> ${effectiveValues.openingStatus}`
-              );
-            }
-            if (door.issue !== effectiveValues.issue) {
-              changed.push(`Замечания: ${door.issue} -> ${effectiveValues.issue}`);
-            }
-            if (door.storageAct !== effectiveValues.storageAct) {
-              changed.push(`Акт: ${door.storageAct} -> ${effectiveValues.storageAct}`);
-            }
-            if (quickHistory) {
-              changed.push(quickHistory);
-            }
-
-            return {
-              ...door,
-              ...doorValues,
-              mountedAt: effectiveValues.doorStatus === "смонтирована" && !door.mountedAt ? today : effectiveValues.mountedAt ?? door.mountedAt,
-              tnAcceptedAt: effectiveValues.doorStatus === "принято технадзором" && !door.tnAcceptedAt ? today : effectiveValues.tnAcceptedAt ?? door.tnAcceptedAt,
-              custodyActUploadedAt: (effectiveValues.storageAct === "акт загружен" || effectiveValues.custodyActUrl) && !door.custodyActUploadedAt ? today : effectiveValues.custodyActUploadedAt ?? door.custodyActUploadedAt,
-              custodyActClosedAt: effectiveValues.storageAct === "передано по акту" && !door.custodyActClosedAt ? today : effectiveValues.custodyActClosedAt ?? door.custodyActClosedAt,
-              history:
-                changed.length > 0
-                  ? [
-                      {
-                        id: `${door.id}-${Date.now()}`,
-                        text: changed.join("; "),
-                        date: new Date().toLocaleString("ru-RU"),
-                        user: user.name,
-                      },
-                      ...door.history,
-                    ]
-                  : door.history,
-            };
-          }),
-        })),
-      })),
-    }));
+    const { nextObjects, updatedDoor: persistedDoor, effectiveValues } = applyDoorWorkflow(
+      objects,
+      doorId,
+      values,
+      user.name
+    );
 
     setObjects(nextObjects);
-    const persistedDoor = nextObjects
-      .flatMap((object) => object.buildings)
-      .flatMap((building) => building.floors)
-      .flatMap((floor) => floor.doors)
-      .find((door) => door.id === doorId);
     let persistencePromise = Promise.resolve();
     if (isRemoteAuth && persistedDoor) {
       setPersistenceError("");
