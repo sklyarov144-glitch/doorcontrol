@@ -1115,20 +1115,18 @@ export function App() {
     let persistencePromise = Promise.resolve();
     if (isRemoteAuth && persistedDoor) {
       setPersistenceError("");
-      persistencePromise = Promise.all([
-        dataProvider.doors.updateOperational(doorId, persistedDoor),
-        dataProvider.tnIssues.syncForDoor(doorId, {
+      persistencePromise = dataProvider.doors.updateWorkflow(doorId, persistedDoor, {
           title: `Замечание ТН · ${persistedDoor.number ?? persistedDoor.label ?? persistedDoor.mark}`,
           description: persistedDoor.openingComment || persistedDoor.comment || "Проверить замечание технадзора",
           status: persistedDoor.issue === "есть замечание" ? "открыто" : "устранено",
           priority: persistedDoor.issue === "есть замечание" ? "высокий" : "средний",
           responsibleId: persistedDoor.assignedUserId || null,
           resolvedAt: persistedDoor.issue === "есть замечание" ? null : new Date().toISOString(),
-        }),
-      ])
+        })
         .then(() => syncAutomation(nextObjects))
         .catch((error) => {
           console.error("Unable to save door", error);
+          setObjects(objects);
           setPersistenceError("Изменения не сохранены. Проверьте соединение и повторите сохранение.");
           throw error;
         });

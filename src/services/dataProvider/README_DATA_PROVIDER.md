@@ -2,16 +2,17 @@
 
 `dataProvider` is the boundary between UI modules and storage.
 
-Current implementation:
-- `localProvider.js`
-- browser `localStorage`
-- synchronous CRUD methods for MVP speed
-- application session through `dataProvider.auth`
+Implementations:
+- `localProvider.js` keeps the isolated demo mode in browser `localStorage`;
+- `supabaseProvider.js` is the required production provider for PostgreSQL, Auth,
+  Storage and Edge Functions;
+- provider selection is controlled by `VITE_DATA_PROVIDER` and production deploys
+  require the Supabase configuration;
+- production access checks are enforced by PostgreSQL RLS, not by UI filtering.
 
-Future implementation:
-- replace `localProvider` with a Supabase provider;
-- keep the same method groups and method names;
-- move access checks to backend policies / RLS.
+Business operations that span several tables must use transactional RPC functions.
+For example, `doors.updateWorkflow()` updates the door and its active TN issue through
+`update_door_workflow`, so a failed issue write cannot leave the door half-saved.
 
 Main groups:
 - `users`

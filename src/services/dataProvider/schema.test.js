@@ -90,6 +90,10 @@ const controlledUserInvitations = readFileSync(
   resolve("supabase/migrations/202607140023_controlled_user_invitations.sql"),
   "utf8"
 );
+const atomicDoorWorkflow = readFileSync(
+  resolve("supabase/migrations/202607150024_atomic_door_workflow.sql"),
+  "utf8"
+);
 
 describe("Supabase schema", () => {
   it("defines the core hierarchy and assignment tables", () => {
@@ -151,6 +155,13 @@ describe("Supabase schema", () => {
     expect(operational).toContain("sync_overdue_door_tasks");
     expect(operational).toContain("on conflict (automatic_key) do nothing");
     expect(operational).toContain("notify_task_change");
+  });
+
+  it("updates a door and its active TN issue in one caller-scoped transaction", () => {
+    expect(atomicDoorWorkflow).toContain("function public.update_door_workflow");
+    expect(atomicDoorWorkflow).toContain("security invoker");
+    expect(atomicDoorWorkflow).toContain("tn_issues_one_active_per_door_idx");
+    expect(atomicDoorWorkflow).toContain("grant execute");
   });
 
   it("protects every operational table with RLS", () => {

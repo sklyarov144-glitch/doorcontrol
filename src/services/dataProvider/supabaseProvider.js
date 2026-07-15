@@ -120,6 +120,14 @@ export function toDoorOperationalUpdate(door) {
   };
 }
 
+export function toDoorWorkflowPayload(id, door, issue) {
+  return {
+    p_door_id: id,
+    p_door: toDatabase(toDoorOperationalUpdate(door)),
+    p_issue: issue ? toDatabase(issue) : null,
+  };
+}
+
 export function mapObjectTree(rows) {
   return rows.map((object) => ({
     ...object.meta,
@@ -339,6 +347,12 @@ export const supabaseProvider = {
         .eq("id", id)
         .select()
         .single());
+    },
+    async updateWorkflow(id, door, issue) {
+      return unwrap(await requireSupabase().rpc(
+        "update_door_workflow",
+        toDoorWorkflowPayload(id, door, issue)
+      ));
     },
   },
   tasks: {

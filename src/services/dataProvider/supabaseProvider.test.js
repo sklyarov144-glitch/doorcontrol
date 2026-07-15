@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { mapObjectTree, mapProfileAssignments, toDoorOperationalUpdate, toStoredFloorTemplate } from "./supabaseProvider";
+import { mapObjectTree, mapProfileAssignments, toDoorOperationalUpdate, toDoorWorkflowPayload, toStoredFloorTemplate } from "./supabaseProvider";
 
 describe("Supabase object tree", () => {
   it("maps profile assignments to UI access lists", () => {
@@ -32,6 +32,36 @@ describe("Supabase object tree", () => {
       issueStatus: "нет",
       custodyActStatus: "не передана",
       meta: { history: [{ text: "Статус изменён" }] },
+    });
+  });
+
+  it("builds one atomic RPC payload for the door and its TN issue", () => {
+    expect(toDoorWorkflowPayload("door-1", {
+      number: "Квартира 1",
+      mark: "Д-1",
+      type: "Квартирная",
+      doorStatus: "смонтирована",
+      openingStatus: "готов",
+      issue: "есть замечание",
+      storageAct: "не передана",
+      x: 20,
+      y: 30,
+    }, {
+      title: "Замечание ТН",
+      responsibleId: "user-1",
+      resolvedAt: null,
+    })).toMatchObject({
+      p_door_id: "door-1",
+      p_door: {
+        label: "Квартира 1",
+        status: "смонтирована",
+        issue_status: "есть замечание",
+      },
+      p_issue: {
+        title: "Замечание ТН",
+        responsible_id: "user-1",
+        resolved_at: null,
+      },
     });
   });
 
