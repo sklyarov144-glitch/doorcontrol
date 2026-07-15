@@ -11,6 +11,7 @@ const required = [
   "scripts/pilot/domain-load-smoke.mjs",
   "scripts/pilot/reconcile-import.mjs",
   "scripts/pilot/validate-uat-evidence.mjs", "pilot/uat-evidence.template.json",
+  "scripts/pilot/verify-users.mjs", "pilot/users.template.json",
 ];
 const missing = required.filter((path) => !fs.existsSync(path));
 const migrations = fs.readdirSync("supabase/migrations").filter((name) => name.endsWith(".sql")).sort();

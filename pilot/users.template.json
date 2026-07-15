@@ -1,0 +1,8 @@
+{
+  "users": [
+    { "key": "company_head", "email": "head@company.example", "name": "Руководитель", "role": "company_head" },
+    { "key": "construction_director", "email": "director@company.example", "name": "Директор строительства", "role": "construction_director" },
+    { "key": "itr_one", "email": "itr-one@company.example", "name": "ИТР 1", "role": "itr" },
+    { "key": "itr_two", "email": "itr-two@company.example", "name": "ИТР 2", "role": "itr" }
+  ]
+}
