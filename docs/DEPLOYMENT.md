@@ -10,6 +10,9 @@
 6. Включить required reviewers для GitHub environment `production`.
 7. В Supabase включить MFA для владельцев, native backups/PITR и уведомления о потреблении ресурсов.
 
+После первого staging import выполните `npm run auth:bootstrap:staging`, перенесите
+те же credentials в GitHub Environment `staging` и повторно запустите deployment.
+
 ## Staging release
 
 До staging GitHub CI поднимает чистую локальную базу Supabase, применяет все

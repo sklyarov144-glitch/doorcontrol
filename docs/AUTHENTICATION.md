@@ -18,8 +18,11 @@ Edge Function `invite-user`. Она:
 2. разрешает управление аккаунтами только административным ролям; директор строительства может приглашать только ИТР;
 3. ограничивает роли, которые может назначить руководитель;
 4. создаёт одноразовую запись в `user_invitations` сроком на 7 дней;
-5. отправляет стандартное приглашение Supabase Auth;
+5. отправляет стандартное приглашение Supabase Auth с конкретным `invitation_id`;
 6. профиль создаётся триггером `handle_new_user` только из одобренного приглашения.
+
+Trigger сверяет `invitation_id`, email, срок и статус. Приглашения с одинаковым
+email в разных компаниях не могут изменить компанию создаваемого профиля.
 
 Роль и компания не читаются из редактируемых метаданных пользователя. Публичная
 регистрация отключена. Первого `creator` создают операционно: запись приглашения
@@ -60,3 +63,23 @@ npx supabase secrets set \
   APP_ALLOWED_ORIGINS="https://app.example.ru" \
   APP_PUBLIC_URL="https://app.example.ru"
 ```
+
+## Smoke-пользователи staging
+
+После импорта пилотного объекта четыре технических аккаунта staging можно
+создать или обновить одной идемпотентной командой:
+
+```bash
+export STAGING_BOOTSTRAP_CONFIRM=STAGING
+export SUPABASE_URL=https://STAGING.supabase.co
+export SUPABASE_SERVICE_ROLE_KEY=...
+export STAGING_SMOKE_COMPANY_ID=...
+export AUTH_SMOKE_CREATOR_EMAIL=...
+export AUTH_SMOKE_CREATOR_PASSWORD=...
+# Аналогичные пары для COMPANY_HEAD, CONSTRUCTION_DIRECTOR и ITR.
+npm run auth:bootstrap:staging
+npm run auth:smoke
+```
+
+Пароли должны иметь не менее 12 символов и хранятся только в password manager и
+GitHub Environment `staging`. Скрипт не предназначен для production-пользователей.

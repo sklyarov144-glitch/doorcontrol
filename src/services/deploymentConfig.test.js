@@ -100,3 +100,15 @@ describe("authenticated domain load smoke", () => {
     expect(result.stderr).toContain("Authenticated ITR smoke credentials are required");
   });
 });
+
+describe("staging smoke account bootstrap", () => {
+  it("requires an explicit staging confirmation before reading credentials", () => {
+    const result = spawnSync(globalThis.process.execPath, ["scripts/auth/bootstrap-staging-smoke.mjs"], {
+      cwd: globalThis.process.cwd(),
+      env: { ...globalThis.process.env, STAGING_BOOTSTRAP_CONFIRM: "" },
+      encoding: "utf8",
+    });
+    expect(result.status).not.toBe(0);
+    expect(result.stderr).toContain("STAGING_BOOTSTRAP_CONFIRM=STAGING");
+  });
+});
