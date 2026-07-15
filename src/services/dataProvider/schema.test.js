@@ -106,6 +106,10 @@ const atomicTaskDocumentWorkflow = readFileSync(
   resolve("supabase/migrations/202607150027_atomic_task_document_workflow.sql"),
   "utf8"
 );
+const atomicTaskStatusWorkflow = readFileSync(
+  resolve("supabase/migrations/202607150028_atomic_task_status_workflow.sql"),
+  "utf8"
+);
 
 describe("Supabase schema", () => {
   it("defines the core hierarchy and assignment tables", () => {
@@ -291,6 +295,13 @@ describe("Supabase schema", () => {
     expect(taskAccessAndNotifications).toContain("Assigned users may update only task status");
     expect(taskAccessAndNotifications).toContain("task_comments_notify");
     expect(taskAccessAndNotifications).toContain("task_links_notify");
+  });
+
+  it("updates task status, audit and completion notification atomically", () => {
+    expect(atomicTaskStatusWorkflow).toContain("update_task_status_workflow");
+    expect(atomicTaskStatusWorkflow).toContain("for update");
+    expect(atomicTaskStatusWorkflow).toContain("status_changed");
+    expect(atomicTaskStatusWorkflow).toContain("task_completed");
   });
 
   it("schedules server-side overdue task control without browser access", () => {

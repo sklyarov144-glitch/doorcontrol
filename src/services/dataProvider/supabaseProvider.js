@@ -354,6 +354,12 @@ export const supabaseProvider = {
   },
   tasks: {
     ...tasksCrud,
+    async updateStatus(taskId, status) {
+      return unwrap(await requireSupabase().rpc("update_task_status_workflow", {
+        p_task_id: taskId,
+        p_status: status,
+      }));
+    },
     async getAll() {
       return unwrap(await requireSupabase()
         .from("tasks")

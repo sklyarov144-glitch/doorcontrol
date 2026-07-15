@@ -826,10 +826,14 @@ export function App() {
 
   const changeManualTask = async (taskId, values) => {
     if (isRemoteAuth) {
-      await dataProvider.tasks.update(taskId, {
-        ...values,
-        completedAt: values.status === "выполнена" ? new Date().toISOString() : undefined,
-      });
+      if (values.status && Object.keys(values).length === 1) {
+        await dataProvider.tasks.updateStatus(taskId, values.status);
+      } else {
+        await dataProvider.tasks.update(taskId, {
+          ...values,
+          completedAt: values.status === "выполнена" ? new Date().toISOString() : undefined,
+        });
+      }
       await Promise.all([refreshManualTasks(), refreshNotifications()]);
       return;
     }
@@ -962,7 +966,7 @@ export function App() {
   const completeAutomaticTask = async (taskId) => {
     if (!taskId) return;
     if (isRemoteAuth) {
-      await dataProvider.tasks.update(taskId, { status: "выполнена", completedAt: new Date().toISOString() });
+      await dataProvider.tasks.updateStatus(taskId, "выполнена");
       await Promise.all([refreshManualTasks(), refreshNotifications()]);
       return;
     }
