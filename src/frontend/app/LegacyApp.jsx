@@ -1265,6 +1265,13 @@ export function App() {
       return;
     }
     const route = parseAppRoute(location.pathname);
+    if (!permissions.canView(route.screen)) {
+      const fallback = defaultScreenForRole(user.role);
+      routeSyncing.current = false;
+      setScreen(fallback);
+      routerNavigate(buildAppPath(fallback), { replace: true });
+      return;
+    }
     const routeChanged = route.screen !== screen ||
       Boolean(route.objectId && route.objectId !== selectedObjectId) ||
       Boolean(route.buildingId && route.buildingId !== selectedBuildingId) ||
@@ -1277,7 +1284,15 @@ export function App() {
     if (route.buildingId) setSelectedBuildingId(route.buildingId);
     if (route.floorId) setSelectedFloorId(route.floorId);
     if (route.doorId) setSelectedDoorId(route.doorId);
-  }, [authLoading, isLoggedIn, location.pathname, isPasswordRecovery]);
+  }, [authLoading, isLoggedIn, location.pathname, isPasswordRecovery, permissions, user.role]);
+
+  React.useEffect(() => {
+    if (authLoading || !isLoggedIn || permissions.canView(screen)) return;
+    const fallback = defaultScreenForRole(user.role);
+    routeSyncing.current = false;
+    setScreen(fallback);
+    routerNavigate(buildAppPath(fallback), { replace: true });
+  }, [authLoading, isLoggedIn, permissions, screen, user.role]);
 
   React.useEffect(() => {
     if (!isLoggedIn || location.pathname === "/login") return;

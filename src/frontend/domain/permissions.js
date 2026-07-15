@@ -4,7 +4,8 @@ const administrativeRoles = new Set(["creator", "company_head", "construction_di
 
 export function canView(user, resource) {
   if (!user) return false;
-  if (resource === "admin" || resource === "users") return administrativeRoles.has(user.role);
+  if (["admin", "users", "audit"].includes(resource)) return administrativeRoles.has(user.role);
+  if (["companies", "roles"].includes(resource)) return user.role === "creator";
   if (resource === "company_dashboard") return user.role !== "itr";
   if (resource === "finance") return user.role !== "itr";
   return roles.includes(user.role);

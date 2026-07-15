@@ -6,8 +6,18 @@ const user = (role) => ({ id: role, role });
 describe("role permissions", () => {
   it("keeps administrative sections unavailable to ITR", () => {
     expect(canView(user("itr"), "admin")).toBe(false);
+    expect(canView(user("itr"), "users")).toBe(false);
+    expect(canView(user("itr"), "audit")).toBe(false);
+    expect(canView(user("itr"), "finance")).toBe(false);
+    expect(canView(user("itr"), "company_dashboard")).toBe(false);
     expect(canManageUsers(user("itr"))).toBe(false);
     expect(canManageObjects(user("itr"))).toBe(false);
+  });
+
+  it("keeps creator-only system directories unavailable to other roles", () => {
+    expect(canView(user("creator"), "roles")).toBe(true);
+    expect(canView(user("company_head"), "roles")).toBe(false);
+    expect(canView(user("construction_director"), "companies")).toBe(false);
   });
 
   it("allows management roles to manage users", () => {
