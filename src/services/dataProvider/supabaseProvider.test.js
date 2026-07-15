@@ -1,7 +1,34 @@
 import { describe, expect, it } from "vitest";
-import { mapObjectTree, mapProfileAssignments, toDoorOperationalUpdate, toDoorWorkflowPayload, toHierarchyPayload, toStoredFloorTemplate } from "./supabaseProvider";
+import { assembleObjectTreeRows, assembleTaskRows, mapObjectTree, mapProfileAssignments, toDoorOperationalUpdate, toDoorWorkflowPayload, toHierarchyPayload, toStoredFloorTemplate } from "./supabaseProvider";
 
 describe("Supabase object tree", () => {
+  it("assembles independently paginated hierarchy rows without dropping doors", () => {
+    const rows = assembleObjectTreeRows(
+      [{ id: "object-1", name: "Объект" }],
+      [{ id: "building-1", objectId: "object-1", name: "Корпус" }],
+      [{ id: "floor-1", buildingId: "building-1", floorNumber: 1 }],
+      Array.from({ length: 1001 }, (_, index) => ({
+        id: `door-${index + 1}`,
+        floorId: "floor-1",
+        label: `Квартира ${index + 1}`,
+      }))
+    );
+
+    expect(rows[0].buildings[0].floors[0].doors).toHaveLength(1001);
+    expect(rows[0].buildings[0].floors[0].doors.at(-1).id).toBe("door-1001");
+  });
+
+  it("assembles independently paginated task activity without truncation", () => {
+    const tasks = assembleTaskRows(
+      [{ id: "task-1", title: "Задача" }],
+      Array.from({ length: 1001 }, (_, index) => ({ id: `comment-${index}`, taskId: "task-1" })),
+      [{ id: "link-1", taskId: "task-1", title: "Акт" }]
+    );
+
+    expect(tasks[0].comments).toHaveLength(1001);
+    expect(tasks[0].documentLinks).toEqual([{ id: "link-1", taskId: "task-1", title: "Акт" }]);
+  });
+
   it("maps profile assignments to UI access lists", () => {
     expect(mapProfileAssignments({
       id: "user-1",

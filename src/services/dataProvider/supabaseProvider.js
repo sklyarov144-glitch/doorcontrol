@@ -15,11 +15,27 @@ async function hydratePrivateAvatar(profile) {
 }
 
 const asUuid = (value) => /^[0-9a-f]{8}-[0-9a-f]{4}-[1-5][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i.test(value ?? "") ? value : null;
+const PAGE_SIZE = 1000;
+
+async function fetchAllRows(table, select = "*", order = "created_at") {
+  const rows = [];
+  for (let from = 0; ; from += PAGE_SIZE) {
+    const response = await requireSupabase()
+      .from(table)
+      .select(select)
+      .order(order)
+      .order("id")
+      .range(from, from + PAGE_SIZE - 1);
+    const page = unwrap(response) ?? [];
+    rows.push(...page);
+    if (page.length < PAGE_SIZE) return rows;
+  }
+}
 
 function makeCrud(table) {
   return {
     async getAll() {
-      return unwrap(await requireSupabase().from(table).select("*").order("created_at"));
+      return fetchAllRows(table);
     },
     async getById(id) {
       return unwrap(
@@ -159,6 +175,44 @@ export function mapObjectTree(rows) {
   }));
 }
 
+export function assembleObjectTreeRows(objects, buildings, floors, doors) {
+  const groupBy = (rows, getKey) => rows.reduce((groups, row) => {
+    const key = getKey(row);
+    if (!groups.has(key)) groups.set(key, []);
+    groups.get(key).push(row);
+    return groups;
+  }, new Map());
+  const doorsByFloor = groupBy(doors, (door) => door.floorId);
+  const floorsByBuilding = groupBy(floors, (floor) => floor.buildingId);
+  const buildingsByObject = groupBy(buildings, (building) => building.objectId);
+
+  return objects.map((object) => ({
+    ...object,
+    buildings: (buildingsByObject.get(object.id) ?? []).map((building) => ({
+      ...building,
+      floors: (floorsByBuilding.get(building.id) ?? []).map((floor) => ({
+        ...floor,
+        doors: doorsByFloor.get(floor.id) ?? [],
+      })),
+    })),
+  }));
+}
+
+export function assembleTaskRows(tasks, comments, links) {
+  const groupByTask = (rows) => rows.reduce((groups, row) => {
+    if (!groups.has(row.taskId)) groups.set(row.taskId, []);
+    groups.get(row.taskId).push(row);
+    return groups;
+  }, new Map());
+  const commentsByTask = groupByTask(comments);
+  const linksByTask = groupByTask(links);
+  return tasks.map((task) => ({
+    ...task,
+    comments: commentsByTask.get(task.id) ?? [],
+    documentLinks: linksByTask.get(task.id) ?? [],
+  }));
+}
+
 export function toHierarchyPayload(objects = []) {
   return {
     objects: objects.map((object) => ({
@@ -276,10 +330,11 @@ export const supabaseProvider = {
   users: {
     ...usersCrud,
     async getAll() {
-      const rows = unwrap(await requireSupabase()
-        .from("profiles")
-        .select("*, objectAssignments:object_assignments(object_id), buildingAssignments:building_assignments(building_id)")
-        .order("name"));
+      const rows = await fetchAllRows(
+        "profiles",
+        "*, objectAssignments:object_assignments(object_id), buildingAssignments:building_assignments(building_id)",
+        "name"
+      );
       return Promise.all(rows.map(async (profile) => hydratePrivateAvatar(mapProfileAssignments(profile))));
     },
     async save(data) {
@@ -318,11 +373,13 @@ export const supabaseProvider = {
   objects: {
     ...objectsCrud,
     async getTree() {
-      const response = await requireSupabase()
-        .from("objects")
-        .select("*, buildings(*, floors(*, doors(*)))")
-        .order("created_at");
-      const tree = mapObjectTree(unwrap(response));
+      const [objects, buildings, floors, doors] = await Promise.all([
+        fetchAllRows("objects"),
+        fetchAllRows("buildings"),
+        fetchAllRows("floors"),
+        fetchAllRows("doors"),
+      ]);
+      const tree = mapObjectTree(assembleObjectTreeRows(objects, buildings, floors, doors));
       return Promise.all(tree.map(async (object) => ({
         ...object,
         buildings: await Promise.all(object.buildings.map(async (building) => ({
@@ -361,10 +418,12 @@ export const supabaseProvider = {
       }));
     },
     async getAll() {
-      return unwrap(await requireSupabase()
-        .from("tasks")
-        .select("*, comments:task_comments(*), documentLinks:task_links(*)")
-        .order("created_at", { ascending: false }));
+      const [tasks, comments, links] = await Promise.all([
+        fetchAllRows("tasks"),
+        fetchAllRows("task_comments"),
+        fetchAllRows("task_links"),
+      ]);
+      return assembleTaskRows(tasks, comments, links).reverse();
     },
     async addComment(taskId, comment) {
       return unwrap(await requireSupabase().from("task_comments").insert(toDatabase({
@@ -396,10 +455,7 @@ export const supabaseProvider = {
   notifications: {
     ...notificationsCrud,
     async getForCurrentUser() {
-      return unwrap(await requireSupabase()
-        .from("notifications")
-        .select("*")
-        .order("created_at", { ascending: false }));
+      return (await fetchAllRows("notifications")).reverse();
     },
     async markRead(id) {
       return this.update(id, { status: "read" });
