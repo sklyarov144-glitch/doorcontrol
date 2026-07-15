@@ -2181,7 +2181,7 @@ function BuildingVisualization({ building, objectId, selectedFloorId, onSelectFl
       <div className="building-hero-copy">
         <StatusBadge value="В работе" />
         <h2>{building.name}</h2>
-        <p>{building.floors.filter((floor) => floor.type === "floor").length} этажей</p>
+        <p>{building.floorsCount ?? building.floors.filter((floor) => floor.type === "floor").length} этажей</p>
         {canCreateTask && <button className="secondary-button slim building-task-button" onClick={() => onCreateTask({ objectId, buildingId: building.id })}>Поставить задачу по корпусу</button>}
       </div>
       <div className="building-visual">

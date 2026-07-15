@@ -38,6 +38,22 @@ describe("pilot import validation", () => {
     expect(result.warnings).toEqual([]);
   });
 
+  it("accepts a pilot subset while preserving the real building floor count", () => {
+    const payload = structuredClone(validPayload);
+    payload.objects[0].buildings[0].floorsCount = 25;
+    const result = validatePilotImport(payload);
+    expect(result.valid).toBe(true);
+    expect(result.counts.floors).toBe(1);
+  });
+
+  it("rejects floors outside the declared building range", () => {
+    const payload = structuredClone(validPayload);
+    payload.objects[0].buildings[0].floors[0].number = 2;
+    const result = validatePilotImport(payload);
+    expect(result.valid).toBe(false);
+    expect(result.errors.join(" ")).toContain("from 1 to floorsCount");
+  });
+
   it("rejects duplicate ids, floor marks and invalid coordinates", () => {
     const payload = structuredClone(validPayload);
     payload.objects[0].buildings[0].floors[0].doors.push({

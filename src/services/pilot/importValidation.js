@@ -40,14 +40,16 @@ export function validatePilotImport(payload) {
       if (!Number.isInteger(building.floorsCount) || building.floorsCount < 1) errors.push(`${buildingPath}.floorsCount must be a positive integer`);
       const floorNumbers = new Set();
 
-      if (!Array.isArray(building.floors) || building.floors.length !== building.floorsCount) {
-        errors.push(`${buildingPath}.floors must contain exactly floorsCount entries`);
+      if (!Array.isArray(building.floors) || building.floors.length === 0 || building.floors.length > building.floorsCount) {
+        errors.push(`${buildingPath}.floors must contain from 1 to floorsCount entries`);
       }
       (building.floors ?? []).forEach((floor, floorIndex) => {
         const floorPath = `${buildingPath}.floors[${floorIndex}]`;
         counts.floors += 1;
         registerId(floor.legacyId, `${floorPath}.legacyId`);
-        if (!Number.isInteger(floor.number)) errors.push(`${floorPath}.number must be an integer`);
+        if (!Number.isInteger(floor.number) || floor.number < 1 || floor.number > building.floorsCount) {
+          errors.push(`${floorPath}.number must be an integer from 1 to floorsCount`);
+        }
         if (floorNumbers.has(floor.number)) errors.push(`${floorPath}.number duplicates floor ${floor.number}`);
         floorNumbers.add(floor.number);
         const marks = new Set();
