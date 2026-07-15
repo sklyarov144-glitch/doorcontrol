@@ -28,6 +28,8 @@ pnpm-debug.log*
 # Tests and coverage
 coverage/
 .pytest_cache/
+playwright-report/
+test-results/
 
 # IDE
 .idea/
