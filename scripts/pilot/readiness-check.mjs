@@ -13,6 +13,7 @@ const required = [
   "scripts/create-staging-release-evidence.mjs",
   "scripts/verify-staging-release-evidence.mjs",
   "scripts/pilot/prepare-import.mjs",
+  "scripts/pilot/import-supabase.mjs",
   "scripts/pilot/reconcile-import.mjs",
   "scripts/pilot/validate-uat-evidence.mjs", "pilot/uat-evidence.template.json",
   "scripts/pilot/verify-production-readiness.mjs",

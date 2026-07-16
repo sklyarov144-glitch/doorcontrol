@@ -21,7 +21,17 @@
 3. Указать в import template ключи `responsibleDirectorKey`, `responsibleItrKey` и при необходимости `assignedUserKey`, совпадающие с ключами user manifest. Подготовить файл с проверенными UUID командой `npm run pilot:prepare -- path.json --assignments pilot/user-assignments.json --output pilot/import-ready.json`. Команда не перезаписывает исходники, записывает результат атомарно с правами `0600` и завершается ошибкой при неизвестном или неоднозначном назначении.
 4. Выполнить strict preflight: `npm run pilot:validate -- pilot/import-ready.json --strict`.
    Для уже смонтированных, принятых ТН или переданных по акту дверей источник должен содержать `mountedAt`, `tnAcceptedAt`, `custodyActUploadedAt` и `custodyActClosedAt` согласно достигнутому этапу. Preflight проверяет ISO-формат и хронологию; без дат импорт завершённых статусов блокируется, чтобы не исказить просрочки и отчёты.
-5. Импортировать сначала в staging командой `npm run pilot:import -- pilot/import-ready.json --apply`.
+5. Импортировать сначала в staging с явной привязкой к project, company, release
+   и первым 12 символам SHA-256 входного файла. Dry-run печатает количества без
+   доступа к Supabase. Для `--apply` задаются `IMPORT_TARGET=STAGING`,
+   `SUPABASE_PROJECT_ID`, `SUPABASE_URL`, `SUPABASE_SERVICE_ROLE_KEY`,
+   `SUPABASE_COMPANY_ID`, полный `RELEASE_SHA`, абсолютный
+   `IMPORT_EVIDENCE_PATH` и подтверждение
+   `IMPORT_CONFIRM=STAGING:<company-uuid>:<source-sha-prefix>`.
+   Префикс получают командой `shasum -a 256 pilot/import-ready.json`.
+   Команда атомарно применяет иерархию, сверяет возвращённые количества и создаёт
+   evidence с правами `0600`. Production использует `IMPORT_TARGET=PRODUCTION`;
+   `--allow-unassigned` там запрещён.
 6. Сверить импорт с исходником и сформировать release-bound evidence:
    `RELEASE_SHA=<full-staging-sha> PILOT_RECONCILIATION_EVIDENCE_PATH=pilot/reconciliation-evidence.json npm run pilot:reconcile -- pilot/import-ready.json`.
    Команда проверяет количества, иерархию, адрес, готовность корпуса, статусы,

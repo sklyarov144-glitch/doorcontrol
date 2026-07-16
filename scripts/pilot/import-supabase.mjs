@@ -1,12 +1,14 @@
 import { createClient } from "@supabase/supabase-js";
+import { createHash } from "node:crypto";
+import { closeSync, fsyncSync, mkdirSync, openSync, readFileSync, rmSync, writeFileSync } from "node:fs";
+import path from "node:path";
+import { createImportExecutionEvidence, parseImportExecutionConfig } from "../../src/services/pilot/importExecution.js";
 import { readAndValidate } from "./validate-import.mjs";
 
 const inputPath = process.argv.find((value) => value.endsWith(".json")) ?? "pilot/import-template.json";
 const apply = process.argv.includes("--apply");
 const allowUnassigned = process.argv.includes("--allow-unassigned");
-const companyId = process.env.SUPABASE_COMPANY_ID;
-const url = process.env.SUPABASE_URL;
-const serviceKey = process.env.SUPABASE_SERVICE_ROLE_KEY;
+const sourceSha256 = createHash("sha256").update(readFileSync(inputPath)).digest("hex");
 
 const { payload, result } = await readAndValidate(inputPath);
 if (!result.valid) {
@@ -22,20 +24,31 @@ if (apply && result.warnings.length > 0 && !allowUnassigned) {
 console.log(`Validated ${result.counts.objects} objects, ${result.counts.buildings} buildings, ${result.counts.floors} floors and ${result.counts.doors} doors.`);
 result.warnings.forEach((warning) => console.warn(`WARN ${warning}`));
 if (!apply) {
-  console.log("Dry run only. Add --apply with staging credentials to write data.");
+  console.log("Dry run only. Add --apply with explicit environment confirmation to write data.");
   process.exit(0);
 }
-if (!url || !serviceKey || !companyId) {
-  console.error("SUPABASE_URL, SUPABASE_SERVICE_ROLE_KEY and SUPABASE_COMPANY_ID are required for --apply.");
-  process.exit(1);
+const config = parseImportExecutionConfig(process.env, { apply, allowUnassigned, sourceSha256 });
+
+mkdirSync(path.dirname(config.evidencePath), { recursive: true, mode: 0o700 });
+const evidenceFile = openSync(config.evidencePath, "wx", 0o600);
+let evidenceCommitted = false;
+let data;
+try {
+  const client = createClient(config.url, config.serviceRoleKey, { auth: { persistSession: false } });
+  const response = await client.rpc("import_pilot_hierarchy", {
+    p_company_id: config.companyId,
+    p_payload: payload,
+  });
+  if (response.error) throw new Error(`Transactional import failed: ${response.error.message}`);
+  data = response.data;
+  const evidence = createImportExecutionEvidence(config, result.counts, data);
+  writeFileSync(evidenceFile, `${JSON.stringify(evidence, null, 2)}\n`, { encoding: "utf8" });
+  fsyncSync(evidenceFile);
+  evidenceCommitted = true;
+} finally {
+  closeSync(evidenceFile);
+  if (!evidenceCommitted) rmSync(config.evidencePath, { force: true });
 }
-
-const client = createClient(url, serviceKey, { auth: { persistSession: false } });
-const { data, error } = await client.rpc("import_pilot_hierarchy", {
-  p_company_id: companyId,
-  p_payload: payload,
-});
-if (error) throw new Error(`Transactional import failed: ${error.message}`);
-
-console.log(`Pilot import applied atomically: ${JSON.stringify(data)}.`);
+console.log(`Pilot import applied atomically to ${config.target.toLowerCase()}: ${JSON.stringify(data)}.`);
+console.log(`Import evidence written with mode 0600: ${config.evidencePath}`);
 console.log("Run count reconciliation and role-based acceptance checks before production use.");
