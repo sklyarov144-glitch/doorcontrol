@@ -1,6 +1,8 @@
 import { createClient } from "@supabase/supabase-js";
+import { createHash } from "node:crypto";
+import { readFileSync, writeFileSync } from "node:fs";
 import { readAndValidate } from "./validate-import.mjs";
-import { reconcilePilotImport } from "../../src/services/pilot/importReconciliation.js";
+import { createPilotReconciliationEvidence, reconcilePilotImport } from "../../src/services/pilot/importReconciliation.js";
 
 function required(name) {
   const value = process.env[name]?.trim();
@@ -93,3 +95,18 @@ if (!reconciliation.valid) {
   throw new Error(`Pilot reconciliation failed with ${reconciliation.errors.length} mismatch(es)`);
 }
 console.log(`Pilot reconciliation passed: ${JSON.stringify(reconciliation.actualCounts)}.`);
+
+const evidencePath = process.env.PILOT_RECONCILIATION_EVIDENCE_PATH?.trim();
+if (evidencePath) {
+  const releaseSha = required("RELEASE_SHA");
+  const projectId = new URL(url).hostname.split(".")[0];
+  const evidence = createPilotReconciliationEvidence({
+    releaseSha,
+    supabaseProjectId: projectId,
+    companyId,
+    sourceSha256: createHash("sha256").update(readFileSync(inputPath)).digest("hex"),
+    reconciliation,
+  });
+  writeFileSync(evidencePath, `${JSON.stringify(evidence, null, 2)}\n`, { mode: 0o600 });
+  console.log(`Pilot reconciliation evidence written: ${evidencePath}`);
+}

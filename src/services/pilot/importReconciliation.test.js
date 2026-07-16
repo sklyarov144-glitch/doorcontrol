@@ -1,5 +1,9 @@
 import { describe, expect, it } from "vitest";
-import { reconcilePilotImport } from "./importReconciliation";
+import {
+  createPilotReconciliationEvidence,
+  reconcilePilotImport,
+  validatePilotReconciliationEvidence,
+} from "./importReconciliation";
 
 const payload = {
   objects: [{
@@ -59,5 +63,27 @@ describe("pilot import reconciliation", () => {
     datedActual.doors[0].mountedAt = "2026-07-10T11:00:00+03:00";
 
     expect(reconcilePilotImport(datedPayload, datedActual).valid).toBe(true);
+  });
+
+  it("creates release-bound evidence only for exact non-empty reconciliation", () => {
+    const reconciliation = reconcilePilotImport(payload, actual);
+    const evidence = createPilotReconciliationEvidence({
+      releaseSha: "a".repeat(40),
+      supabaseProjectId: "abcdefghijklmnopqrst",
+      companyId: "company-1",
+      sourceSha256: "b".repeat(64),
+      generatedAt: "2026-07-15T10:00:00Z",
+      reconciliation,
+    });
+    expect(validatePilotReconciliationEvidence(evidence, "a".repeat(40), {
+      now: new Date("2026-07-16T10:00:00Z"),
+    }).valid).toBe(true);
+    expect(() => createPilotReconciliationEvidence({
+      releaseSha: "a".repeat(40),
+      supabaseProjectId: "abcdefghijklmnopqrst",
+      companyId: "company-1",
+      sourceSha256: "b".repeat(64),
+      reconciliation: { ...reconciliation, valid: false },
+    })).toThrow("successful reconciliation");
   });
 });

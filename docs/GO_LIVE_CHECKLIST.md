@@ -9,6 +9,10 @@
 - [ ] Структура production сверена со staging перед выпуском.
 - [ ] UAT evidence прошёл `npm run pilot:uat` и подписан владельцем продукта и представителем ИТР.
 - [ ] Production secret `UAT_EVIDENCE_JSON` содержит протокол именно для выпускаемого staging SHA.
+- [ ] `PILOT_RECONCILIATION_EVIDENCE_JSON` содержит точную сверку импортированных
+  объектов, корпусов, этажей и дверей для выпускаемого staging SHA.
+- [ ] `RESTORE_EVIDENCE_JSON` подтверждает restore drill не старше 30 дней и RTO
+  не более 4 часов.
 - [ ] UAT использует staging evidence с `productionEligible: true`.
 - [x] RLS автоматически проверен в CI минимум двумя компаниями и четырьмя ролями.
 - [ ] RLS повторно проверен на staging реальными Auth JWT минимум двумя компаниями и четырьмя ролями.

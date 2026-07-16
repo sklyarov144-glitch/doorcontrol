@@ -28,10 +28,33 @@ smoke-аккаунта не зарегистрируют TOTP. Production workfl
 - `AUTH_SMOKE_CONSTRUCTION_DIRECTOR_TOTP_SECRET`.
 
 Эти секреты нужны только автоматическому production smoke и не попадают во
-frontend bundle. Перед первым production-релизом каждый фактор регистрируется
-через staging-профиль, после чего его TOTP secret добавляется в защищённый GitHub
-Environment `production`. Потерянный фактор сбрасывает только уполномоченный
-администратор Supabase после проверки личности пользователя.
+frontend bundle. Staging и production используют разные аккаунты и разные
+факторы; переносить TOTP secret между средами запрещено.
+
+Первичное подключение факторов выполняется fail-closed командой отдельно для
+каждой среды. Путь вывода обязан быть абсолютным и находиться вне репозитория:
+
+```bash
+MFA_BOOTSTRAP_CONFIRM=STAGING \
+MFA_BOOTSTRAP_OUTPUT="$HOME/.gross-secrets/staging-smoke-mfa.json" \
+npm run auth:mfa:bootstrap
+```
+
+Команда входит тремя привилегированными smoke-аккаунтами, регистрирует TOTP,
+достигает `aal2` и проверяет PostgreSQL-функцию `privileged_mfa_satisfied()`.
+Секреты не печатаются; JSON создаётся с правами `0600` и не перезаписывается без
+`MFA_BOOTSTRAP_OVERWRITE=1`. Значения из поля `secrets` нужно поместить в
+соответствующий GitHub Environment и корпоративный password manager, после чего
+проверить их без создания новых факторов:
+
+```bash
+MFA_BOOTSTRAP_CONFIRM=STAGING npm run auth:mfa:verify
+```
+
+Для production повторяется та же процедура с `MFA_BOOTSTRAP_CONFIRM=PRODUCTION`
+и production URL, аккаунтами и anon key. Если у аккаунта уже есть verified-factor,
+а его secret утрачен, bootstrap останавливается: фактор сбрасывает только
+уполномоченный администратор Supabase после проверки личности пользователя.
 
 ## Аудит
 

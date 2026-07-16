@@ -8,6 +8,7 @@
 pilot/uat-evidence.json
 pilot/user-assignments.json
 pilot/import-ready.json
+pilot/reconciliation-evidence.json
 
 # Dependencies
 node_modules/

@@ -46,6 +46,8 @@ jobs:
       AUTH_SMOKE_ITR_EMAIL: ${{ secrets.AUTH_SMOKE_ITR_EMAIL }}
       AUTH_SMOKE_ITR_PASSWORD: ${{ secrets.AUTH_SMOKE_ITR_PASSWORD }}
       UAT_EVIDENCE_JSON: ${{ secrets.UAT_EVIDENCE_JSON }}
+      PILOT_RECONCILIATION_EVIDENCE_JSON: ${{ secrets.PILOT_RECONCILIATION_EVIDENCE_JSON }}
+      RESTORE_EVIDENCE_JSON: ${{ secrets.RESTORE_EVIDENCE_JSON }}
     steps:
       - uses: actions/checkout@v7
         with:
@@ -72,15 +74,22 @@ jobs:
           gh run download "$STAGING_RUN_ID" --repo "$GITHUB_REPOSITORY" --name "staging-release-$RELEASE_SHA" --dir "$evidence_dir"
           node scripts/verify-staging-release-evidence.mjs "$evidence_dir/staging-release-evidence.json"
       - run: npm run ci
-      - name: Verify signed UAT for release SHA
+      - name: Verify production readiness evidence
         env:
           EXPECTED_RELEASE_SHA: ${{ env.RELEASE_SHA }}
         run: |
           test -n "$UAT_EVIDENCE_JSON" || { echo "::error::UAT_EVIDENCE_JSON is required"; exit 1; }
+          test -n "$PILOT_RECONCILIATION_EVIDENCE_JSON" || { echo "::error::PILOT_RECONCILIATION_EVIDENCE_JSON is required"; exit 1; }
+          test -n "$RESTORE_EVIDENCE_JSON" || { echo "::error::RESTORE_EVIDENCE_JSON is required"; exit 1; }
           umask 077
-          trap 'rm -f /tmp/uat-evidence.json' EXIT
+          trap 'rm -f /tmp/uat-evidence.json /tmp/pilot-reconciliation-evidence.json /tmp/restore-evidence.json' EXIT
           printf '%s' "$UAT_EVIDENCE_JSON" > /tmp/uat-evidence.json
-          npm run pilot:uat -- /tmp/uat-evidence.json
+          printf '%s' "$PILOT_RECONCILIATION_EVIDENCE_JSON" > /tmp/pilot-reconciliation-evidence.json
+          printf '%s' "$RESTORE_EVIDENCE_JSON" > /tmp/restore-evidence.json
+          UAT_EVIDENCE_PATH=/tmp/uat-evidence.json \
+          PILOT_RECONCILIATION_EVIDENCE_PATH=/tmp/pilot-reconciliation-evidence.json \
+          RESTORE_EVIDENCE_PATH=/tmp/restore-evidence.json \
+          npm run pilot:production-readiness
       - name: Validate production configuration
         env:
           VERCEL_TOKEN: ${{ secrets.VERCEL_TOKEN }}
@@ -100,6 +109,8 @@ jobs:
           [[ -z "$VITE_SUPABASE_ANON_KEY" ]] && missing+=(VITE_SUPABASE_ANON_KEY)
           [[ -z "$VITE_SENTRY_DSN" ]] && missing+=(VITE_SENTRY_DSN)
           [[ -z "$UAT_EVIDENCE_JSON" ]] && missing+=(UAT_EVIDENCE_JSON)
+          [[ -z "$PILOT_RECONCILIATION_EVIDENCE_JSON" ]] && missing+=(PILOT_RECONCILIATION_EVIDENCE_JSON)
+          [[ -z "$RESTORE_EVIDENCE_JSON" ]] && missing+=(RESTORE_EVIDENCE_JSON)
           required_auth=(AUTH_SMOKE_SUPABASE_URL AUTH_SMOKE_SUPABASE_ANON_KEY AUTH_SMOKE_CREATOR_EMAIL AUTH_SMOKE_CREATOR_PASSWORD AUTH_SMOKE_CREATOR_TOTP_SECRET AUTH_SMOKE_COMPANY_HEAD_EMAIL AUTH_SMOKE_COMPANY_HEAD_PASSWORD AUTH_SMOKE_COMPANY_HEAD_TOTP_SECRET AUTH_SMOKE_CONSTRUCTION_DIRECTOR_EMAIL AUTH_SMOKE_CONSTRUCTION_DIRECTOR_PASSWORD AUTH_SMOKE_CONSTRUCTION_DIRECTOR_TOTP_SECRET AUTH_SMOKE_ITR_EMAIL AUTH_SMOKE_ITR_PASSWORD)
           for name in "${required_auth[@]}"; do [[ -z "${!name}" ]] && missing+=("$name"); done
           [[ "$AUTH_SMOKE_SUPABASE_URL" != "$VITE_SUPABASE_URL" ]] && missing+=(AUTH_SMOKE_SUPABASE_URL_MISMATCH)

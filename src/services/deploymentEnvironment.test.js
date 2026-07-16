@@ -28,6 +28,8 @@ describe("GitHub deployment environment configuration", () => {
     expect(secrets).toContain("BACKUP_SUPABASE_SERVICE_ROLE_KEY");
     expect(secrets).toContain("VITE_SENTRY_DSN");
     expect(secrets).toContain("UAT_EVIDENCE_JSON");
+    expect(secrets).toContain("PILOT_RECONCILIATION_EVIDENCE_JSON");
+    expect(secrets).toContain("RESTORE_EVIDENCE_JSON");
     expect(secrets).toContain("AUTH_SMOKE_CREATOR_TOTP_SECRET");
     expect(secrets).toContain("AUTH_SMOKE_COMPANY_HEAD_TOTP_SECRET");
     expect(secrets).toContain("AUTH_SMOKE_CONSTRUCTION_DIRECTOR_TOTP_SECRET");

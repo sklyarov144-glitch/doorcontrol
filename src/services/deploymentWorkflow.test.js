@@ -64,9 +64,12 @@ describe("production deployment workflow", () => {
     expect(productionWorkflow).toContain("production-release-${{ env.RELEASE_SHA }}");
     expect(productionWorkflow).toContain("Smoke test four authenticated production roles");
     expect(productionWorkflow).toContain("Load smoke authenticated production ITR domain");
-    expect(productionWorkflow).toContain("Verify signed UAT for release SHA");
+    expect(productionWorkflow).toContain("Verify production readiness evidence");
     expect(productionWorkflow).toContain("EXPECTED_RELEASE_SHA: ${{ env.RELEASE_SHA }}");
     expect(productionWorkflow).toContain("UAT_EVIDENCE_JSON: ${{ secrets.UAT_EVIDENCE_JSON }}");
+    expect(productionWorkflow).toContain("PILOT_RECONCILIATION_EVIDENCE_JSON: ${{ secrets.PILOT_RECONCILIATION_EVIDENCE_JSON }}");
+    expect(productionWorkflow).toContain("RESTORE_EVIDENCE_JSON: ${{ secrets.RESTORE_EVIDENCE_JSON }}");
+    expect(productionWorkflow).toContain("npm run pilot:production-readiness");
     expect(productionWorkflow).toContain("npm run supabase:auth:configure");
     expect(productionWorkflow).toContain("supabase functions deploy --use-api");
   });
