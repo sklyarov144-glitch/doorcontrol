@@ -1,6 +1,7 @@
 import { defineConfig, devices } from "@playwright/test";
 
 const port = 4175;
+const remoteBaseURL = process.env.PLAYWRIGHT_BASE_URL?.replace(/\/$/, "");
 
 export default defineConfig({
   testDir: "./e2e",
@@ -12,7 +13,7 @@ export default defineConfig({
     ? [["line"], ["html", { open: "never" }]]
     : "list",
   use: {
-    baseURL: `http://127.0.0.1:${port}`,
+    baseURL: remoteBaseURL || `http://127.0.0.1:${port}`,
     trace: "retain-on-failure",
     screenshot: "only-on-failure",
     video: "retain-on-failure",
@@ -23,7 +24,7 @@ export default defineConfig({
       use: { ...devices["Desktop Chrome"] },
     },
   ],
-  webServer: {
+  webServer: remoteBaseURL ? undefined : {
     command: `npm run dev -- --host 127.0.0.1 --port ${port} --strictPort`,
     url: `http://127.0.0.1:${port}/login`,
     reuseExistingServer: !process.env.CI,

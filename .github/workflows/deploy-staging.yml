@@ -100,5 +100,12 @@ jobs:
           [[ "$AUTH_SMOKE_SUPABASE_ANON_KEY" = "$VITE_SUPABASE_ANON_KEY" ]] || { echo "::error::Auth smoke anon key does not match deployed Supabase project."; exit 1; }
       - name: Smoke test four authenticated roles
         run: npm run auth:smoke
+      - name: Install browser for published UI smoke
+        run: npx playwright install --with-deps chromium
+      - name: Smoke test four roles through published UI
+        env:
+          REMOTE_AUTH_SMOKE: "1"
+          PLAYWRIGHT_BASE_URL: ${{ vars.APP_PUBLIC_URL }}
+        run: npm run auth:ui-smoke
       - name: Load smoke authenticated ITR domain
         run: npm run load:domain
