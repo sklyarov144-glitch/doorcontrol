@@ -8,6 +8,8 @@ Implementations:
   Storage and Edge Functions;
 - provider selection is controlled by `VITE_DATA_PROVIDER` and production deploys
   require the Supabase configuration;
+- the release verifier rejects the complete legacy `gross-lean-montage.*`
+  browser-storage namespace and unfinished MVP UI markers in production bundles;
 - production access checks are enforced by PostgreSQL RLS, not by UI filtering.
 
 Business operations that span several tables must use transactional RPC functions.
@@ -45,4 +47,4 @@ dataProvider.users.disable(id);
 
 `users` are site accounts: ИТР, руководители, директора and creator. They have login, password, role and access rights.
 
-`workers` are монтажники, грузчики and brigade staff without personal accounts. They are used only in brigades, daily facts, manpower planning and production reports. For backward compatibility the MVP stores workers in the existing `employees` localStorage key too.
+`workers` are монтажники, грузчики and brigade staff without personal accounts. They are used only in brigades, daily facts, manpower planning and production reports. The local demo provider keeps them in its legacy `employees` key; production stores them only in PostgreSQL.

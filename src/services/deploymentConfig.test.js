@@ -75,6 +75,9 @@ describe("production bundle verifier", () => {
     expect(source).toContain("Демо: ИТР");
     expect(source).toContain("gross-lean-montage.visual.mvp.v7");
     expect(source).toContain("gross-lean-montage.auth-session.v1");
+    expect(source).toContain('"gross-lean-montage."');
+    expect(source).toContain("Следующий этап MVP");
+    expect(source).toContain("Демо-данные");
   });
 });
 

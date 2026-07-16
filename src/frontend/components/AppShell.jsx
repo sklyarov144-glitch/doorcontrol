@@ -50,14 +50,14 @@ function labelsFor(user) {
     manpower: user.role === "itr" ? "Заявка на рабочих" : "Расстановка рабочей силы",
     tasks: "Задачи", notifications: "Уведомления", tn_issues: "Замечания ТН",
     today_tasks: "Задачи на сегодня", problem_center: "Центр проблем", custody_acts: "Акты ОХ",
-    company_dashboard: "Дашборд компании", itr_team: "Команда ИТР", audit: "Журнал действий",
+    company_dashboard: "Дашборд компании", audit: "Журнал действий",
   };
 }
 
 const screensWithoutBreadcrumbs = new Set([
   "admin", "profile", "companies", "users", "roles", "reports", "finance", "documents",
   "brigade_plan", "manpower", "tasks", "notifications", "tn_issues", "today_tasks",
-  "problem_center", "custody_acts", "company_dashboard", "itr_team", "audit",
+  "problem_center", "custody_acts", "company_dashboard", "audit",
 ]);
 
 export function Header({

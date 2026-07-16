@@ -19,6 +19,7 @@ const bundle = files.map((path) => readFileSync(path, "utf8")).join("\n");
 if (!bundle.includes(expectedOrigin)) throw new Error("Production bundle does not contain the configured Supabase origin");
 
 const forbidden = [
+  "gross-lean-montage.",
   "creator@example.test",
   "head@example.test",
   "director@example.test",
@@ -37,6 +38,10 @@ const forbidden = [
   "creator@gross.ru",
   "Гаранин Сергей",
   "Скляров Иван",
+  "Следующий этап MVP",
+  "Mock-показатель недели",
+  "Демо-данные",
+  "Команда ИТР",
 ];
 const leaked = forbidden.filter((value) => bundle.includes(value));
 if (leaked.length) throw new Error(`Production bundle contains forbidden demo/PII markers: ${leaked.join(", ")}`);

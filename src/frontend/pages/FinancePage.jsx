@@ -115,7 +115,7 @@ export default function FinancePage({ objects, user, provider = dataProvider, is
   };
 
   return <section className="finance-page">
-    <div className="panel-title"><div><h2>Финансовый контур</h2><p>Договоры, бюджет и движение денежных средств по доступным объектам.</p></div>{!isRemote && <span className="status-badge tone-orange">Демо-данные</span>}</div>
+    <div className="panel-title"><div><h2>Финансовый контур</h2><p>Договоры, бюджет и движение денежных средств по доступным объектам.</p></div></div>
     {error && <div className="form-error" role="alert">{error}</div>}
     <div className="executive-kpis">
       <div className="executive-kpi"><span>Портфель договоров</span><strong>{money.format(totals.contractAmount)}</strong></div>

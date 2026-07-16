@@ -1441,7 +1441,7 @@ export function App({ demoUsers = [], demoPassword = "" }) {
           {screen === "reports" && <ReportsPage objects={visibleObjects} />}
           {screen === "finance" && <FinancePage objects={visibleObjects} user={user} />}
           {screen === "audit" && ["creator", "company_head", "construction_director"].includes(user.role) && <AuditLogPage objects={visibleObjects} users={users} />}
-          {screen === "audit" && !["creator", "company_head", "construction_director"].includes(user.role) && <PlaceholderPage screen="access_denied" />}
+          {screen === "audit" && !["creator", "company_head", "construction_director"].includes(user.role) && <AccessDeniedPage />}
           {screen === "company_dashboard" && (isRemoteAuth ? <RemoteExecutiveDashboard objects={visibleObjects} users={users} onOpen={openProblem} /> : <CompanyDashboard objects={visibleObjects} user={user} users={users} onOpen={openProblem} />)}
           {screen === "users" && <UsersPage users={users} objects={objects} currentUser={user} remoteAuth={isRemoteAuth} demoPassword={demoPassword} onSave={async (nextUsers) => {
             if (isRemoteAuth) {
@@ -1454,7 +1454,6 @@ export function App({ demoUsers = [], demoPassword = "" }) {
           }} />}
           {screen === "roles" && <RolesPage users={users} onOpenUsers={() => setScreen("users")} />}
           {screen === "companies" && <CompanyPage objects={visibleObjects} users={users} user={user} onOpenObjects={() => setScreen("objects")} />}
-          {screen === "itr_team" && <PlaceholderPage screen={screen} />}
           {screen === "objects" && <ObjectsPage objects={visibleObjects} onOpen={goToObject} />}
           {screen === "object" && selectedObject && (
             <StandaloneObjectPage
@@ -2474,15 +2473,8 @@ function ProblemCenterPage({ objects, user, users, onOpen, onCreateTask }) {
   );
 }
 
-function PlaceholderPage({ screen }) {
-  const content = {
-    companies: ["Компании", "Управление компаниями и их доступами появится на следующем этапе."],
-    users: ["Пользователи", "Здесь будет создание пользователей, назначения и управление доступом."],
-    roles: ["Роли и доступы", "Матрица прав и детальные разрешения будут добавлены позже."],
-    itr_team: ["Команда ИТР", "Назначение ИТР на объекты и контроль активности появятся в следующей версии."],
-  };
-  const [title, text] = content[screen] ?? ["Раздел", "Раздел находится в разработке."];
-  return <section className="placeholder-page"><div className="placeholder-mark">Г</div><div><span>Следующий этап MVP</span><h2>{title}</h2><p>{text}</p></div></section>;
+function AccessDeniedPage() {
+  return <section className="placeholder-page"><div className="placeholder-mark">Г</div><div><h2>Нет доступа</h2><p>Для вашей роли этот раздел недоступен.</p></div></section>;
 }
 
 export {

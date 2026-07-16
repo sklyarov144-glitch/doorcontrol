@@ -25,4 +25,13 @@ describe("production bundle verification", () => {
   it("rejects legacy personal data markers", () => {
     expect(verify("https://abcdefghijklmnopqrst.supabase.co; i.sklyarov@gk-gross.ru").status).not.toBe(0);
   });
+
+  it("rejects unfinished MVP and demo UI markers", () => {
+    expect(verify("https://abcdefghijklmnopqrst.supabase.co; Следующий этап MVP").status).not.toBe(0);
+    expect(verify("https://abcdefghijklmnopqrst.supabase.co; Демо-данные").status).not.toBe(0);
+  });
+
+  it("rejects the legacy browser business-storage namespace", () => {
+    expect(verify("https://abcdefghijklmnopqrst.supabase.co; gross-lean-montage.teams.v1").status).not.toBe(0);
+  });
 });
