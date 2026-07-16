@@ -85,6 +85,7 @@ import ProfilePage from "../pages/ProfilePage";
 import AdminPanel from "../pages/AdminPage";
 import ManualTasksPage, { TaskLinkModal } from "../pages/TasksPage";
 import TodayTasksPage from "../pages/TodayTasksPage";
+import ReportsPage from "../pages/ReportsPage";
 import NotificationsPage from "../pages/NotificationsPage";
 import BuildingVisualization from "../pages/BuildingPage";
 import FloorPlan from "../pages/FloorPage";
@@ -2901,88 +2902,6 @@ function DoorMatrixPage({ objects, rows, role, onChange, onRowsChange }) {
     {settingsOpen && <div className="column-settings"><div className="column-settings-header"><strong>Настройка столбцов</strong><button onClick={() => { const all = matrixColumns.map(([field]) => field); setVisibleColumns(all); localStorage.setItem(MATRIX_COLUMNS_KEY, JSON.stringify(all)); }}>Сбросить столбцы</button></div><div>{matrixColumns.filter(([field]) => !mandatoryMatrixColumns.includes(field)).map(([field, label]) => <label key={field}><input type="checkbox" checked={visibleColumns.includes(field)} onChange={() => toggleColumn(field)} />{label}</label>)}</div><div className="column-settings-options"><label><input type="checkbox" checked={compact} onChange={(event) => { setCompact(event.target.checked); localStorage.setItem(MATRIX_COMPACT_KEY, String(event.target.checked)); }} />Компактный режим</label></div></div>}
     <div className="matrix-table-card"><table className="matrix-table"><thead><tr><th className="matrix-select-column"><input type="checkbox" checked={filtered.length > 0 && filtered.every((row) => selectedRows.includes(row.id))} onChange={(event) => setSelectedRows(event.target.checked ? filtered.map((row) => row.id) : [])} /></th>{shownColumns.map(([field, label]) => <th className={`matrix-col-${field}`} key={field}>{label}</th>)}<th className="matrix-actions-column">Действия</th></tr></thead><tbody>{floorGroups.map(([groupKey, groupRows]) => { const metrics = matrixMetrics(groupRows); const collapsed = collapsedFloors.includes(groupKey); return <React.Fragment key={groupKey}><tr className="floor-divider"><td colSpan={shownColumns.length + 2}><button onClick={() => setCollapsedFloors((current) => current.includes(groupKey) ? current.filter((key) => key !== groupKey) : [...current, groupKey])}>{collapsed ? "▸" : "▾"} {groupRows[0].floor} этаж</button><span>{groupRows[0].building}</span><span>Всего: {metrics.total}</span><span>Смонтировано: {metrics.installed}</span><span>Замечаний: {metrics.tnIssues}</span><strong>{metrics.readiness}%</strong></td></tr>{!collapsed && groupRows.map((row) => { const rowIndex = filtered.findIndex((item) => item.id === row.id); return <tr key={row.id}><td className="matrix-select-column"><input type="checkbox" checked={selectedRows.includes(row.id)} onChange={(event) => setSelectedRows((current) => event.target.checked ? [...current, row.id] : current.filter((id) => id !== row.id))} /></td>{shownColumns.map(([field, , type], columnIndex) => <td onMouseDown={(event) => { if (event.shiftKey && activeCell) setRangeStart(rangeStart ?? activeCell); else setRangeStart({ rowId: row.id, field }); setActiveCell({ rowId: row.id, field }); }} className={`matrix-col-${field} ${isSelectedCell(rowIndex, columnIndex) ? "is-selected" : ""} ${activeCell?.rowId === row.id && activeCell?.field === field ? "is-active" : ""}`} key={field}>{type === "status" ? <select disabled={!canEdit(field)} value={row[field] ?? "Нет"} onChange={(event) => onChange(row.id, field, event.target.value)}><option>Да</option><option>Нет</option><option>Не требуется</option></select> : <input disabled={!canEdit(field)} type={type === "date" ? "date" : "text"} value={row[field] ?? ""} onChange={(event) => onChange(row.id, field, event.target.value)} />}</td>)}<td className="matrix-actions-column"><button onClick={() => navigator.clipboard?.writeText(matrixColumns.map(([field]) => row[field] ?? "").join("\t"))}>Копировать</button></td></tr>; })}</React.Fragment>; })}</tbody></table>{filtered.length === 0 && <div className="empty-plan">По выбранным фильтрам дверей нет.</div>}</div>
   </section>;
-}
-
-function reportRowsFromObjects(objects) {
-  return objects.flatMap((object) =>
-    object.buildings.flatMap((building) =>
-      building.floors
-        .filter((floor) => floor.type === "floor")
-        .flatMap((floor) =>
-          floor.doors.map((door) => ({
-            objectId: object.id,
-            object: object.name,
-            buildingId: building.id,
-            building: building.name,
-            floor: floor.number,
-            mounted: ["смонтирована", "принято технадзором", "передано по акту"].includes(door.doorStatus),
-            accepted: door.doorStatus === "принято технадзором",
-            custody: door.storageAct === "передано по акту",
-            issue: door.issue === "есть замечание",
-          }))
-        )
-    )
-  );
-}
-
-function reportMetrics(rows) {
-  const mounted = rows.filter((row) => row.mounted).length;
-  return {
-    total: rows.length,
-    mounted,
-    accepted: rows.filter((row) => row.accepted).length,
-    custody: rows.filter((row) => row.custody).length,
-    issues: rows.filter((row) => row.issue).length,
-    readiness: rows.length ? Math.round((mounted / rows.length) * 100) : 0,
-  };
-}
-
-function ReportsPage({ objects }) {
-  const [groupBy, setGroupBy] = useState("object");
-  const [objectId, setObjectId] = useState("");
-  const [buildingId, setBuildingId] = useState("");
-  const rows = reportRowsFromObjects(objects);
-  const objectOptions = objects.map((object) => [object.id, object.name]);
-  const buildingOptions = objects
-    .filter((object) => !objectId || object.id === objectId)
-    .flatMap((object) => object.buildings.map((building) => [building.id, building.name]));
-  const scopedRows = rows.filter((row) => (!objectId || row.objectId === objectId) && (!buildingId || row.buildingId === buildingId));
-  const metrics = reportMetrics(scopedRows);
-  const grouped = Object.entries(scopedRows.reduce((result, row) => {
-    const key = String(row[groupBy]);
-    result[key] = [...(result[key] ?? []), row];
-    return result;
-  }, {}));
-
-  return (
-    <section className="reports-page">
-      <div className="report-toolbar">
-        <div>
-          <h2>Отчёты по монтажу</h2>
-          <p>Показатели рассчитываются по текущим статусам дверей в объекте, без внутренней таблицы шахматки.</p>
-        </div>
-        <div className="report-scope">
-          <label>Объект<select value={objectId} onChange={(event) => { setObjectId(event.target.value); setBuildingId(""); }}><option value="">Все объекты</option>{objectOptions.map(([id, name]) => <option key={id} value={id}>{name}</option>)}</select></label>
-          <label>Корпус<select value={buildingId} onChange={(event) => setBuildingId(event.target.value)}><option value="">Все корпуса</option>{buildingOptions.map(([id, name]) => <option key={id} value={id}>{name}</option>)}</select></label>
-          <label>Группировка<select value={groupBy} onChange={(event) => setGroupBy(event.target.value)}><option value="object">По объекту</option><option value="building">По корпусу</option><option value="floor">По этажу</option></select></label>
-        </div>
-      </div>
-      <div className="matrix-stats">
-        <div><span>Всего дверей</span><strong>{metrics.total}</strong></div>
-        <div><span>Смонтировано</span><strong>{metrics.mounted}</strong></div>
-        <div><span>Передано по актам</span><strong>{metrics.custody}</strong></div>
-        <div><span>Принято ТН</span><strong>{metrics.accepted}</strong></div>
-        <div><span>Замечаний</span><strong>{metrics.issues}</strong></div>
-        <div><span>Готовность</span><strong>{metrics.readiness}%</strong></div>
-      </div>
-      <div className="report-groups">
-        {grouped.map(([name, groupRows]) => {
-          const groupMetrics = reportMetrics(groupRows);
-          return <div className="report-group" key={name}><div><strong>{name}</strong><span>{groupMetrics.total} дверей</span></div><div className="progress-bar"><span style={{ width: `${groupMetrics.readiness}%` }} /></div><b>{groupMetrics.readiness}%</b><span>Смонтировано: {groupMetrics.mounted}</span><span>Замечаний: {groupMetrics.issues}</span></div>;
-        })}
-      </div>
-    </section>
-  );
 }
 
 export {
