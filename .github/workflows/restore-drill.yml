@@ -32,7 +32,7 @@ jobs:
           [[ "$BACKUP_RUN_ID" =~ ^[0-9]+$ ]] || { echo "::error::backup_run_id must be numeric"; exit 1; }
           [[ -n "$BACKUP_ENCRYPTION_PASSWORD" ]] || { echo "::error::BACKUP_ENCRYPTION_PASSWORD is missing"; exit 1; }
       - name: Download encrypted backup
-        uses: actions/download-artifact@v4
+        uses: actions/download-artifact@v8
         with:
           name: gross-db-backup-${{ inputs.backup_run_id }}
           path: encrypted-backup
@@ -109,7 +109,7 @@ jobs:
             "$COMPLETED_AT"
           cat restored-backup/restore-evidence.json
       - name: Upload restore evidence
-        uses: actions/upload-artifact@v4
+        uses: actions/upload-artifact@v7
         with:
           name: restore-evidence-${{ github.run_id }}
           path: restored-backup/restore-evidence.json
