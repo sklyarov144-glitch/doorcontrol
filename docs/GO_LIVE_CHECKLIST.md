@@ -3,6 +3,8 @@
 ## Обязательные условия
 
 - [x] CI зелёный на release SHA.
+- [ ] `main` защищена и `npm run deployment:audit-branch -- --strict` успешен.
+- [ ] Изменения в `main` проходят только через PR с обязательными `verify`, `database`, `e2e`.
 - [x] Staging deployment и smoke успешны.
 - [x] Staging workflow сохраняет immutable release evidence и связывает его с CI run того же SHA; production повторно скачивает и валидирует artifact.
 - [x] Все migrations применены к staging.

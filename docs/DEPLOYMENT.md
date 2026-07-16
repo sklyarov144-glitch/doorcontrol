@@ -8,10 +8,21 @@
 3. Заполнить секреты из `ENVIRONMENTS.md` вручную или проверяемой командой `npm run deployment:configure -- <environment> --apply`.
 4. Выполнить `npm run verify:deployment` с production-переменными.
 5. Связать staging workflow с staging project, production workflow — только с production project.
-6. Настроить required reviewers и запрет self-review командой
+6. До первого production-релиза защитить `main`: выполнить dry-run
+   `npm run deployment:protect-main`, затем применить выведенную точную команду
+   с `--apply` и подтвердить `npm run deployment:audit-branch -- --strict`.
+   Защита требует PR, актуальную ветку и проверки `verify`, `database`, `e2e`,
+   применяется к администратору и запрещает force-push/удаление ветки.
+7. Настроить required reviewers и запрет self-review командой
    `npm run deployment:protect-production`, затем вручную отключить admin bypass
    и подтвердить защиту `npm run deployment:audit -- production --strict`.
-7. В Supabase включить MFA для владельцев, native backups/PITR и уведомления о потреблении ресурсов.
+8. В Supabase включить MFA для владельцев, native backups/PITR и уведомления о потреблении ресурсов.
+
+Пока у репозитория только один участник с write-доступом,
+`BRANCH_REQUIRED_APPROVALS=0`: PR и CI обязательны, но внешний approval не
+запирает владельца. После добавления второго независимого проверяющего правило
+повторно применяется с `BRANCH_REQUIRED_APPROVALS=1`; конфигуратор отклонит это
+значение, если независимого участника с write-доступом ещё нет.
 
 После первого staging import выполните `npm run auth:bootstrap:staging`, перенесите
 те же credentials в GitHub Environment `staging` и повторно запустите deployment.
@@ -74,6 +85,13 @@ Staging использует отдельный Vercel project и публику
 8. Скачать и сохранить artifact `production-release-<SHA>`: он содержит SHA, staging run, Supabase project, deployment URL, канонический домен, время, исполнителя и результаты обязательных smoke-проверок. Workflow отклонит SHA, для которого нет успешного staging deployment из ветки `main`.
 
 SQL migrations должны быть backward-compatible: сначала расширение схемы, затем код, удаление старых колонок — отдельным будущим релизом после проверки использования.
+
+## Изменения после защиты main
+
+После включения защиты прямой `git push origin main` ожидаемо отклоняется. Рабочий
+поток: ветка `codex/<задача>` -> pull request -> зелёные `verify`, `database`,
+`e2e` -> merge. Staging запускается уже от merge-коммита в `main`. Production
+не должен использовать SHA из незамерженной ветки.
 
 ## Домен
 
