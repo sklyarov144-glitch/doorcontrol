@@ -14,6 +14,9 @@ export function auditEnvironmentInventory(environment, inventory) {
     if (!reviewerRule?.reviewers?.length) {
       missingProtections.push("required reviewer");
     }
+    if (reviewerRule?.prevent_self_review !== true) {
+      missingProtections.push("self-review disabled");
+    }
     if (inventory.canAdminsBypass !== false) {
       missingProtections.push("admin bypass disabled");
     }

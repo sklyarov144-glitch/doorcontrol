@@ -63,6 +63,8 @@ workflow завершается ошибкой и не выдаёт отсутс
   выпуска он должен быть не старше 30 дней, а восстановление укладываться в RTO 4 часа.
 
 Production environment должен требовать ручного approve владельцем продукта или техническим ответственным.
+Инициатор production deployment не должен иметь возможность одобрить собственный
+запуск, а обход protection rules администратором должен быть отключён.
 
 ## Supabase Auth URLs
 
@@ -93,10 +95,37 @@ npm run deployment:audit -- production --strict
 ```
 
 Второй вариант завершается ошибкой, пока обязательный production inventory не
-собран полностью. Для production также проверяется хотя бы один required reviewer
-и отключённый admin bypass; наличие одних только secrets больше не считается
+собран полностью. Для production также проверяются required reviewer, запрет
+self-review и отключённый admin bypass; наличие одних только secrets больше не считается
 готовой release-защитой. Отдельное предупреждение сообщает об отсутствии Sentry
 в staging, где DSN пока не является блокирующим deployment secret.
+
+Required reviewers и запрет self-review можно настроить поддерживаемым GitHub REST
+API, не передавая секреты. ID пользователя узнаётся через `gh api users/<login>
+--jq .id`, ID команды — через `gh api orgs/<org>/teams/<slug> --jq .id`. Reviewer
+выбирается владельцем бизнеса явно; скрипт не назначает текущего пользователя
+автоматически:
+
+```bash
+PRODUCTION_REVIEWERS=User:123456 \
+npm run deployment:protect-production
+
+PRODUCTION_REVIEWERS=User:123456 \
+PRODUCTION_PROTECTION_CONFIRM=PRODUCTION:sklyarov144-glitch/doorcontrol:User:123456 \
+npm run deployment:protect-production -- --apply
+```
+
+Можно указать до шести reviewer через запятую, например
+`User:123456,Team:98765`. Команда сохраняет текущие wait timer и branch policy,
+включает `prevent_self_review`, повторно читает настройки и проверяет результат.
+GitHub REST API не предоставляет документированного параметра для отключения
+admin bypass. После команды владелец репозитория отключает **Allow administrators
+to bypass configured protection rules** в `Settings > Environments > production`.
+Готовность подтверждается только строгим аудитом:
+
+```bash
+npm run deployment:audit -- production --strict
+```
 
 ## Безопасная загрузка GitHub Environment
 

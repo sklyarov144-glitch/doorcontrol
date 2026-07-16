@@ -8,7 +8,7 @@ function completeInventory(environment) {
     secrets: requirements.secrets,
     variables: requirements.variables,
     protectionRules: environment === "production"
-      ? [{ type: "required_reviewers", reviewers: [{ type: "User", id: 1 }] }]
+      ? [{ type: "required_reviewers", prevent_self_review: true, reviewers: [{ type: "User", id: 1 }] }]
       : [],
     canAdminsBypass: environment === "production" ? false : true,
   };
@@ -45,7 +45,21 @@ describe("auditEnvironmentInventory", () => {
     });
 
     expect(result.ready).toBe(false);
-    expect(result.missingProtections).toEqual(["required reviewer", "admin bypass disabled"]);
+    expect(result.missingProtections).toEqual([
+      "required reviewer",
+      "self-review disabled",
+      "admin bypass disabled",
+    ]);
+  });
+
+  it("rejects production when the deployment initiator can approve their own release", () => {
+    const inventory = completeInventory("production");
+    inventory.protectionRules[0].prevent_self_review = false;
+
+    const result = auditEnvironmentInventory("production", inventory);
+
+    expect(result.ready).toBe(false);
+    expect(result.missingProtections).toEqual(["self-review disabled"]);
   });
 
   it("warns when optional staging monitoring is absent", () => {

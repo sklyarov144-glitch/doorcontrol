@@ -7,7 +7,9 @@
 3. Заполнить секреты из `ENVIRONMENTS.md` вручную или проверяемой командой `npm run deployment:configure -- <environment> --apply`.
 4. Выполнить `npm run verify:deployment` с production-переменными.
 5. Связать staging workflow с staging project, production workflow — только с production project.
-6. Включить required reviewers для GitHub environment `production`.
+6. Настроить required reviewers и запрет self-review командой
+   `npm run deployment:protect-production`, затем вручную отключить admin bypass
+   и подтвердить защиту `npm run deployment:audit -- production --strict`.
 7. В Supabase включить MFA для владельцев, native backups/PITR и уведомления о потреблении ресурсов.
 
 После первого staging import выполните `npm run auth:bootstrap:staging`, перенесите
