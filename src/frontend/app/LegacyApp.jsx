@@ -60,7 +60,6 @@ import {
   rejectManpowerRequest,
   syncAutomaticTasksAndNotifications,
   updateTask,
-  updateTaskStatus,
   updateWorkStandard,
   disableWorkStandard,
 } from "../storage";
@@ -85,6 +84,7 @@ import UsersPage from "../pages/UsersPage";
 import ProfilePage from "../pages/ProfilePage";
 import AdminPanel from "../pages/AdminPage";
 import ManualTasksPage, { TaskLinkModal } from "../pages/TasksPage";
+import TodayTasksPage from "../pages/TodayTasksPage";
 import NotificationsPage from "../pages/NotificationsPage";
 import BuildingVisualization from "../pages/BuildingPage";
 import FloorPlan from "../pages/FloorPage";
@@ -1464,7 +1464,7 @@ export function App({ demoUsers = [], demoPassword = "" }) {
             ? <RemoteCustodyActsPage objects={visibleObjects} users={users} onOpen={openProblem} onUpdateAct={updateCustodyAct} />
             : <CustodyActsPage objects={visibleObjects} user={user} users={users} onOpen={openProblem} onUpdateAct={updateCustodyAct} />)}
           {screen === "tn_issues" && (isRemoteAuth ? <RemoteTnIssuesPage objects={visibleObjects} users={users} onOpen={openProblem} onResolve={(doorId) => updateDoor(doorId, { issue: "устранено", tnIssues: "Нет" })} /> : <TnIssuesPage objects={visibleObjects} user={user} users={users} onOpen={openProblem} />)}
-          {screen === "today_tasks" && <TodayTasksPage objects={visibleObjects} user={user} users={users} onOpen={openProblem} />}
+          {screen === "today_tasks" && <TodayTasksPage tasks={manualTasks} objects={visibleObjects} user={user} users={users} onOpen={openProblem} onUpdateTask={changeManualTask} />}
           {screen === "problem_center" && (isRemoteAuth
             ? <RemoteProblemCenterPage objects={visibleObjects} user={user} users={users} onOpen={openProblem} onCreateTask={openTaskModal} />
             : <ProblemCenterPage objects={visibleObjects} user={user} users={users} onOpen={openProblem} onCreateTask={openTaskModal} />)}
@@ -2575,14 +2575,6 @@ function TnIssuesPage({ objects, user, users, onOpen }) {
   );
 }
 
-function taskStatusLabel(status) {
-  return {
-    new: "Новая",
-    in_progress: "В работе",
-    done: "Выполнено",
-  }[status] ?? "Новая";
-}
-
 function TaskCreateModal({ context, objects, users, onClose, onCreate }) {
   const firstObject = objects.find((object) => object.id === context.objectId) ?? objects[0];
   const firstBuilding = firstObject?.buildings.find((building) => building.id === context.buildingId) ?? firstObject?.buildings[0];
@@ -2646,90 +2638,6 @@ function TaskCreateModal({ context, objects, users, onClose, onCreate }) {
         <div className="form-actions"><button className="secondary-button" type="button" onClick={onClose}>Отмена</button><button className="primary-button" type="submit">Поставить задачу</button></div>
       </form>
     </div>
-  );
-}
-
-function TodayTasksPage({ objects, user, users, onOpen }) {
-  const [version, setVersion] = useState(0);
-  const userNames = new Map(users.map((item) => [item.id, item.name]));
-  const today = new Date().toISOString().slice(0, 10);
-  const tasks = calculateTodayTasks(objects)
-    .filter((task) => canSeeTask(task, user))
-    .map((task) => ({ ...task, assignedToName: userNames.get(task.assignedTo) ?? task.assignedTo }));
-  const urgentTasks = tasks.filter((task) => task.priority === "высокий" && task.status !== "done");
-  const stats = {
-    total: tasks.length,
-    urgent: urgentTasks.length,
-    today: tasks.filter((task) => task.dueDate <= today && task.status !== "done").length,
-    overdue: tasks.filter((task) => task.dueDate < today && task.status !== "done").length,
-    done: tasks.filter((task) => task.status === "done").length,
-  };
-  const sortedTasks = [...tasks].sort((a, b) => {
-    const statusWeight = { new: 0, in_progress: 1, done: 2 };
-    const priorityWeight = { высокий: 0, средний: 1, низкий: 2 };
-    return (statusWeight[a.status] ?? 0) - (statusWeight[b.status] ?? 0) || (priorityWeight[a.priority] ?? 2) - (priorityWeight[b.priority] ?? 2);
-  });
-  const changeStatus = (taskId, status) => {
-    updateTaskStatus(taskId, status);
-    setVersion((value) => value + 1);
-  };
-
-  return (
-    <section className="tasks-page" key={version}>
-      <div className="tasks-hero">
-        <div>
-          <span>Ежедневный список</span>
-          <h2>Задачи на сегодня</h2>
-          <p>Задачи формируются автоматически из проблем, статусов дверей, актов и замечаний. Выполненные действия сохраняются локально.</p>
-        </div>
-      </div>
-      <div className="tasks-summary">
-        <div><span>Всего задач</span><strong>{stats.total}</strong></div>
-        <div className="danger"><span>Срочные</span><strong>{stats.urgent}</strong></div>
-        <div><span>На сегодня</span><strong>{stats.today}</strong></div>
-        <div className="danger"><span>Просроченные</span><strong>{stats.overdue}</strong></div>
-        <div className="success"><span>Выполненные</span><strong>{stats.done}</strong></div>
-      </div>
-      {urgentTasks.length > 0 && (
-        <div className="urgent-task-strip">
-          <strong>Срочные задачи</strong>
-          <div>{urgentTasks.slice(0, 4).map((task) => <button key={task.id} onClick={() => onOpen(task)}>{task.title}<span>{task.object}</span></button>)}</div>
-        </div>
-      )}
-      <div className="tasks-table-card">
-        <table className="tasks-table">
-          <thead>
-            <tr>
-              <th>Приоритет</th>
-              <th>Задача</th>
-              <th>Объект</th>
-              <th>Корпус</th>
-              <th>Этаж</th>
-              <th>Дверь</th>
-              <th>Срок</th>
-              <th>Статус</th>
-              <th>Действие</th>
-            </tr>
-          </thead>
-          <tbody>
-            {sortedTasks.map((task) => (
-              <tr className={task.status === "done" ? "is-done" : ""} key={task.id}>
-                <td><span className={`priority-badge priority-${task.priority}`}>{task.priority}</span></td>
-                <td><strong>{task.title}</strong><small>{task.description}</small></td>
-                <td>{task.object}</td>
-                <td>{task.building}</td>
-                <td>{task.floor}</td>
-                <td>{task.door}</td>
-                <td>{task.dueDate}</td>
-                <td><span className={`task-status status-${task.status}`}>{taskStatusLabel(task.status)}</span></td>
-                <td><div className="task-actions"><button className="secondary-button slim" onClick={() => onOpen(task)}>Открыть</button><button className="secondary-button slim" disabled={task.status === "done"} onClick={() => changeStatus(task.id, "in_progress")}>В работу</button><button className="primary-button slim" disabled={task.status === "done"} onClick={() => changeStatus(task.id, "done")}>Выполнено</button></div></td>
-              </tr>
-            ))}
-          </tbody>
-        </table>
-        {sortedTasks.length === 0 && <div className="empty-plan">На сегодня задач нет.</div>}
-      </div>
-    </section>
   );
 }
 

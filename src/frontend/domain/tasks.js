@@ -1,5 +1,6 @@
 export function isManualTaskOverdue(task, today = new Date().toISOString().slice(0, 10)) {
-  return Boolean(task.dueDate && task.dueDate < today && !["выполнена", "отменена"].includes(task.status));
+  const comparisonDate = typeof today === "string" ? today : new Date().toISOString().slice(0, 10);
+  return Boolean(task.dueDate && task.dueDate < comparisonDate && !["выполнена", "отменена"].includes(task.status));
 }
 
 export function canSeeManualTask(task, user) {
@@ -10,6 +11,15 @@ export function canSeeManualTask(task, user) {
 
 export function getManualTaskNoticeCount(tasks, user) {
   return tasks.filter((task) => canSeeManualTask(task, user) && (task.status === "новая" || isManualTaskOverdue(task))).length;
+}
+
+export function manualTaskStatusLabel(status) {
+  return {
+    новая: "Новая",
+    "в работе": "В работе",
+    выполнена: "Выполнена",
+    отменена: "Отменена",
+  }[status] ?? status ?? "Новая";
 }
 
 export function getTaskContext(objects, task) {

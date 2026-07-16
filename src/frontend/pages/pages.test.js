@@ -12,6 +12,7 @@ describe("page module contract", () => {
       "DoorPage",
       "DashboardPage",
       "TasksPage",
+      "TodayTasksPage",
       "NotificationsPage",
       "ProblemCenterPage",
       "CustodyActsPage",

@@ -6,6 +6,7 @@ export { default as FloorPage } from "./FloorPage";
 export { default as DoorPage } from "./DoorPage";
 export { default as DashboardPage } from "./DashboardPage";
 export { default as TasksPage } from "./TasksPage";
+export { default as TodayTasksPage } from "./TodayTasksPage";
 export { default as NotificationsPage } from "./NotificationsPage";
 export { default as ProblemCenterPage } from "./ProblemCenterPage";
 export { default as CustodyActsPage } from "./CustodyActsPage";

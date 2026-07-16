@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { canSeeManualTask, getManualTaskNoticeCount, getTaskContext, isManualTaskOverdue } from "./tasks";
+import { canSeeManualTask, getManualTaskNoticeCount, getTaskContext, isManualTaskOverdue, manualTaskStatusLabel } from "./tasks";
 
 const object = {
   id: "object-1",
@@ -27,6 +27,7 @@ describe("manual task rules", () => {
     ];
     expect(getManualTaskNoticeCount(tasks, { id: "itr-1", role: "itr" })).toBe(2);
     expect(isManualTaskOverdue(tasks[1], "2026-07-16")).toBe(true);
+    expect(tasks.filter(isManualTaskOverdue)).toContain(tasks[1]);
   });
 
   it("resolves the navigation context from production objects", () => {
@@ -36,5 +37,11 @@ describe("manual task rules", () => {
       floorName: "Этаж 8",
       doorName: "Квартира 1",
     });
+  });
+
+  it("uses backend task status labels", () => {
+    expect(manualTaskStatusLabel("новая")).toBe("Новая");
+    expect(manualTaskStatusLabel("в работе")).toBe("В работе");
+    expect(manualTaskStatusLabel("выполнена")).toBe("Выполнена");
   });
 });
