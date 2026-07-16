@@ -18,13 +18,11 @@ import {
   approveManpowerRequest,
   calculateTodayTasks,
   cancelManpowerRequest,
-  createDoorMatrix,
   getManpowerRequests,
   getManpowerStats,
   getManpowerSummaryByDate,
   getDailyItrManpowerTask,
   getWeeklyManpowerPlan,
-  getDoorMatrix,
   getDailyWorkReports,
   getDailyAutoReports,
   getDelayReasonStats,
@@ -47,9 +45,6 @@ import {
   generateDailyAutoReport,
   markAllNotificationsRead,
   markNotificationRead,
-  mergeDoorMatrixWithObjects,
-  normalizeDoorMatrix,
-  saveDoorMatrix,
   saveEmployees,
   saveTeams,
   submitManpowerRequest,
@@ -93,7 +88,6 @@ import DoorDetails from "../pages/DoorPage";
 import { permissionsFor } from "../domain/permissions";
 import { roleLabels } from "../domain/roles";
 import { normalizeUser } from "../domain/users";
-import { statusMeta } from "../domain/statuses";
 import { applyDoorWorkflow } from "../domain/doorWorkflow";
 import { getManualTaskNoticeCount } from "../domain/tasks";
 import {
@@ -105,7 +99,6 @@ import "../styles.css";
 
 const MATRIX_DOCUMENTS_KEY = "gross-lean-montage.matrix-documents.v1";
 
-const matrixStatusOptions = ["Да", "Нет", "Не требуется"];
 const manualTaskTypes = [
   "Добавить акт АОХ",
   "Проверить замечание ТН",
@@ -484,53 +477,6 @@ function saveUsers(users) {
   return users;
 }
 
-function matrixPatchFromDoor(values) {
-  const patch = {};
-  if ("doorStatus" in values) {
-    patch.installed = ["смонтирована", "принято технадзором", "передано по акту"].includes(values.doorStatus) ? "Да" : "Нет";
-    patch.acceptedTN = values.doorStatus === "принято технадзором" ? "Да" : undefined;
-  }
-  if ("storageAct" in values) {
-    patch.custodyAct = values.storageAct === "передано по акту" ? "Да" : values.storageAct === "акт подготовлен" ? "Не требуется" : "Нет";
-  }
-  if ("issue" in values) {
-    patch.tnIssues = values.issue === "есть замечание" ? "Да" : "Нет";
-  }
-  if ("installed" in values) patch.installed = values.installed;
-  if ("custodyAct" in values) patch.custodyAct = values.custodyAct;
-  if ("acceptedTN" in values) patch.acceptedTN = values.acceptedTN;
-  if ("tnIssues" in values) patch.tnIssues = values.tnIssues;
-  return Object.fromEntries(Object.entries(patch).filter(([, value]) => value !== undefined));
-}
-
-function doorPatchFromMatrix(row, field, value) {
-  const nextRow = { ...row, [field]: value };
-  const next = {};
-  if (field === "mark") next.mark = value;
-  if (nextRow.tnIssues === "Да") next.issue = "есть замечание";
-  if (nextRow.tnIssues === "Нет") next.issue = "нет";
-  if (nextRow.custodyAct === "Да") next.storageAct = "передано по акту";
-  if (nextRow.custodyAct === "Не требуется") next.storageAct = "акт подготовлен";
-  if (nextRow.custodyAct === "Нет") next.storageAct = "не передана";
-  if (nextRow.acceptedTN === "Да") next.doorStatus = "принято технадзором";
-  else if (nextRow.installed === "Да") next.doorStatus = "смонтирована";
-  else if (nextRow.ordered === "Да") next.doorStatus = "доставлена";
-  else if (["installed", "acceptedTN", "ordered"].includes(field)) next.doorStatus = "не начато";
-  return next;
-}
-
-function getDoorPlanTone(door, matrixRow) {
-  if (matrixRow?.tnIssues === "Да" || door.issue === "есть замечание") return "red";
-  if (matrixRow?.custodyAct === "Да" || door.storageAct === "передано по акту") return "graphite";
-  if (matrixRow?.acceptedTN === "Да" || door.doorStatus === "принято технадзором") return "darkgreen";
-  if (matrixRow?.installed === "Да" || door.doorStatus === "смонтирована") return "green";
-  if (matrixRow?.lifted === "Да") return "purple";
-  if (matrixRow?.arrived === "Да") return "cyan";
-  if (matrixRow?.ordered === "Да" || door.doorStatus === "доставлена") return "blue";
-  if (door.openingStatus === "требует корректировки") return "orange";
-  return statusMeta[door.doorStatus]?.tone ?? "gray";
-}
-
 export function App({ demoUsers = [], demoPassword = "" }) {
   const location = useLocation();
   const routerNavigate = useNavigate();
@@ -539,15 +485,6 @@ export function App({ demoUsers = [], demoPassword = "" }) {
   const isRemoteAuth = dataProviderName === "supabase";
   const isPasswordRecovery = isRemoteAuth && location.pathname === "/reset-password";
   const [objects, setObjects] = useState(() => isRemoteAuth ? [] : loadObjects());
-  const [doorMatrix, setDoorMatrix] = useState(() => {
-    if (isRemoteAuth) return [];
-    const saved = getDoorMatrix();
-    const currentObjects = loadObjects();
-    const source = saved.length > 0 ? mergeDoorMatrixWithObjects(saved, currentObjects) : createDoorMatrix(currentObjects);
-    const normalized = normalizeDoorMatrix(source);
-    saveDoorMatrix(normalized);
-    return normalized;
-  });
   const localSession = isRemoteAuth ? null : dataProvider.auth.getSession();
   const [isLoggedIn, setIsLoggedIn] = useState(() => Boolean(localSession?.userId));
   const [authLoading, setAuthLoading] = useState(isRemoteAuth);
@@ -941,7 +878,7 @@ export function App({ demoUsers = [], demoPassword = "" }) {
   };
 
   const updateDoor = (doorId, values) => {
-    const { nextObjects, updatedDoor: persistedDoor, effectiveValues } = applyDoorWorkflow(
+    const { nextObjects, updatedDoor: persistedDoor } = applyDoorWorkflow(
       objects,
       doorId,
       values,
@@ -969,69 +906,9 @@ export function App({ demoUsers = [], demoPassword = "" }) {
         });
     } else {
       saveObjects(nextObjects);
-    }
-    if (!isRemoteAuth) {
-      const nextMatrix = normalizeDoorMatrix(doorMatrix.map((row) => row.doorId !== doorId ? row : { ...row, ...matrixPatchFromDoor(effectiveValues) }));
-      setDoorMatrix(nextMatrix);
-      saveDoorMatrix(nextMatrix);
       syncAutomation(nextObjects);
     }
     return persistencePromise;
-  };
-
-  const updateMatrixCell = (rowId, field, value) => {
-    const row = doorMatrix.find((item) => item.id === rowId);
-    if (!row) return;
-    const nextMatrix = normalizeDoorMatrix(doorMatrix.map((item) => item.id === rowId ? { ...item, [field]: value } : item));
-    setDoorMatrix(nextMatrix);
-    saveDoorMatrix(nextMatrix);
-
-    if (["mark", "installed", "custodyAct", "tnIssues", "acceptedTN"].includes(field)) {
-      const nextObjects = objects.map((object) => ({
-        ...object,
-        buildings: object.buildings.map((building) => ({
-          ...building,
-          floors: building.floors.map((floor) => ({
-            ...floor,
-            doors: floor.doors.map((door) => {
-              if (door.id !== row.doorId) return door;
-              return { ...door, ...doorPatchFromMatrix(row, field, value) };
-            }),
-          })),
-        })),
-      }));
-      setObjects(nextObjects);
-      saveObjects(nextObjects);
-    }
-  };
-
-  const replaceDoorMatrix = (nextRows) => {
-    const normalizedRows = normalizeDoorMatrix(nextRows);
-    setDoorMatrix(normalizedRows);
-    saveDoorMatrix(normalizedRows);
-    const byDoorId = new Map(normalizedRows.map((row) => [row.doorId, row]));
-    const nextObjects = objects.map((object) => ({
-      ...object,
-      buildings: object.buildings.map((building) => ({
-        ...building,
-        floors: building.floors.map((floor) => ({
-          ...floor,
-          doors: floor.doors.map((door) => {
-            const row = byDoorId.get(door.id);
-            if (!row) return door;
-            return {
-              ...door,
-              mark: row.mark || door.mark,
-              doorStatus: row.acceptedTN === "Да" ? "принято технадзором" : row.installed === "Да" ? "смонтирована" : row.installed === "Нет" ? "не начато" : door.doorStatus,
-              storageAct: row.custodyAct === "Да" ? "передано по акту" : row.custodyAct === "Нет" ? "не передана" : door.storageAct,
-              issue: row.tnIssues === "Да" ? "есть замечание" : row.tnIssues === "Нет" ? "нет" : door.issue,
-            };
-          }),
-        })),
-      })),
-    }));
-    setObjects(nextObjects);
-    saveObjects(nextObjects);
   };
 
   const goToObject = (objectId) => {
@@ -2758,150 +2635,6 @@ function PlaceholderPage({ screen }) {
   };
   const [title, text] = content[screen] ?? ["Раздел", "Раздел находится в разработке."];
   return <section className="placeholder-page"><div className="placeholder-mark">Г</div><div><span>Следующий этап MVP</span><h2>{title}</h2><p>{text}</p></div></section>;
-}
-
-const matrixColumns = [
-  ["floor", "Этаж"], ["openingNumber", "№ проёма"], ["mark", "Марка двери"], ["actualHeight", "Высота факт"], ["actualWidth", "Ширина факт"],
-  ["date", "Дата", "date"], ["model", "Модель"], ["arOpening", "Проём АР"],
-  ["note", "Примечание"], ["ordered", "Заказ", "status"],
-  ["arrived", "Приход", "status"], ["lifted", "Подъём", "status"], ["distributed", "Разнос", "status"], ["installed", "Монтаж", "status"],
-  ["installationTeam", "Бригада монтажа"], ["custodyAct", "Акт ОХ", "status"], ["keys", "Ключи", "status"],
-  ["acceptedTN", "Принято ТН", "status"], ["tnIssues", "Замечания ТН", "status"], ["ptoDate", "Дата для ПТО", "date"],
-];
-
-const mandatoryMatrixColumns = ["floor", "openingNumber", "mark", "actualHeight", "actualWidth"];
-const MATRIX_COLUMNS_KEY = "gross-lean-montage.matrix-columns.v1";
-const MATRIX_COMPACT_KEY = "gross-lean-montage.matrix-compact.v1";
-
-const itrEditableFields = ["arrived", "lifted", "distributed", "installed", "custodyAct", "keys", "tnIssues"];
-
-function matrixMetrics(rows) {
-  const yes = (field) => rows.filter((row) => row[field] === "Да").length;
-  const installed = yes("installed");
-  return {
-    total: rows.length,
-    ordered: yes("ordered"), arrived: yes("arrived"), lifted: yes("lifted"), distributed: yes("distributed"), installed,
-    custodyAct: yes("custodyAct"), keys: yes("keys"), acceptedTN: yes("acceptedTN"), tnIssues: yes("tnIssues"),
-    readiness: rows.length ? Math.round((installed / rows.length) * 100) : 0,
-  };
-}
-
-function MatrixStats({ rows }) {
-  const metrics = matrixMetrics(rows);
-  const items = [["Всего дверей", metrics.total], ["Заказано", metrics.ordered], ["Пришло", metrics.arrived], ["Поднято", metrics.lifted], ["Разнесено", metrics.distributed], ["Смонтировано", metrics.installed], ["Акт ОХ", metrics.custodyAct], ["Ключи", metrics.keys], ["Принято ТН", metrics.acceptedTN], ["Замечаний ТН", metrics.tnIssues], ["Готовность", `${metrics.readiness}%`]];
-  return <div className="matrix-stats">{items.map(([label, value]) => <div key={label}><span>{label}</span><strong>{value}</strong></div>)}</div>;
-}
-
-function DoorMatrixPage({ objects, rows, role, onChange, onRowsChange }) {
-  const [selectedObjectId, setSelectedObjectId] = useState("");
-  const [selectedBuildingId, setSelectedBuildingId] = useState("");
-  const [filters, setFilters] = useState({ floor: "", installed: "", custodyAct: "", acceptedTN: "", tnIssues: "" });
-  const [settingsOpen, setSettingsOpen] = useState(false);
-  const [fullscreen, setFullscreen] = useState(false);
-  const [compact, setCompact] = useState(() => localStorage.getItem(MATRIX_COMPACT_KEY) !== "false");
-  const [activeCell, setActiveCell] = useState(null);
-  const [rangeStart, setRangeStart] = useState(null);
-  const [selectedRows, setSelectedRows] = useState([]);
-  const [collapsedFloors, setCollapsedFloors] = useState([]);
-  const [visibleColumns, setVisibleColumns] = useState(() => {
-    try { return JSON.parse(localStorage.getItem(MATRIX_COLUMNS_KEY)) ?? matrixColumns.map(([field]) => field); }
-    catch { return matrixColumns.map(([field]) => field); }
-  });
-  const objectChoices = objects.map((object) => ({ id: object.id, name: object.name }));
-  const buildingChoices = (objects.find((object) => object.id === selectedObjectId)?.buildings ?? []).map((building) => ({ id: building.id, name: building.name }));
-  const scopedRows = rows.filter((row) => row.objectId === selectedObjectId && row.buildingId === selectedBuildingId);
-  const options = (field) => [...new Set(scopedRows.map((row) => String(row[field])).filter(Boolean))];
-  const filtered = scopedRows.filter((row) => Object.entries(filters).every(([field, value]) => !value || String(row[field]) === value));
-  const canEdit = (field) => ["creator", "company_head", "construction_director"].includes(role) || (role === "itr" && itrEditableFields.includes(field));
-  const canManageRows = ["creator", "company_head", "construction_director"].includes(role);
-  const shownColumns = matrixColumns.filter(([field]) => mandatoryMatrixColumns.includes(field) || visibleColumns.includes(field));
-  const cellPosition = (cell) => cell ? { row: filtered.findIndex((item) => item.id === cell.rowId), column: shownColumns.findIndex(([field]) => field === cell.field) } : null;
-  const selectionBounds = (() => {
-    const start = cellPosition(rangeStart ?? activeCell);
-    const end = cellPosition(activeCell);
-    if (!start || !end || start.row < 0 || end.row < 0 || start.column < 0 || end.column < 0) return null;
-    return { rowFrom: Math.min(start.row, end.row), rowTo: Math.max(start.row, end.row), columnFrom: Math.min(start.column, end.column), columnTo: Math.max(start.column, end.column) };
-  })();
-  const isSelectedCell = (rowIndex, columnIndex) => selectionBounds && rowIndex >= selectionBounds.rowFrom && rowIndex <= selectionBounds.rowTo && columnIndex >= selectionBounds.columnFrom && columnIndex <= selectionBounds.columnTo;
-  const selectionText = () => {
-    if (!selectionBounds) return "";
-    return filtered.slice(selectionBounds.rowFrom, selectionBounds.rowTo + 1).map((row) => shownColumns.slice(selectionBounds.columnFrom, selectionBounds.columnTo + 1).map(([field]) => row[field] ?? "").join("\t")).join("\n");
-  };
-  const pasteGrid = (text) => {
-    if (!activeCell || !text) return;
-    const start = cellPosition(activeCell);
-    if (!start || start.row < 0 || start.column < 0) return;
-    const grid = text.replace(/\r/g, "").split("\n").filter((line, index, list) => line.length > 0 || index < list.length - 1).map((line) => line.split("\t"));
-    const updates = new Map();
-    grid.forEach((values, rowOffset) => values.forEach((value, columnOffset) => {
-      const targetRow = filtered[start.row + rowOffset];
-      const column = shownColumns[start.column + columnOffset];
-      if (targetRow && column && canEdit(column[0])) updates.set(`${targetRow.id}:${column[0]}`, value);
-    }));
-    onRowsChange(rows.map((row) => {
-      const values = {};
-      shownColumns.forEach(([field]) => { const key = `${row.id}:${field}`; if (updates.has(key)) values[field] = updates.get(key); });
-      return { ...row, ...values };
-    }));
-  };
-  const fillDown = () => {
-    if (!activeCell || !canEdit(activeCell.field)) return;
-    const start = filtered.findIndex((row) => row.id === activeCell.rowId);
-    const source = filtered[start]?.[activeCell.field];
-    if (start < 0) return;
-    const targets = new Set(filtered.slice(start + 1).map((row) => row.id));
-    onRowsChange(rows.map((row) => targets.has(row.id) ? { ...row, [activeCell.field]: source } : row));
-  };
-  const duplicateRows = () => {
-    if (!canManageRows) return;
-    const selected = rows.filter((row) => selectedRows.includes(row.id));
-    if (!selected.length) return;
-    onRowsChange([...rows, ...selected.map((row, index) => ({ ...row, id: `matrix-copy-${Date.now()}-${index}`, doorId: `${row.doorId}-copy-${Date.now()}-${index}`, hidden: false }))]);
-  };
-  const deleteRows = () => {
-    if (!canManageRows) return;
-    if (!selectedRows.length) return;
-    onRowsChange(rows.filter((row) => !selectedRows.includes(row.id)));
-    setSelectedRows([]);
-  };
-  const copyRows = () => {
-    const selected = rows.filter((row) => selectedRows.includes(row.id));
-    if (!selected.length) return;
-    navigator.clipboard?.writeText(selected.map((row) => matrixColumns.map(([field]) => row[field] ?? "").join("\t")).join("\n"));
-  };
-  const pasteRows = async () => {
-    if (!canManageRows) return;
-    const text = await navigator.clipboard?.readText?.();
-    if (!text) return;
-    const next = text.replace(/\r/g, "").split("\n").filter(Boolean).map((line, rowIndex) => {
-      const values = line.split("\t");
-      const row = { id: `matrix-paste-${Date.now()}-${rowIndex}`, doorId: `door-paste-${Date.now()}-${rowIndex}`, hidden: false };
-      matrixColumns.forEach(([field], columnIndex) => { row[field] = values[columnIndex] ?? ""; });
-      return row;
-    });
-    onRowsChange([...rows, ...next]);
-  };
-  const toggleColumn = (field) => {
-    const next = visibleColumns.includes(field) ? visibleColumns.filter((item) => item !== field) : [...visibleColumns, field];
-    setVisibleColumns(next);
-    localStorage.setItem(MATRIX_COLUMNS_KEY, JSON.stringify(next));
-  };
-  const floorGroups = Object.entries(filtered.reduce((groups, row) => { const key = `${row.object}|${row.building}|${row.floor}`; groups[key] = [...(groups[key] ?? []), row]; return groups; }, {}));
-  const selectedObject = objectChoices.find((item) => item.id === selectedObjectId);
-  const selectedBuilding = buildingChoices.find((item) => item.id === selectedBuildingId);
-  if (!selectedObjectId) {
-    return <section className="matrix-selection"><div className="matrix-selection-heading"><h2>Выберите объект</h2><p>Шахматки хранятся отдельно для каждого корпуса.</p></div><div className="matrix-selection-grid">{objectChoices.map((object) => <button key={object.id} onClick={() => { setSelectedObjectId(object.id); setSelectedBuildingId(""); }}><span>Объект</span><strong>{object.name}</strong><small>{rows.filter((row) => row.objectId === object.id).length} дверей</small></button>)}</div></section>;
-  }
-  if (!selectedBuildingId) {
-    return <section className="matrix-selection"><div className="matrix-selection-heading"><button className="matrix-back" onClick={() => setSelectedObjectId("")}>← К объектам</button><h2>Выберите корпус</h2><p>{selectedObject?.name}</p></div><div className="matrix-selection-grid">{buildingChoices.map((building) => <button key={building.id} onClick={() => setSelectedBuildingId(building.id)}><span>Корпус</span><strong>{building.name}</strong><small>{rows.filter((row) => row.buildingId === building.id).length} дверей</small></button>)}</div></section>;
-  }
-  return <section tabIndex="0" onCopy={(event) => { const text = selectionText(); if (text) { event.preventDefault(); event.clipboardData.setData("text/plain", text); } }} onPaste={(event) => { if (activeCell) { event.preventDefault(); pasteGrid(event.clipboardData.getData("text/plain")); } }} className={`matrix-page ${fullscreen ? "matrix-fullscreen" : ""} ${compact ? "is-compact" : ""}`}>
-    <div className="matrix-context"><div><button onClick={() => setSelectedBuildingId("")}>← К корпусам</button><span>Шахматка / {selectedObject?.name} / {selectedBuilding?.name}</span></div></div>
-    {!fullscreen && <MatrixStats rows={filtered} />}
-    <div className="matrix-toolbar"><div className="matrix-filters">{[["floor", "Этаж"], ["installed", "Монтаж"], ["custodyAct", "Акт ОХ"], ["acceptedTN", "Принято ТН"], ["tnIssues", "Замечания ТН"]].map(([field, label]) => <label key={field}>{label}<select value={filters[field]} onChange={(event) => setFilters({ ...filters, [field]: event.target.value })}><option value="">Все</option>{options(field).map((value) => <option key={value}>{value}</option>)}</select></label>)}</div><div className="matrix-actions"><button className="secondary-button" disabled={!activeCell || !canEdit(activeCell?.field)} onClick={fillDown}>Протянуть вниз</button><button className="secondary-button" disabled={!selectedRows.length} onClick={copyRows}>Копировать строку</button><button className="secondary-button" disabled={!canManageRows} onClick={pasteRows}>Вставить строки</button><button className="secondary-button" disabled={!canManageRows || !selectedRows.length} onClick={duplicateRows}>Дублировать</button><button className="secondary-button danger" disabled={!canManageRows || !selectedRows.length} onClick={deleteRows}>Удалить</button><button className="secondary-button" onClick={() => setSettingsOpen((value) => !value)}>Настроить столбцы</button><button className="primary-button" onClick={() => setFullscreen((value) => !value)}>{fullscreen ? "Выйти из полноэкранного режима" : "На весь экран"}</button></div></div>
-    {settingsOpen && <div className="column-settings"><div className="column-settings-header"><strong>Настройка столбцов</strong><button onClick={() => { const all = matrixColumns.map(([field]) => field); setVisibleColumns(all); localStorage.setItem(MATRIX_COLUMNS_KEY, JSON.stringify(all)); }}>Сбросить столбцы</button></div><div>{matrixColumns.filter(([field]) => !mandatoryMatrixColumns.includes(field)).map(([field, label]) => <label key={field}><input type="checkbox" checked={visibleColumns.includes(field)} onChange={() => toggleColumn(field)} />{label}</label>)}</div><div className="column-settings-options"><label><input type="checkbox" checked={compact} onChange={(event) => { setCompact(event.target.checked); localStorage.setItem(MATRIX_COMPACT_KEY, String(event.target.checked)); }} />Компактный режим</label></div></div>}
-    <div className="matrix-table-card"><table className="matrix-table"><thead><tr><th className="matrix-select-column"><input type="checkbox" checked={filtered.length > 0 && filtered.every((row) => selectedRows.includes(row.id))} onChange={(event) => setSelectedRows(event.target.checked ? filtered.map((row) => row.id) : [])} /></th>{shownColumns.map(([field, label]) => <th className={`matrix-col-${field}`} key={field}>{label}</th>)}<th className="matrix-actions-column">Действия</th></tr></thead><tbody>{floorGroups.map(([groupKey, groupRows]) => { const metrics = matrixMetrics(groupRows); const collapsed = collapsedFloors.includes(groupKey); return <React.Fragment key={groupKey}><tr className="floor-divider"><td colSpan={shownColumns.length + 2}><button onClick={() => setCollapsedFloors((current) => current.includes(groupKey) ? current.filter((key) => key !== groupKey) : [...current, groupKey])}>{collapsed ? "▸" : "▾"} {groupRows[0].floor} этаж</button><span>{groupRows[0].building}</span><span>Всего: {metrics.total}</span><span>Смонтировано: {metrics.installed}</span><span>Замечаний: {metrics.tnIssues}</span><strong>{metrics.readiness}%</strong></td></tr>{!collapsed && groupRows.map((row) => { const rowIndex = filtered.findIndex((item) => item.id === row.id); return <tr key={row.id}><td className="matrix-select-column"><input type="checkbox" checked={selectedRows.includes(row.id)} onChange={(event) => setSelectedRows((current) => event.target.checked ? [...current, row.id] : current.filter((id) => id !== row.id))} /></td>{shownColumns.map(([field, , type], columnIndex) => <td onMouseDown={(event) => { if (event.shiftKey && activeCell) setRangeStart(rangeStart ?? activeCell); else setRangeStart({ rowId: row.id, field }); setActiveCell({ rowId: row.id, field }); }} className={`matrix-col-${field} ${isSelectedCell(rowIndex, columnIndex) ? "is-selected" : ""} ${activeCell?.rowId === row.id && activeCell?.field === field ? "is-active" : ""}`} key={field}>{type === "status" ? <select disabled={!canEdit(field)} value={row[field] ?? "Нет"} onChange={(event) => onChange(row.id, field, event.target.value)}><option>Да</option><option>Нет</option><option>Не требуется</option></select> : <input disabled={!canEdit(field)} type={type === "date" ? "date" : "text"} value={row[field] ?? ""} onChange={(event) => onChange(row.id, field, event.target.value)} />}</td>)}<td className="matrix-actions-column"><button onClick={() => navigator.clipboard?.writeText(matrixColumns.map(([field]) => row[field] ?? "").join("\t"))}>Копировать</button></td></tr>; })}</React.Fragment>; })}</tbody></table>{filtered.length === 0 && <div className="empty-plan">По выбранным фильтрам дверей нет.</div>}</div>
-  </section>;
 }
 
 export {
