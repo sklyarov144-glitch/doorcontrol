@@ -91,7 +91,7 @@ jobs:
           node scripts/backup/verify-storage-export.mjs restore-check/storage-check/storage-manifest.json restore-check/storage-check/storage
           grep -Eq 'COPY |INSERT INTO' restore-check/data.sql
           rm -rf restore-check backup
-      - uses: actions/upload-artifact@v4
+      - uses: actions/upload-artifact@v7
         with:
           name: gross-db-backup-${{ github.run_id }}
           path: |

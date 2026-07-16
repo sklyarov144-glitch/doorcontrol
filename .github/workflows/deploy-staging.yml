@@ -94,7 +94,7 @@ jobs:
           SENTRY_EVIDENCE_PATH: sentry-smoke-evidence.json
         run: npm run monitoring:smoke -- --optional
       - name: Upload Sentry smoke evidence
-        uses: actions/upload-artifact@v4
+        uses: actions/upload-artifact@v7
         with:
           name: staging-sentry-smoke-${{ env.RELEASE_SHA }}
           path: sentry-smoke-evidence.json
@@ -130,7 +130,7 @@ jobs:
           SENTRY_EVIDENCE_PATH: sentry-smoke-evidence.json
         run: node scripts/create-staging-release-evidence.mjs staging-release-evidence.json
       - name: Upload staging release evidence
-        uses: actions/upload-artifact@v4
+        uses: actions/upload-artifact@v7
         with:
           name: staging-release-${{ env.RELEASE_SHA }}
           path: staging-release-evidence.json
