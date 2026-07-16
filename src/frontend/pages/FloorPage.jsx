@@ -108,7 +108,7 @@ export default function FloorPlan({
           </>
         ) : (
           <div className="empty-plan">
-            Для уровня "{floor.label}" двери пока не заведены в mock-структуре.
+            Для уровня "{floor.label}" двери пока не заведены.
           </div>
         )}
       </div>

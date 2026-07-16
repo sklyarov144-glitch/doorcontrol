@@ -1,6 +1,6 @@
 import React from "react";
 import { render, screen, waitFor } from "@testing-library/react";
-import { describe, expect, it } from "vitest";
+import { describe, expect, it, vi } from "vitest";
 import FinancePage from "./FinancePage";
 
 const objects = [{ id: "object-1", name: "ЖК Тест", readiness: 50, buildings: [] }];
@@ -25,5 +25,19 @@ describe("FinancePage permissions", () => {
 
     expect(screen.getByText("Финансовые показатели недоступны для роли ИТР.")).toBeInTheDocument();
     expect(screen.queryByText("Портфель договоров")).not.toBeInTheDocument();
+  });
+
+  it("never falls back to generated amounts when the production provider fails", async () => {
+    const provider = {
+      analytics: { getFinancialSummary: vi.fn().mockRejectedValue(new Error("backend unavailable")) },
+      contracts: { getAll: vi.fn().mockResolvedValue([]) },
+      budgetItems: { getAll: vi.fn().mockResolvedValue([]) },
+      financialTransactions: { getAll: vi.fn().mockResolvedValue([]) },
+    };
+
+    render(<FinancePage objects={objects} user={user("company_head")} provider={provider} isRemote />);
+
+    expect(await screen.findByRole("alert")).toHaveTextContent("backend unavailable");
+    expect(screen.queryByRole("cell", { name: "ЖК Тест" })).not.toBeInTheDocument();
   });
 });

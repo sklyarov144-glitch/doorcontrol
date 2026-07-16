@@ -36,5 +36,13 @@ describe("CompanyPage", () => {
     await waitFor(() => expect(provider.companies.update).toHaveBeenCalledWith("company-1", { name: "ГРОСС Монтаж" }));
     expect(await screen.findByRole("heading", { name: "ГРОСС Монтаж" })).toBeInTheDocument();
   });
-});
 
+  it("fails closed when a persisted profile has no accessible tenant", async () => {
+    const provider = { companies: { getAll: vi.fn().mockResolvedValue([]) } };
+
+    render(<CompanyPage objects={objects} users={users} user={{ companyId: "missing-company" }} provider={provider} onOpenObjects={vi.fn()} />);
+
+    expect(await screen.findByRole("alert")).toHaveTextContent("Профиль не связан с доступной компанией");
+    expect(screen.queryByRole("heading", { name: "ГРОСС" })).not.toBeInTheDocument();
+  });
+});

@@ -18,7 +18,12 @@ export default function CompanyPage({ objects = [], users = [], user, onOpenObje
     Promise.resolve(provider.companies.getAll())
       .then((rows) => {
         if (!active) return;
-        const current = (rows ?? []).find((item) => !user.companyId || item.id === user.companyId) ?? (rows ?? [])[0] ?? fallbackCompany(user);
+        const current = (rows ?? []).find((item) => !user.companyId || item.id === user.companyId) ?? (user.companyId ? null : (rows ?? [])[0] ?? fallbackCompany(user));
+        if (!current) {
+          setCompany(null);
+          setError("Профиль не связан с доступной компанией. Обратитесь к администратору.");
+          return;
+        }
         setCompany(current);
         setDraftName(current.name);
       })
@@ -65,6 +70,7 @@ export default function CompanyPage({ objects = [], users = [], user, onOpenObje
   };
 
   if (loading) return <section className="empty-state">Загружаем компанию...</section>;
+  if (!company) return <section className="empty-state"><div className="form-error" role="alert">{error || "Компания недоступна."}</div></section>;
 
   return <section className="company-page">
     <div className="tasks-hero company-hero">
@@ -103,4 +109,3 @@ export default function CompanyPage({ objects = [], users = [], user, onOpenObje
     </div>}
   </section>;
 }
-

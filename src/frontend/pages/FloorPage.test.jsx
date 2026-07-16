@@ -91,7 +91,7 @@ describe("FloorPlan", () => {
       />
     );
 
-    expect(screen.getByText('Для уровня "Кровля" двери пока не заведены в mock-структуре.'))
+    expect(screen.getByText('Для уровня "Кровля" двери пока не заведены.'))
       .toBeInTheDocument();
   });
 });

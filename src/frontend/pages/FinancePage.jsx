@@ -50,12 +50,11 @@ function FinanceForm({ kind, form, objects, busy, onChange, onSubmit, onCancel }
   </form>;
 }
 
-export default function FinancePage({ objects, user }) {
-  const remote = dataProviderName === "supabase";
+export default function FinancePage({ objects, user, provider = dataProvider, isRemote = dataProviderName === "supabase" }) {
   const canWrite = ["creator", "company_head"].includes(user.role);
-  const [rows, setRows] = useState(() => demoRows(objects));
+  const [rows, setRows] = useState(() => isRemote ? [] : demoRows(objects));
   const [details, setDetails] = useState({ contracts: [], budgets: [], transactions: [] });
-  const [loading, setLoading] = useState(remote);
+  const [loading, setLoading] = useState(isRemote);
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState("");
   const [editor, setEditor] = useState("");
@@ -63,15 +62,15 @@ export default function FinancePage({ objects, user }) {
 
   const load = useCallback(async () => {
     setError("");
-    if (!remote) {
+    if (!isRemote) {
       setRows(demoRows(objects));
-      setDetails({ contracts: dataProvider.contracts.getAll(), budgets: dataProvider.budgetItems.getAll(), transactions: dataProvider.financialTransactions.getAll() });
+      setDetails({ contracts: provider.contracts.getAll(), budgets: provider.budgetItems.getAll(), transactions: provider.financialTransactions.getAll() });
       return;
     }
     setLoading(true);
     try {
       const [summary, contracts, budgets, transactions] = await Promise.all([
-        dataProvider.analytics.getFinancialSummary(), dataProvider.contracts.getAll(), dataProvider.budgetItems.getAll(), dataProvider.financialTransactions.getAll(),
+        provider.analytics.getFinancialSummary(), provider.contracts.getAll(), provider.budgetItems.getAll(), provider.financialTransactions.getAll(),
       ]);
       setRows(summary);
       setDetails({ contracts, budgets, transactions });
@@ -80,7 +79,7 @@ export default function FinancePage({ objects, user }) {
     } finally {
       setLoading(false);
     }
-  }, [objects, remote]);
+  }, [isRemote, objects, provider]);
 
   useEffect(() => { load(); }, [load]);
   const objectNames = useMemo(() => new Map(objects.map((object) => [object.id, object.name])), [objects]);
@@ -102,9 +101,9 @@ export default function FinancePage({ objects, user }) {
     setError("");
     try {
       const base = { companyId: user.companyId ?? object.companyId, objectId: form.objectId };
-      if (editor === "contract") await dataProvider.contracts.create({ ...base, ...form, amount: Number(form.amount), endsOn: form.endsOn || null });
-      if (editor === "budget") await dataProvider.budgetItems.create({ ...base, ...form, plannedAmount: Number(form.plannedAmount), committedAmount: Number(form.committedAmount || 0), actualAmount: Number(form.actualAmount || 0), periodEnd: form.periodEnd || null });
-      if (editor === "transaction") await dataProvider.financialTransactions.create({ ...base, ...form, amount: Number(form.amount) });
+      if (editor === "contract") await provider.contracts.create({ ...base, ...form, amount: Number(form.amount), endsOn: form.endsOn || null });
+      if (editor === "budget") await provider.budgetItems.create({ ...base, ...form, plannedAmount: Number(form.plannedAmount), committedAmount: Number(form.committedAmount || 0), actualAmount: Number(form.actualAmount || 0), periodEnd: form.periodEnd || null });
+      if (editor === "transaction") await provider.financialTransactions.create({ ...base, ...form, amount: Number(form.amount) });
       setForms((current) => ({ ...current, [editor]: { ...emptyForms[editor] } }));
       setEditor("");
       await load();
@@ -116,7 +115,7 @@ export default function FinancePage({ objects, user }) {
   };
 
   return <section className="finance-page">
-    <div className="panel-title"><div><h2>Финансовый контур</h2><p>Договоры, бюджет и движение денежных средств по доступным объектам.</p></div>{!remote && <span className="status-badge tone-orange">Демо-данные</span>}</div>
+    <div className="panel-title"><div><h2>Финансовый контур</h2><p>Договоры, бюджет и движение денежных средств по доступным объектам.</p></div>{!isRemote && <span className="status-badge tone-orange">Демо-данные</span>}</div>
     {error && <div className="form-error" role="alert">{error}</div>}
     <div className="executive-kpis">
       <div className="executive-kpi"><span>Портфель договоров</span><strong>{money.format(totals.contractAmount)}</strong></div>
