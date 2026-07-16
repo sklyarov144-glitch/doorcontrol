@@ -1,5 +1,6 @@
 const repositoryPattern = /^[A-Za-z0-9_.-]+\/[A-Za-z0-9_.-]+$/;
 const reviewerTypes = new Set(["User", "Team"]);
+const protectedEnvironments = new Set(["production", "production-restore"]);
 
 export function parseProductionReviewers(value) {
   const entries = String(value ?? "")
@@ -28,15 +29,19 @@ export function parseProductionReviewers(value) {
 export function validateProductionProtectionInput(values, { apply = false } = {}) {
   const repository = values.GITHUB_REPOSITORY?.trim() || "sklyarov144-glitch/doorcontrol";
   if (!repositoryPattern.test(repository)) throw new Error("GITHUB_REPOSITORY is invalid");
+  const environment = values.PROTECTED_ENVIRONMENT?.trim() || "production";
+  if (!protectedEnvironments.has(environment)) {
+    throw new Error("PROTECTED_ENVIRONMENT must be production or production-restore");
+  }
   const reviewers = parseProductionReviewers(values.PRODUCTION_REVIEWERS);
   const reviewerList = reviewers.map(({ type, id }) => `${type}:${id}`).join(",");
-  const expectedConfirmation = `PRODUCTION:${repository}:${reviewerList}`;
+  const expectedConfirmation = `${environment.toUpperCase()}:${repository}:${reviewerList}`;
 
   if (apply && values.PRODUCTION_PROTECTION_CONFIRM !== expectedConfirmation) {
     throw new Error(`Set PRODUCTION_PROTECTION_CONFIRM exactly to ${expectedConfirmation}`);
   }
 
-  return { repository, reviewers, reviewerList, expectedConfirmation };
+  return { repository, environment, reviewers, reviewerList, expectedConfirmation };
 }
 
 export function buildProductionEnvironmentPayload(currentSettings, reviewers) {

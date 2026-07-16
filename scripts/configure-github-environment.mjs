@@ -1,10 +1,10 @@
 import { spawnSync } from "node:child_process";
-import { environmentRequirements, validateEnvironmentValues } from "../src/services/deploymentEnvironment.js";
+import { deploymentEnvironments, validateEnvironmentValues } from "../src/services/deploymentEnvironment.js";
 
-const environment = process.argv.find((value) => ["staging", "production"].includes(value));
+const environment = process.argv.find((value) => deploymentEnvironments.includes(value));
 const apply = process.argv.includes("--apply");
 const repository = process.env.GITHUB_REPOSITORY?.trim() || "sklyarov144-glitch/doorcontrol";
-if (!environment) throw new Error("Pass staging or production");
+if (!environment) throw new Error(`Pass one environment: ${deploymentEnvironments.join(", ")}`);
 if (!/^[A-Za-z0-9_.-]+\/[A-Za-z0-9_.-]+$/.test(repository)) throw new Error("GITHUB_REPOSITORY is invalid");
 
 const result = validateEnvironmentValues(environment, process.env);

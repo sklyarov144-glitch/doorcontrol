@@ -22,6 +22,13 @@ Service role key, пароль БД и токены деплоя никогда 
 
 ## GitHub Environment secrets
 
+Используются четыре изолированных GitHub Environment:
+
+- `staging` — staging deployment и smoke;
+- `production` — только production deployment;
+- `production-backup` — только автоматический read/export backup;
+- `production-restore` — только ручной restore drill.
+
 В environments `staging` и `production`:
 
 - `SUPABASE_ACCESS_TOKEN`
@@ -50,17 +57,31 @@ GitHub Environment variable (не secret):
 быть назначены только на отдельный контрольный объект. Если набор неполный,
 workflow завершается ошибкой и не выдаёт отсутствие Auth smoke за успешную проверку.
 
-Только для `production` backup:
+Только в `production-backup`:
 
 - `SUPABASE_DB_URL` — direct database connection string;
 - `BACKUP_ENCRYPTION_PASSWORD` — отдельный длинный секрет, хранимый также в корпоративном password manager.
 - `BACKUP_SUPABASE_URL` — URL production Supabase для выгрузки Storage;
-- `BACKUP_SUPABASE_SERVICE_ROLE_KEY` — service role только для backup/restore workflow.
+- `BACKUP_SUPABASE_SERVICE_ROLE_KEY` — service role только для backup workflow.
+
+Только в `production-restore`:
+
+- `BACKUP_ENCRYPTION_PASSWORD` — тот же пароль расшифровки, но отдельная копия
+  секрета; restore workflow не получает строку production БД или service role.
+
+Только в `production`:
+
 - `UAT_EVIDENCE_JSON` — полный подписанный UAT JSON для конкретного staging SHA.
 - `PILOT_RECONCILIATION_EVIDENCE_JSON` — результат точной post-import сверки
   пилотной иерархии для выпускаемого staging SHA.
 - `RESTORE_EVIDENCE_JSON` — evidence последнего успешного restore drill; на момент
   выпуска он должен быть не старше 30 дней, а восстановление укладываться в RTO 4 часа.
+
+`production-backup` не должен иметь required reviewer: иначе scheduled workflow
+будет ждать ручного подтверждения и RPO перестанет выполняться. Его workflow
+запускается только из default branch и получает минимальный набор секретов.
+`production-restore`, напротив, требует reviewer, запрет self-review и отключённый
+admin bypass, поскольку восстановление запускается вручную.
 
 Production environment должен требовать ручного approve владельцем продукта или техническим ответственным.
 Инициатор production deployment не должен иметь возможность одобрить собственный
@@ -120,11 +141,24 @@ npm run deployment:protect-production -- --apply
 включает `prevent_self_review`, повторно читает настройки и проверяет результат.
 GitHub REST API не предоставляет документированного параметра для отключения
 admin bypass. После команды владелец репозитория отключает **Allow administrators
-to bypass configured protection rules** в `Settings > Environments > production`.
+to bypass configured protection rules** в настройках целевого environment.
 Готовность подтверждается только строгим аудитом:
 
 ```bash
 npm run deployment:audit -- production --strict
+```
+
+Для защищённого restore-контура используется тот же CLI с явным target:
+
+```bash
+PROTECTED_ENVIRONMENT=production-restore \
+PRODUCTION_REVIEWERS=User:123456 \
+npm run deployment:protect-production
+
+PROTECTED_ENVIRONMENT=production-restore \
+PRODUCTION_REVIEWERS=User:123456 \
+PRODUCTION_PROTECTION_CONFIRM=PRODUCTION-RESTORE:sklyarov144-glitch/doorcontrol:User:123456 \
+npm run deployment:protect-production -- --apply
 ```
 
 ## Безопасная загрузка GitHub Environment
@@ -138,9 +172,9 @@ npm run deployment:configure -- staging
 ```
 
 Если preflight успешен, повторите с `--apply`. Команда передаёт secrets через
-stdin в GitHub CLI и не печатает их. Для production она дополнительно требует
-Sentry и полный набор encrypted backup/Storage secrets. Credentials четырёх
-role-smoke аккаунтов обязательны для обеих сред. Staging и production настраиваются отдельно.
+stdin в GitHub CLI и не печатает их. Credentials четырёх role-smoke аккаунтов
+обязательны для deployment-сред. Все четыре environments настраиваются отдельно;
+backup/restore credentials не дублируются в `production`.
 Production также требует три evidence secrets: `UAT_EVIDENCE_JSON`,
 `PILOT_RECONCILIATION_EVIDENCE_JSON` и `RESTORE_EVIDENCE_JSON`. Workflow до
 применения миграций проверяет подписи UAT, точное совпадение SHA и счётчиков

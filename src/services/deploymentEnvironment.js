@@ -10,15 +10,25 @@ const roleSmokeSecrets = [
   "AUTH_SMOKE_ITR_EMAIL", "AUTH_SMOKE_ITR_PASSWORD",
 ];
 const productionSecrets = [
-  "VITE_SENTRY_DSN", "SUPABASE_DB_URL", "BACKUP_ENCRYPTION_PASSWORD",
-  "BACKUP_SUPABASE_URL", "BACKUP_SUPABASE_SERVICE_ROLE_KEY", "UAT_EVIDENCE_JSON",
+  "VITE_SENTRY_DSN", "UAT_EVIDENCE_JSON",
   "PILOT_RECONCILIATION_EVIDENCE_JSON", "RESTORE_EVIDENCE_JSON",
   "AUTH_SMOKE_CREATOR_TOTP_SECRET", "AUTH_SMOKE_COMPANY_HEAD_TOTP_SECRET",
   "AUTH_SMOKE_CONSTRUCTION_DIRECTOR_TOTP_SECRET",
 ];
+const backupSecrets = [
+  "SUPABASE_DB_URL", "BACKUP_ENCRYPTION_PASSWORD",
+  "BACKUP_SUPABASE_URL", "BACKUP_SUPABASE_SERVICE_ROLE_KEY",
+];
+const restoreSecrets = ["BACKUP_ENCRYPTION_PASSWORD"];
+
+export const deploymentEnvironments = ["staging", "production", "production-backup", "production-restore"];
 
 export function environmentRequirements(environment) {
-  if (!["staging", "production"].includes(environment)) throw new Error("environment must be staging or production");
+  if (!deploymentEnvironments.includes(environment)) {
+    throw new Error(`environment must be one of: ${deploymentEnvironments.join(", ")}`);
+  }
+  if (environment === "production-backup") return { secrets: backupSecrets, variables: [] };
+  if (environment === "production-restore") return { secrets: restoreSecrets, variables: [] };
   return {
     secrets: [...commonSecrets, ...roleSmokeSecrets, ...(environment === "production" ? productionSecrets : [])],
     variables: ["APP_ALLOWED_ORIGINS", "APP_PUBLIC_URL"],
@@ -29,11 +39,35 @@ export function validateEnvironmentValues(environment, values) {
   const requirements = environmentRequirements(environment);
   const missing = [...requirements.secrets, ...requirements.variables].filter((name) => !values[name]?.trim());
   if (missing.length) return { valid: false, missing, requirements };
+  const errors = [];
+  if (["production-backup", "production-restore"].includes(environment)) {
+    if (values.BACKUP_ENCRYPTION_PASSWORD.trim().length < 24) {
+      errors.push("BACKUP_ENCRYPTION_PASSWORD must contain at least 24 characters");
+    }
+    if (environment === "production-backup") {
+      try {
+        const databaseUrl = new URL(values.SUPABASE_DB_URL.trim());
+        if (!["postgres:", "postgresql:"].includes(databaseUrl.protocol)) {
+          errors.push("SUPABASE_DB_URL must use postgres or postgresql protocol");
+        }
+      } catch {
+        errors.push("SUPABASE_DB_URL must be a valid database URL");
+      }
+      try {
+        const backupUrl = new URL(values.BACKUP_SUPABASE_URL.trim());
+        if (backupUrl.protocol !== "https:" || !backupUrl.hostname.endsWith(".supabase.co")) {
+          errors.push("BACKUP_SUPABASE_URL must be an HTTPS Supabase project URL");
+        }
+      } catch {
+        errors.push("BACKUP_SUPABASE_URL must be a valid URL");
+      }
+    }
+    return { valid: errors.length === 0, missing: [], errors, requirements };
+  }
   const projectId = values.SUPABASE_PROJECT_ID.trim();
   const supabaseUrl = new URL(values.VITE_SUPABASE_URL.trim());
   const publicUrl = new URL(values.APP_PUBLIC_URL.trim());
   const origins = values.APP_ALLOWED_ORIGINS.split(",").map((item) => item.trim().replace(/\/$/, ""));
-  const errors = [];
   if (supabaseUrl.hostname !== `${projectId}.supabase.co` || supabaseUrl.protocol !== "https:") {
     errors.push("VITE_SUPABASE_URL does not match SUPABASE_PROJECT_ID");
   }

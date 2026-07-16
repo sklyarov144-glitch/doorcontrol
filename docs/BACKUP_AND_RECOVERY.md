@@ -7,6 +7,10 @@
   (`roles.sql`, `schema.sql`, `data.sql`) и содержимое приватных buckets
   `documents`, `floor-plans`, `avatars` в GitHub Actions с хранением 14 дней.
 - Доступ к backup имеют только два назначенных ответственных.
+- Ночной workflow использует отдельный GitHub Environment `production-backup`
+  без manual reviewer, поэтому release approval не блокирует расписание.
+- Restore drill использует `production-restore` с обязательным независимым
+  reviewer и получает только пароль расшифровки, а не production DB/service role.
 
 Целевые показатели для пилота: RPO до 24 часов для дополнительной копии, RPO согласно тарифу PITR для основной; RTO до 4 часов после принятия решения о восстановлении.
 

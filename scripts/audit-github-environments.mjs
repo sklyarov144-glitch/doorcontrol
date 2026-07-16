@@ -1,9 +1,10 @@
 import { spawnSync } from "node:child_process";
+import { deploymentEnvironments } from "../src/services/deploymentEnvironment.js";
 import { auditEnvironmentInventory } from "../src/services/githubEnvironmentAudit.js";
 
 const repository = process.env.GITHUB_REPOSITORY?.trim() || "sklyarov144-glitch/doorcontrol";
-const requested = process.argv.find((value) => ["staging", "production"].includes(value));
-const environments = requested ? [requested] : ["staging", "production"];
+const requested = process.argv.find((value) => deploymentEnvironments.includes(value));
+const environments = requested ? [requested] : deploymentEnvironments;
 const strict = process.argv.includes("--strict");
 
 function listNames(kind, environment) {
@@ -23,10 +24,12 @@ function environmentSettings(environment) {
     stdio: ["ignore", "pipe", "pipe"],
   });
   if (result.status !== 0) {
+    if (/HTTP 404|Not Found/i.test(result.stderr)) return { exists: false, protectionRules: [] };
     throw new Error(`Unable to inspect protection rules for ${environment}: ${result.stderr.trim()}`);
   }
   const settings = JSON.parse(result.stdout);
   return {
+    exists: true,
     protectionRules: settings.protection_rules ?? [],
     canAdminsBypass: settings.can_admins_bypass,
   };
@@ -36,8 +39,8 @@ let failed = false;
 for (const environment of environments) {
   const settings = environmentSettings(environment);
   const audit = auditEnvironmentInventory(environment, {
-    secrets: listNames("secret", environment),
-    variables: listNames("variable", environment),
+    secrets: settings.exists ? listNames("secret", environment) : [],
+    variables: settings.exists ? listNames("variable", environment) : [],
     ...settings,
   });
   console.log(`${environment}: ${audit.ready ? "required inventory complete" : "not ready"}`);

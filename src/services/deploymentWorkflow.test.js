@@ -3,6 +3,8 @@ import { describe, expect, it } from "vitest";
 
 const stagingWorkflow = fs.readFileSync(".github/workflows/deploy-staging.yml", "utf8");
 const productionWorkflow = fs.readFileSync(".github/workflows/deploy-production.yml", "utf8");
+const backupWorkflow = fs.readFileSync(".github/workflows/backup-production.yml", "utf8");
+const restoreWorkflow = fs.readFileSync(".github/workflows/restore-drill.yml", "utf8");
 const workflowSources = fs.readdirSync(".github/workflows")
   .filter((name) => name.endsWith(".yml"))
   .map((name) => fs.readFileSync(`.github/workflows/${name}`, "utf8"))
@@ -72,5 +74,14 @@ describe("production deployment workflow", () => {
     expect(productionWorkflow).toContain("npm run pilot:production-readiness");
     expect(productionWorkflow).toContain("npm run supabase:auth:configure");
     expect(productionWorkflow).toContain("supabase functions deploy --use-api");
+  });
+});
+
+describe("production backup isolation", () => {
+  it("does not let release approval block scheduled backup and isolates restore approval", () => {
+    expect(backupWorkflow).toContain("environment: production-backup");
+    expect(backupWorkflow).not.toContain("environment: production\n");
+    expect(restoreWorkflow).toContain("environment: production-restore");
+    expect(restoreWorkflow).not.toContain("environment: production\n");
   });
 });

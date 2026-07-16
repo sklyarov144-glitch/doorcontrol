@@ -11,6 +11,9 @@ function valuesFor(environment) {
   values.AUTH_SMOKE_SUPABASE_ANON_KEY = values.VITE_SUPABASE_ANON_KEY;
   values.APP_PUBLIC_URL = "https://app.example.ru";
   values.APP_ALLOWED_ORIGINS = "https://app.example.ru";
+  values.BACKUP_ENCRYPTION_PASSWORD = "a-secure-backup-password-123456";
+  values.SUPABASE_DB_URL = "postgresql://postgres:secret@db.example.ru:5432/postgres";
+  values.BACKUP_SUPABASE_URL = "https://abcdefghijklmnopqrst.supabase.co";
   return values;
 }
 
@@ -23,9 +26,10 @@ describe("GitHub deployment environment configuration", () => {
     expect(environmentRequirements("production").secrets).toContain("AUTH_SMOKE_COMPANY_HEAD_PASSWORD");
   });
 
-  it("requires backup and monitoring secrets for production", () => {
+  it("keeps deployment, backup and restore credentials in separate environments", () => {
     const secrets = environmentRequirements("production").secrets;
-    expect(secrets).toContain("BACKUP_SUPABASE_SERVICE_ROLE_KEY");
+    expect(secrets).not.toContain("BACKUP_SUPABASE_SERVICE_ROLE_KEY");
+    expect(secrets).not.toContain("BACKUP_ENCRYPTION_PASSWORD");
     expect(secrets).toContain("VITE_SENTRY_DSN");
     expect(secrets).toContain("UAT_EVIDENCE_JSON");
     expect(secrets).toContain("PILOT_RECONCILIATION_EVIDENCE_JSON");
@@ -33,6 +37,16 @@ describe("GitHub deployment environment configuration", () => {
     expect(secrets).toContain("AUTH_SMOKE_CREATOR_TOTP_SECRET");
     expect(secrets).toContain("AUTH_SMOKE_COMPANY_HEAD_TOTP_SECRET");
     expect(secrets).toContain("AUTH_SMOKE_CONSTRUCTION_DIRECTOR_TOTP_SECRET");
+    expect(environmentRequirements("production-backup")).toEqual({
+      secrets: [
+        "SUPABASE_DB_URL", "BACKUP_ENCRYPTION_PASSWORD",
+        "BACKUP_SUPABASE_URL", "BACKUP_SUPABASE_SERVICE_ROLE_KEY",
+      ],
+      variables: [],
+    });
+    expect(environmentRequirements("production-restore")).toEqual({
+      secrets: ["BACKUP_ENCRYPTION_PASSWORD"], variables: [],
+    });
   });
 
   it("accepts a complete matched configuration", () => {
@@ -50,5 +64,15 @@ describe("GitHub deployment environment configuration", () => {
     const values = valuesFor("staging");
     values.AUTH_SMOKE_SUPABASE_URL = "https://bbbbbbbbbbbbbbbbbbbb.supabase.co";
     expect(validateEnvironmentValues("staging", values).errors).toContain("Auth smoke credentials must target the deployed Supabase project");
+  });
+
+  it("validates isolated backup and restore credentials", () => {
+    expect(validateEnvironmentValues("production-backup", valuesFor("production-backup")).valid).toBe(true);
+    expect(validateEnvironmentValues("production-restore", valuesFor("production-restore")).valid).toBe(true);
+    const weak = valuesFor("production-backup");
+    weak.BACKUP_ENCRYPTION_PASSWORD = "short";
+    expect(validateEnvironmentValues("production-backup", weak).errors).toContain(
+      "BACKUP_ENCRYPTION_PASSWORD must contain at least 24 characters",
+    );
   });
 });

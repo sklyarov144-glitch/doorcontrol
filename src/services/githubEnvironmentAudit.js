@@ -9,7 +9,9 @@ export function auditEnvironmentInventory(environment, inventory) {
   const warnings = [];
   const missingProtections = [];
 
-  if (environment === "production") {
+  if (inventory.exists === false) missingProtections.push("environment exists");
+
+  if (["production", "production-restore"].includes(environment)) {
     const reviewerRule = (inventory.protectionRules ?? []).find((rule) => rule.type === "required_reviewers");
     if (!reviewerRule?.reviewers?.length) {
       missingProtections.push("required reviewer");
@@ -19,6 +21,13 @@ export function auditEnvironmentInventory(environment, inventory) {
     }
     if (inventory.canAdminsBypass !== false) {
       missingProtections.push("admin bypass disabled");
+    }
+  }
+
+  if (environment === "production-backup") {
+    const reviewerRule = (inventory.protectionRules ?? []).find((rule) => rule.type === "required_reviewers");
+    if (reviewerRule?.reviewers?.length) {
+      missingProtections.push("scheduled backup must not require manual reviewer");
     }
   }
 

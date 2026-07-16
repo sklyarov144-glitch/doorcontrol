@@ -19,7 +19,7 @@ function githubApi(path, options = {}) {
   return result.stdout ? JSON.parse(result.stdout) : null;
 }
 
-console.log(`Production protection target: ${input.repository}`);
+console.log(`Protection target: ${input.repository} / ${input.environment}`);
 console.log(`Required reviewers: ${input.reviewerList}`);
 console.log("Self-review will be disabled. Existing wait timer and deployment branch policy will be preserved.");
 if (!apply) {
@@ -30,7 +30,7 @@ if (!apply) {
 const auth = spawnSync("gh", ["auth", "status"], { encoding: "utf8", stdio: ["ignore", "pipe", "pipe"] });
 if (auth.status !== 0) throw new Error("Authenticate GitHub CLI with gh auth login before --apply");
 
-const path = `repos/${input.repository}/environments/production`;
+const path = `repos/${input.repository}/environments/${input.environment}`;
 const current = githubApi(path);
 const payload = buildProductionEnvironmentPayload(current, input.reviewers);
 githubApi(path, { args: ["--method", "PUT", "--input", "-"], input: JSON.stringify(payload) });
@@ -43,8 +43,8 @@ if (!verification.apiConfigurationReady) {
 
 console.log("Required reviewers and self-review protection are configured and verified.");
 if (!verification.ready) {
-  console.error("Production is still fail-closed: disable administrator bypass in GitHub Settings > Environments > production, then run npm run deployment:audit -- production --strict.");
+  console.error(`Environment is still fail-closed: disable administrator bypass in GitHub Settings > Environments > ${input.environment}, then run npm run deployment:audit -- ${input.environment} --strict.`);
   process.exitCode = 2;
 } else {
-  console.log("Production approval gate is complete, including disabled administrator bypass.");
+  console.log(`${input.environment} approval gate is complete, including disabled administrator bypass.`);
 }

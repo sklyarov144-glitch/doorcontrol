@@ -7,10 +7,10 @@ function completeInventory(environment) {
   return {
     secrets: requirements.secrets,
     variables: requirements.variables,
-    protectionRules: environment === "production"
+    protectionRules: ["production", "production-restore"].includes(environment)
       ? [{ type: "required_reviewers", prevent_self_review: true, reviewers: [{ type: "User", id: 1 }] }]
       : [],
-    canAdminsBypass: environment === "production" ? false : true,
+    canAdminsBypass: ["production", "production-restore"].includes(environment) ? false : true,
   };
 }
 
@@ -68,5 +68,25 @@ describe("auditEnvironmentInventory", () => {
     expect(result.ready).toBe(true);
     expect(result.warnings).toHaveLength(1);
     expect(result.warnings[0]).toContain("VITE_SENTRY_DSN");
+  });
+
+  it("accepts an unattended backup environment and protects restore separately", () => {
+    expect(auditEnvironmentInventory("production-backup", completeInventory("production-backup")).ready).toBe(true);
+    expect(auditEnvironmentInventory("production-restore", completeInventory("production-restore")).ready).toBe(true);
+  });
+
+  it("rejects a manual reviewer that would block scheduled backups", () => {
+    const inventory = completeInventory("production-backup");
+    inventory.protectionRules = [{ type: "required_reviewers", reviewers: [{ type: "User", id: 1 }] }];
+    const result = auditEnvironmentInventory("production-backup", inventory);
+    expect(result.ready).toBe(false);
+    expect(result.missingProtections).toEqual(["scheduled backup must not require manual reviewer"]);
+  });
+
+  it("reports a missing GitHub environment without treating empty inventory as success", () => {
+    const result = auditEnvironmentInventory("production-backup", { exists: false });
+    expect(result.ready).toBe(false);
+    expect(result.missingProtections).toContain("environment exists");
+    expect(result.missingSecrets).toContain("SUPABASE_DB_URL");
   });
 });

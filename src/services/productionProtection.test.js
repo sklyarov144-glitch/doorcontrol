@@ -30,6 +30,23 @@ describe("production protection configuration", () => {
     );
   });
 
+  it("binds restore protection confirmation to the restore environment", () => {
+    const result = validateProductionProtectionInput({
+      GITHUB_REPOSITORY: "gross/app",
+      PROTECTED_ENVIRONMENT: "production-restore",
+      PRODUCTION_REVIEWERS: "Team:81",
+    });
+    expect(result.environment).toBe("production-restore");
+    expect(result.expectedConfirmation).toBe("PRODUCTION-RESTORE:gross/app:Team:81");
+  });
+
+  it("rejects unprotected or unknown target environments", () => {
+    expect(() => validateProductionProtectionInput({
+      PROTECTED_ENVIRONMENT: "production-backup",
+      PRODUCTION_REVIEWERS: "User:42",
+    })).toThrow("production or production-restore");
+  });
+
   it("preserves wait timer and deployment branch policy", () => {
     const policy = { protected_branches: false, custom_branch_policies: true };
     const payload = buildProductionEnvironmentPayload({
