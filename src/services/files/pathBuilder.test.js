@@ -16,6 +16,8 @@ describe("storage paths", () => {
 
   it("rejects path traversal through identifiers", () => {
     expect(() => buildDocumentPath({ companyId: "../company", objectId: "object", fileName: "x.pdf" })).toThrow();
+    expect(() => buildDocumentPath({ companyId: "company", objectId: "object", fileName: "x.pdf", fileId: "../file" })).toThrow();
+    expect(() => buildAvatarPath({ userId: "user\\other", fileName: "avatar.png" })).toThrow();
   });
 });
 

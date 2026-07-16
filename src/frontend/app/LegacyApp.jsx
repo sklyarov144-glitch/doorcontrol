@@ -60,6 +60,8 @@ import {
 } from "../storage";
 import { dataProvider, dataProviderName } from "../../services/dataProvider";
 import { fileService } from "../../services/files";
+import { storageLocationFromUri } from "../../services/files/filePolicy";
+import { persistUploadedFile } from "../../services/files/uploadLifecycle";
 import { setMonitoringUser } from "../../services/monitoring";
 import FinancePage from "../pages/FinancePage";
 import DocumentsPage from "../pages/DocumentsPage";
@@ -1304,9 +1306,40 @@ export function App({ demoUsers = [], demoPassword = "" }) {
                 }
               }}
               onPlanUpload={async ({ objectId, buildingId, floorId }, file) => {
-                const uploaded = await fileService.uploadFloorPlan({ companyId: user.companyId, objectId, buildingId, floorId }, file);
-                const image = isRemoteAuth ? await fileService.createSignedUrl(uploaded.bucket, uploaded.path, 3600) : uploaded.uri;
-                return { image, imageStorageUri: uploaded.uri };
+                if (!isRemoteAuth) {
+                  const uploaded = await fileService.uploadFloorPlan({ companyId: user.companyId, objectId, buildingId, floorId }, file);
+                  return { image: uploaded.uri, imageStorageUri: uploaded.uri };
+                }
+                const currentBuilding = objects.find((item) => item.id === objectId)
+                  ?.buildings.find((item) => item.id === buildingId);
+                const previousLocation = storageLocationFromUri(currentBuilding?.floorTemplate?.imageStorageUri);
+                const result = await persistUploadedFile({
+                  upload: () => fileService.uploadFloorPlan({ companyId: user.companyId, objectId, buildingId, floorId }, file),
+                  persist: async (uploaded) => {
+                    const image = await fileService.createSignedUrl(uploaded.bucket, uploaded.path, 3600);
+                    const nextObjects = objects.map((object) => object.id !== objectId ? object : {
+                      ...object,
+                      buildings: object.buildings.map((building) => building.id !== buildingId ? building : {
+                        ...building,
+                        floorTemplate: {
+                          ...(building.floorTemplate ?? {}),
+                          image,
+                          imageStorageUri: uploaded.uri,
+                        },
+                      }),
+                    });
+                    await saveObjects(nextObjects);
+                    const persisted = await dataProvider.objects.getTree();
+                    setObjects(persisted.map(normalizeObject));
+                    return { image, imageStorageUri: uploaded.uri };
+                  },
+                  remove: (uploaded) => fileService.remove(uploaded.bucket, [uploaded.path]),
+                });
+                if (previousLocation && previousLocation.path !== storageLocationFromUri(result.imageStorageUri)?.path) {
+                  fileService.remove(previousLocation.bucket, [previousLocation.path])
+                    .catch((error) => console.error("Unable to remove the replaced floor plan", error));
+                }
+                return result;
               }}
             />
           )}
@@ -1339,10 +1372,27 @@ export function App({ demoUsers = [], demoPassword = "" }) {
                 return nextUser;
               }}
               onAvatarUpload={async (file) => {
-                const uploaded = await fileService.uploadAvatar({ userId: user.id }, file);
-                if (!isRemoteAuth) return { avatarUrl: uploaded.uri, avatarStorageUri: "" };
-                const avatarUrl = await fileService.createSignedUrl(uploaded.bucket, uploaded.path, 3600);
-                return { avatarUrl, avatarStorageUri: uploaded.uri };
+                if (!isRemoteAuth) {
+                  const uploaded = await fileService.uploadAvatar({ userId: user.id }, file);
+                  return { avatarUrl: uploaded.uri, avatarStorageUri: "" };
+                }
+                const previousLocation = storageLocationFromUri(user.avatarStorageUri);
+                const result = await persistUploadedFile({
+                  upload: () => fileService.uploadAvatar({ userId: user.id }, file),
+                  persist: async (uploaded) => {
+                    const avatarUrl = await fileService.createSignedUrl(uploaded.bucket, uploaded.path, 3600);
+                    await dataProvider.users.update(user.id, { avatarUrl: uploaded.uri });
+                    const avatar = { avatarUrl, avatarStorageUri: uploaded.uri };
+                    setUsers((current) => current.map((item) => item.id === user.id ? { ...item, ...avatar } : item));
+                    return avatar;
+                  },
+                  remove: (uploaded) => fileService.remove(uploaded.bucket, [uploaded.path]),
+                });
+                if (previousLocation && previousLocation.path !== storageLocationFromUri(result.avatarStorageUri)?.path) {
+                  fileService.remove(previousLocation.bucket, [previousLocation.path])
+                    .catch((error) => console.error("Unable to remove the replaced avatar", error));
+                }
+                return result;
               }}
             />
           )}

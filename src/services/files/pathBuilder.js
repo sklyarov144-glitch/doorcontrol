@@ -5,19 +5,19 @@ function extensionOf(fileName) {
 }
 
 function identifier(value, field) {
-  if (!value || String(value).includes("/")) throw new Error(`${field} is required`);
-  return String(value);
+  const normalized = String(value ?? "");
+  if (!/^[a-z0-9_-]+$/i.test(normalized)) throw new Error(`${field} is invalid`);
+  return normalized;
 }
 
 export function buildDocumentPath({ companyId, objectId, fileName, fileId = crypto.randomUUID() }) {
-  return `${identifier(companyId, "companyId")}/${identifier(objectId, "objectId")}/${fileId}.${extensionOf(fileName)}`;
+  return `${identifier(companyId, "companyId")}/${identifier(objectId, "objectId")}/${identifier(fileId, "fileId")}.${extensionOf(fileName)}`;
 }
 
 export function buildFloorPlanPath({ companyId, objectId, buildingId, floorId, fileName, fileId = crypto.randomUUID() }) {
-  return `${identifier(companyId, "companyId")}/${identifier(objectId, "objectId")}/${identifier(buildingId, "buildingId")}/${identifier(floorId, "floorId")}/${fileId}.${extensionOf(fileName)}`;
+  return `${identifier(companyId, "companyId")}/${identifier(objectId, "objectId")}/${identifier(buildingId, "buildingId")}/${identifier(floorId, "floorId")}/${identifier(fileId, "fileId")}.${extensionOf(fileName)}`;
 }
 
 export function buildAvatarPath({ userId, fileName, fileId = crypto.randomUUID() }) {
-  return `${identifier(userId, "userId")}/${fileId}.${extensionOf(fileName)}`;
+  return `${identifier(userId, "userId")}/${identifier(fileId, "fileId")}.${extensionOf(fileName)}`;
 }
-

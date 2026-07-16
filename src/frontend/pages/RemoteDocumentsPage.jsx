@@ -1,12 +1,8 @@
-import React, { useEffect, useMemo, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import { dataProvider } from "../../services/dataProvider";
 import { fileService } from "../../services/files";
-
-function storageLocation(uri) {
-  if (!uri?.startsWith("storage://")) return null;
-  const [bucket, ...parts] = uri.slice("storage://".length).split("/");
-  return { bucket, path: parts.join("/") };
-}
+import { storageLocationFromUri } from "../../services/files/filePolicy";
+import { persistUploadedFile } from "../../services/files/uploadLifecycle";
 
 export default function RemoteDocumentsPage({ objects, user }) {
   const [documents, setDocuments] = useState([]);
@@ -55,12 +51,7 @@ export default function RemoteDocumentsPage({ objects, user }) {
     setSaving(true);
     setError("");
     try {
-      let url = form.url.trim();
-      if (form.file) {
-        const uploaded = await fileService.uploadDocument({ companyId: user.companyId, objectId: form.objectId }, form.file);
-        url = uploaded.uri;
-      }
-      await dataProvider.documents.create({
+      const persist = (url) => dataProvider.documents.create({
         companyId: user.companyId,
         objectId: form.objectId,
         buildingId: form.buildingId || null,
@@ -70,6 +61,15 @@ export default function RemoteDocumentsPage({ objects, user }) {
         comment: form.comment.trim() || null,
         createdBy: user.id,
       });
+      if (form.file) {
+        await persistUploadedFile({
+          upload: () => fileService.uploadDocument({ companyId: user.companyId, objectId: form.objectId }, form.file),
+          persist: (uploaded) => persist(uploaded.uri),
+          remove: (uploaded) => fileService.remove(uploaded.bucket, [uploaded.path]),
+        });
+      } else {
+        await persist(form.url.trim());
+      }
       setForm((current) => ({ ...current, title: "", url: "", comment: "", file: null }));
       formElement.reset();
       await load();
@@ -83,7 +83,7 @@ export default function RemoteDocumentsPage({ objects, user }) {
   const openDocument = async (document) => {
     setError("");
     try {
-      const location = storageLocation(document.url);
+      const location = storageLocationFromUri(document.url);
       const url = location ? await fileService.createSignedUrl(location.bucket, location.path) : document.url;
       if (!url) throw new Error("У документа не указана ссылка");
       window.open(url, "_blank", "noopener,noreferrer");
@@ -101,7 +101,7 @@ export default function RemoteDocumentsPage({ objects, user }) {
       <label>Название<input value={form.title} onChange={(event) => setForm({ ...form, title: event.target.value })} placeholder="Шахматка корпуса 4.1" /></label>
       <label>Категория<select value={form.category} onChange={(event) => setForm({ ...form, category: event.target.value })}><option value="matrix">Шахматка</option><option value="custody_act">Акт ОХ</option><option value="floor_plan">План этажа</option><option value="photo">Фото</option><option value="document">Документ</option></select></label>
       <label className="wide">Ссылка<input type="url" value={form.url} onChange={(event) => setForm({ ...form, url: event.target.value })} placeholder="https://disk.yandex.ru/..." disabled={Boolean(form.file)} /></label>
-      <label className="wide">Или загрузить файл<input type="file" onChange={(event) => setForm({ ...form, file: event.target.files?.[0] ?? null, url: "" })} /></label>
+      <label className="wide">Или загрузить файл<input type="file" accept="application/pdf,image/jpeg,image/png,image/webp,application/vnd.openxmlformats-officedocument.spreadsheetml.sheet" onChange={(event) => setForm({ ...form, file: event.target.files?.[0] ?? null, url: "" })} /></label>
       <label className="wide">Комментарий<textarea value={form.comment} onChange={(event) => setForm({ ...form, comment: event.target.value })} /></label>
       <button className="primary-button" disabled={saving || !objects.length}>{saving ? "Сохраняем..." : "Добавить документ"}</button>
     </form>
