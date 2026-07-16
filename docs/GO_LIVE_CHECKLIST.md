@@ -4,10 +4,12 @@
 
 - [x] CI зелёный на release SHA.
 - [x] Staging deployment и smoke успешны.
+- [x] Staging workflow сохраняет immutable release evidence и связывает его с CI run того же SHA.
 - [x] Все migrations применены к staging.
 - [ ] Структура production сверена со staging перед выпуском.
 - [ ] UAT evidence прошёл `npm run pilot:uat` и подписан владельцем продукта и представителем ИТР.
 - [ ] Production secret `UAT_EVIDENCE_JSON` содержит протокол именно для выпускаемого staging SHA.
+- [ ] UAT использует staging evidence с `productionEligible: true`.
 - [x] RLS автоматически проверен в CI минимум двумя компаниями и четырьмя ролями.
 - [ ] RLS повторно проверен на staging реальными Auth JWT минимум двумя компаниями и четырьмя ролями.
 - [x] Staging `auth:smoke` прошёл четырьмя отдельными тестовыми аккаунтами.

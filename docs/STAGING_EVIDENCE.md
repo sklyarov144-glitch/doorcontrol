@@ -1,15 +1,21 @@
 # Подтверждения staging-релиза
 
-Последняя подтверждённая версия: `75abf873c8592c224b352562aa2bf4402def52d1`.
-
-Дата проверки: 15 июля 2026 года.
-
 Окружение: [gross-lean-montage-staging.vercel.app](https://gross-lean-montage-staging.vercel.app/).
+
+Каждый успешный workflow `Deploy staging` создаёт неизменяемый артефакт
+`staging-release-<full SHA>` со сроком хранения 90 дней. В нём зафиксированы
+полный SHA, конкретные GitHub CI/staging run, Vercel deployment URL, канонический
+URL, Supabase project id и результаты обязательных проверок. Именно этот JSON,
+а не изменяемая строка в документации, является источником истины для UAT.
+
+Ручной `workflow_dispatch` разрешён для диагностики, но его evidence содержит
+`productionEligible: false`. Production provenance принимает только staging,
+запущенный событием успешного `CI` для того же SHA.
 
 ## Автоматические проверки
 
-- [CI run 29445851796](https://github.com/sklyarov144-glitch/doorcontrol/actions/runs/29445851796) успешно выполнил frontend CI, чистый Supabase database reset, 30 migrations, DB lint и pgTAP/RLS-тесты.
-- [Staging deployment run 29446031501](https://github.com/sklyarov144-glitch/doorcontrol/actions/runs/29446031501) успешно применил migrations, настроил hosted Auth, развернул Edge Functions и frontend.
+- Связанный CI успешно выполняет frontend CI, чистый Supabase database reset, DB lint и pgTAP/RLS-тесты.
+- Staging deployment применяет migrations, настраивает hosted Auth, разворачивает Edge Functions и frontend.
 - Канонический URL отвечает `HTTP 200` и содержит meta `gross-release` с полным release SHA.
 - Smoke маршрутов `/` и `/login` успешен.
 - Hosted Auth проверен: публичная регистрация отключена, email login включён, redirect allowlist соответствует staging origin.

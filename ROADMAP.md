@@ -30,6 +30,7 @@
 - [x] Провести performance-аудит больших объектов и списков.
   Каждый staging-релиз проходит HTTP smoke и 200 аутентифицированных запросов к основным доменным таблицам с ограничением p95; последний релиз подтвердил gate на hosted Supabase.
 - [x] Настроить реальные staging Supabase и Vercel, включая канонический alias и release smoke.
+  Каждый staging-релиз сохраняет immutable evidence с полным SHA, связанным CI run и результатами backend/auth/UI/load smoke. Ручной staging не принимается как production provenance.
 - [ ] Настроить и проверить staging Sentry с тестовым событием и alert contact.
   Deployment gate и release evidence для Sentry ingestion реализованы. Текущий аудит GitHub Environment подтверждает, что `VITE_SENTRY_DSN` в staging ещё не задан; после его добавления следующий релиз отправит тестовое событие, но alert contact всё равно нужно подтвердить в Sentry.
 - [x] Создать четыре staging-аккаунта и выполнить auth smoke.

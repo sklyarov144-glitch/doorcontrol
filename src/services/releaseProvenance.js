@@ -3,6 +3,7 @@ export function findVerifiedStagingRun(payload, releaseSha) {
   const run = payload?.workflow_runs?.find((item) =>
     item.head_sha === releaseSha
       && item.head_branch === "main"
+      && item.event === "workflow_run"
       && item.status === "completed"
       && item.conclusion === "success");
   if (!run) throw new Error(`No successful staging deployment found for ${releaseSha}`);

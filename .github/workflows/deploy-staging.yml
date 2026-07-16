@@ -21,6 +21,7 @@ jobs:
     environment: staging
     env:
       RELEASE_SHA: ${{ github.event.workflow_run.head_sha || github.sha }}
+      SOURCE_CI_RUN_ID: ${{ github.event.workflow_run.id || '' }}
       SUPABASE_ACCESS_TOKEN: ${{ secrets.SUPABASE_ACCESS_TOKEN }}
       SUPABASE_PROJECT_ID: ${{ secrets.SUPABASE_PROJECT_ID }}
       APP_ALLOWED_ORIGINS: ${{ vars.APP_ALLOWED_ORIGINS }}
@@ -123,3 +124,14 @@ jobs:
         run: npm run auth:ui-smoke
       - name: Load smoke authenticated ITR domain
         run: npm run load:domain
+      - name: Create immutable staging release evidence
+        env:
+          SENTRY_EVIDENCE_PATH: sentry-smoke-evidence.json
+        run: node scripts/create-staging-release-evidence.mjs staging-release-evidence.json
+      - name: Upload staging release evidence
+        uses: actions/upload-artifact@v4
+        with:
+          name: staging-release-${{ env.RELEASE_SHA }}
+          path: staging-release-evidence.json
+          retention-days: 90
+          if-no-files-found: error
