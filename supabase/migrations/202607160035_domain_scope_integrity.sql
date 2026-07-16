@@ -239,6 +239,21 @@ $$;
 revoke all on function public.can_access_building(uuid) from public, anon;
 grant execute on function public.can_access_building(uuid) to authenticated;
 
+-- A permissive FOR ALL write policy also participates in SELECT and previously
+-- reopened sibling buildings through can_access_object(). Keep write operations
+-- explicit so the dedicated select policy remains authoritative.
+drop policy if exists buildings_write on public.buildings;
+
+create policy buildings_insert on public.buildings for insert
+with check (public.can_access_object(object_id));
+
+create policy buildings_update on public.buildings for update
+using (public.can_access_building(id))
+with check (public.can_access_object(object_id));
+
+create policy buildings_delete on public.buildings for delete
+using (public.can_access_building(id));
+
 comment on function public.scope_hierarchy_matches(uuid, uuid, uuid, uuid, uuid, boolean) is
   'Validates that company, object, building, floor and door identifiers belong to one hierarchy branch.';
 comment on function public.can_access_domain_scope(uuid, uuid, uuid, uuid, uuid, boolean) is

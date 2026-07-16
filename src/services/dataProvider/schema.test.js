@@ -237,6 +237,8 @@ describe("Supabase schema", () => {
     expect(domainScopeIntegrity).toContain("daily_work_reports_enforce_scope");
     expect(domainScopeIntegrity).toContain("financial_transactions_enforce_scope");
     expect(domainScopeIntegrity).toContain("p_require_complete");
+    expect(domainScopeIntegrity).toContain("drop policy if exists buildings_write");
+    expect(domainScopeIntegrity).toContain("create policy buildings_insert");
   });
 
   it("creates private scoped storage buckets", () => {
