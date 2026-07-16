@@ -55,18 +55,21 @@ describe("backup manifest", () => {
 
   it("creates restore evidence only for a usable domain restore", () => {
     const root = mkdtempSync(join(tmpdir(), "gross-restore-"));
-    const counts = join(root, "counts.json");
+    const sourceCounts = join(root, "source-counts.json");
+    const restoredCounts = join(root, "restored-counts.json");
     const archive = join(root, "source.enc");
     const evidence = join(root, "evidence.json");
     writeFileSync(archive, "encrypted-backup");
     writeFileSync(
-      counts,
+      sourceCounts,
       JSON.stringify({ companies: 1, profiles: 4, objects: 2, buildings: 3, floors: 25, doors: 100, tasks: 0, documents: 0, storageObjects: 0 }),
     );
+    writeFileSync(restoredCounts, readFileSync(sourceCounts));
 
     const result = run("scripts/backup/create-restore-evidence.mjs", [
       evidence,
-      counts,
+      sourceCounts,
+      restoredCounts,
       archive,
       "12345",
       "2026-07-14T10:00:00Z",
@@ -74,14 +77,16 @@ describe("backup manifest", () => {
     ]);
     expect(result.status).toBe(0);
     const report = JSON.parse(readFileSync(evidence, "utf8"));
-    expect(report).toMatchObject({ result: "passed", backupRunId: 12345, durationSeconds: 180 });
+    expect(report).toMatchObject({ result: "passed", backupRunId: 12345, durationSeconds: 180, countsMatch: true });
+    expect(report.sourceRows).toEqual(report.restoredRows);
     expect(report.archiveSha256).toMatch(/^[a-f0-9]{64}$/);
 
-    writeFileSync(counts, JSON.stringify({ companies: 0, profiles: 0, objects: 0, buildings: 0, floors: 0, doors: 0, tasks: 0, documents: 0, storageObjects: 0 }));
+    writeFileSync(restoredCounts, JSON.stringify({ companies: 1, profiles: 4, objects: 2, buildings: 3, floors: 25, doors: 99, tasks: 0, documents: 0, storageObjects: 0 }));
     expect(
       run("scripts/backup/create-restore-evidence.mjs", [
         evidence,
-        counts,
+        sourceCounts,
+        restoredCounts,
         archive,
         "12345",
         "2026-07-14T10:00:00Z",

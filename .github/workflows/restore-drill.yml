@@ -96,12 +96,13 @@ jobs:
               'doors', (select count(*) from public.doors),
               'tasks', (select count(*) from public.tasks),
               'documents', (select count(*) from public.document_items),
-              'storageObjects', (select count(*) from storage.objects)
-            );" > restored-backup/counts.json
+              'storageObjects', (select count(*) from storage.objects where bucket_id in ('documents', 'floor-plans', 'avatars'))
+            );" > restored-backup/restored-counts.json
           COMPLETED_AT=$(date -u +%FT%TZ)
           node scripts/backup/create-restore-evidence.mjs \
             restored-backup/restore-evidence.json \
-            restored-backup/counts.json \
+            restored-backup/source-counts.json \
+            restored-backup/restored-counts.json \
             restored-backup/source.enc \
             "$BACKUP_RUN_ID" \
             "$RESTORE_STARTED_AT" \

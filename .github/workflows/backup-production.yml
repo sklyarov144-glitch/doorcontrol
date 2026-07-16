@@ -20,6 +20,8 @@ jobs:
           node-version-file: .nvmrc
           cache: npm
       - run: npm ci
+      - name: Install PostgreSQL client
+        run: sudo apt-get update -qq && sudo apt-get install -y -qq postgresql-client
       - name: Validate backup secrets
         env:
           SUPABASE_DB_URL: ${{ secrets.SUPABASE_DB_URL }}
@@ -44,6 +46,18 @@ jobs:
           npx supabase db dump --db-url "$SUPABASE_DB_URL" --role-only --file backup/roles.sql
           npx supabase db dump --db-url "$SUPABASE_DB_URL" --file backup/schema.sql
           npx supabase db dump --db-url "$SUPABASE_DB_URL" --data-only --use-copy --file backup/data.sql
+          psql "$SUPABASE_DB_URL" --set ON_ERROR_STOP=1 --no-align --tuples-only --command "
+            select json_build_object(
+              'companies', (select count(*) from public.companies),
+              'profiles', (select count(*) from public.profiles),
+              'objects', (select count(*) from public.objects),
+              'buildings', (select count(*) from public.buildings),
+              'floors', (select count(*) from public.floors),
+              'doors', (select count(*) from public.doors),
+              'tasks', (select count(*) from public.tasks),
+              'documents', (select count(*) from public.document_items),
+              'storageObjects', (select count(*) from storage.objects where bucket_id in ('documents', 'floor-plans', 'avatars'))
+            );" > backup/source-counts.json
       - name: Export private Storage buckets
         env:
           BACKUP_SUPABASE_URL: ${{ secrets.BACKUP_SUPABASE_URL }}
@@ -51,8 +65,8 @@ jobs:
         run: |
           node scripts/backup/export-storage.mjs backup/storage backup/storage-manifest.json
           tar -czf backup/storage.tar.gz -C backup storage storage-manifest.json
-          node scripts/backup/create-manifest.mjs backup/manifest.json backup/roles.sql backup/schema.sql backup/data.sql backup/storage.tar.gz
-          tar -czf gross-production.tar.gz -C backup roles.sql schema.sql data.sql storage.tar.gz manifest.json
+          node scripts/backup/create-manifest.mjs backup/manifest.json backup/roles.sql backup/schema.sql backup/data.sql backup/storage.tar.gz backup/source-counts.json
+          tar -czf gross-production.tar.gz -C backup roles.sql schema.sql data.sql storage.tar.gz source-counts.json manifest.json
       - name: Encrypt backup
         env:
           BACKUP_ENCRYPTION_PASSWORD: ${{ secrets.BACKUP_ENCRYPTION_PASSWORD }}
