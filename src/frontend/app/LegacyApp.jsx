@@ -81,17 +81,18 @@ import { Detail, Metric, StatusBadge } from "../components/UiPrimitives";
 import LoginPage, { PasswordRecoveryPage } from "../pages/LoginPage";
 import ObjectsPage from "../pages/ObjectsPage";
 import StandaloneObjectPage from "../pages/ObjectPage";
+import UsersPage from "../pages/UsersPage";
 import BuildingVisualization from "../pages/BuildingPage";
 import FloorPlan from "../pages/FloorPage";
 import DoorDetails from "../pages/DoorPage";
 import { permissionsFor } from "../domain/permissions";
 import { roleLabels } from "../domain/roles";
+import { normalizeUser } from "../domain/users";
 import { statusMeta } from "../domain/statuses";
 import { applyDoorWorkflow } from "../domain/doorWorkflow";
 import {
   allObjectDoors as getAllDoors,
   visibleObjectsForUser as getVisibleObjectsForUser,
-  visibleUsersForManager as getVisibleUsersForManager,
 } from "../domain/objectAccess";
 import { buildAppPath, parseAppRoute } from "./routes";
 import "../styles.css";
@@ -473,43 +474,10 @@ function loadUsers(demoUsers) {
   }
 }
 
-function normalizeUser(user) {
-  const now = "2026-06-01T08:00:00.000Z";
-  return {
-    id: user.id,
-    name: user.name,
-    email: user.email ?? "",
-    phone: user.phone ?? "",
-    role: user.role ?? "itr",
-    position: user.position ?? "",
-    avatarUrl: user.avatarUrl ?? user.avatar ?? "",
-    avatarStorageUri: user.avatarStorageUri ?? "",
-    avatar: user.avatarUrl ?? user.avatar ?? "",
-    status: user.status ?? "active",
-    assignedObjectIds: user.assignedObjectIds ?? [],
-    assignedBuildingIds: user.assignedBuildingIds ?? [],
-    createdAt: user.createdAt ?? now,
-    updatedAt: user.updatedAt ?? now,
-    lastLoginAt: user.lastLoginAt ?? "",
-    password: user.password ?? "",
-  };
-}
-
 function saveUsers(users) {
   if (dataProviderName === "supabase") return users;
   dataProvider.users.replaceAll(users.map((user) => normalizeUser({ ...user, status: "active" })));
   return users;
-}
-
-function canManageUsers(user) {
-  return ["creator", "company_head", "construction_director"].includes(user.role);
-}
-
-function canAssignRole(managerRole, targetRole) {
-  if (managerRole === "creator") return true;
-  if (managerRole === "company_head") return ["company_head", "construction_director", "itr"].includes(targetRole);
-  if (managerRole === "construction_director") return targetRole === "itr";
-  return false;
 }
 
 function matrixPatchFromDoor(values) {
@@ -2031,136 +1999,6 @@ function TemplateInspector({ selected, rooms, setRooms, stair, setStair, arrow, 
 
 function RangeField({ label, value, min, max, onChange }) {
   return <label className="range-field"><span>{label}<b>{Math.round(value)}</b></span><input type="range" min={min} max={max} value={value} onChange={(event) => onChange(Number(event.target.value))} /></label>;
-}
-
-function UsersPage({ users, objects, currentUser, onSave, remoteAuth, demoPassword = "" }) {
-  const [editingUser, setEditingUser] = useState(null);
-  const [saving, setSaving] = useState(false);
-  const [error, setError] = useState("");
-  const visibleUsers = getVisibleUsersForManager(currentUser, users, objects);
-  const canCreate = canManageUsers(currentUser);
-  const objectNames = new Map(objects.map((object) => [object.id, object.name]));
-  const buildingNames = new Map(objects.flatMap((object) => object.buildings.map((building) => [building.id, `${object.name} / ${building.name}`])));
-  const saveUser = async (values) => {
-    const prepared = normalizeUser({ ...values, status: values.status ?? "active" });
-    if (remoteAuth) {
-      setSaving(true);
-      setError("");
-      try {
-        if (prepared.id && users.some((user) => user.id === prepared.id)) await dataProvider.users.save(prepared);
-        else await dataProvider.users.invite({ ...prepared, id: undefined });
-        await onSave();
-        setEditingUser(null);
-      } catch (saveError) {
-        setError(saveError?.message ?? "Не удалось сохранить пользователя");
-      } finally {
-        setSaving(false);
-      }
-      return;
-    }
-    const nextUsers = prepared.id && users.some((user) => user.id === prepared.id)
-      ? users.map((user) => user.id === prepared.id ? dataProvider.users.update(prepared.id, prepared) ?? prepared : user)
-      : [dataProvider.users.create({ ...prepared, id: prepared.id || `user-${Date.now()}` }), ...users];
-    onSave(nextUsers.map((user) => normalizeUser({ ...user, status: "active" })));
-    setEditingUser(null);
-  };
-  const resetPassword = (userId) => {
-    onSave(users.map((user) => user.id === userId ? { ...user, password: demoPassword, updatedAt: new Date().toISOString() } : user));
-  };
-  const changeAccountStatus = async (account, status) => {
-    setSaving(true);
-    setError("");
-    try {
-      if (remoteAuth) await dataProvider.users.setAccountStatus(account.id, status);
-      else dataProvider.users.update(account.id, { status, isActive: status === "active" });
-      await onSave();
-    } catch (statusError) {
-      setError(statusError?.message ?? "Не удалось изменить статус аккаунта");
-    } finally {
-      setSaving(false);
-    }
-  };
-  const restoreAccountAccess = async (account) => {
-    setSaving(true);
-    setError("");
-    try {
-      await dataProvider.users.restoreAccess(account.id);
-      await onSave();
-    } catch (restoreError) {
-      setError(restoreError?.message ?? "Не удалось отправить письмо для восстановления доступа");
-    } finally {
-      setSaving(false);
-    }
-  };
-
-  return (
-    <section className="users-page">
-      <div className="tasks-hero">
-        <div>
-          <span>Пользователи и доступы</span>
-          <h2>Команда, роли и назначения</h2>
-          <p>Создание пользователей, назначение объектов и подготовка к серверной авторизации.</p>
-        </div>
-        {canCreate && <button className="primary-button" disabled={saving} onClick={() => setEditingUser({ status: "active", role: "itr", password: "", assignedObjectIds: [], assignedBuildingIds: [] })}>Добавить пользователя</button>}
-      </div>
-      {error && <div className="form-error" role="alert">{error}</div>}
-      <div className="users-table-wrap">
-        <table className="executive-table users-table">
-          <thead><tr><th>ФИО</th><th>Роль</th><th>Должность</th><th>Email</th><th>Телефон</th><th>Статус</th><th>Объекты</th><th>Корпуса</th><th>Действия</th></tr></thead>
-          <tbody>
-            {visibleUsers.map((user) => (
-              <tr key={user.id}>
-                <td><div className="table-user"><span>{user.avatarUrl ? <img src={user.avatarUrl} alt="" /> : user.name.slice(0, 1)}</span><strong>{user.name}</strong></div></td>
-                <td>{roleLabels[user.role]}</td>
-                <td>{user.position}</td>
-                <td>{user.email}</td>
-                <td>{user.phone || "—"}</td>
-                <td><StatusBadge value={user.status ?? "active"} /></td>
-                <td>{["creator", "company_head"].includes(user.role) && !user.assignedObjectIds?.length ? "Все" : user.assignedObjectIds?.map((id) => objectNames.get(id)).filter(Boolean).join(", ") || "—"}</td>
-                <td>{user.assignedBuildingIds?.map((id) => buildingNames.get(id)).filter(Boolean).join(", ") || "—"}</td>
-                <td><div className="task-actions">{canCreate && <button className="secondary-button slim" onClick={() => setEditingUser(user)}>Редактировать</button>}{canCreate && user.id !== currentUser.id && (!remoteAuth || user.status !== "disabled") && <button className="secondary-button slim" disabled={saving} onClick={() => changeAccountStatus(user, "disabled")}>Отключить</button>}{canCreate && remoteAuth && user.id !== currentUser.id && <button className="secondary-button slim" disabled={saving} onClick={() => restoreAccountAccess(user)}>{user.status === "disabled" ? "Восстановить доступ" : "Отправить ссылку входа"}</button>}{canCreate && !remoteAuth && user.status === "disabled" && <button className="secondary-button slim" disabled={saving} onClick={() => changeAccountStatus(user, "active")}>Активировать</button>}{canCreate && !remoteAuth && <button className="secondary-button slim" onClick={() => resetPassword(user.id)}>Сбросить пароль</button>}</div></td>
-              </tr>
-            ))}
-          </tbody>
-        </table>
-      </div>
-      {editingUser && <UserEditModal user={editingUser} currentUser={currentUser} objects={objects} remoteAuth={remoteAuth} onClose={() => setEditingUser(null)} onSave={saveUser} />}
-    </section>
-  );
-}
-
-function UserEditModal({ user, currentUser, objects, onClose, onSave, remoteAuth }) {
-  const isNew = !user.id;
-  const [form, setForm] = useState(() => normalizeUser({ ...user, id: user.id ?? `user-${Date.now()}`, name: user.name ?? "", email: user.email ?? "", phone: user.phone ?? "", position: user.position ?? "", role: user.role ?? "itr" }));
-  const update = (field, value) => setForm((current) => ({ ...current, [field]: value }));
-  const allowedRoles = ["creator", "company_head"].includes(currentUser.role)
-    ? (currentUser.role === "creator" ? ["creator", "company_head", "construction_director", "itr"] : ["company_head", "construction_director", "itr"])
-    : ["itr"];
-  const buildings = objects.flatMap((object) => object.buildings.map((building) => ({ ...building, objectName: object.name })));
-  const toggle = (field, id) => update(field, form[field].includes(id) ? form[field].filter((item) => item !== id) : [...form[field], id]);
-
-  return (
-    <div className="modal-backdrop">
-      <form className="task-modal user-edit-modal" onSubmit={(event) => { event.preventDefault(); if (!canAssignRole(currentUser.role, form.role)) return; onSave(form); }}>
-        <div className="modal-title"><div><h2>{user.name ? "Редактировать пользователя" : "Добавить пользователя"}</h2><p>Роль, контакты и назначения.</p></div><button type="button" onClick={onClose}>×</button></div>
-        <div className="task-form-grid">
-          <label>ФИО<input value={form.name} onChange={(event) => update("name", event.target.value)} required /></label>
-          <label>Email<input type="email" value={form.email} readOnly={remoteAuth && !isNew} onChange={(event) => update("email", event.target.value)} required /></label>
-          <label>Телефон<input value={form.phone} onChange={(event) => update("phone", event.target.value)} /></label>
-          <label>Должность<input value={form.position} onChange={(event) => update("position", event.target.value)} /></label>
-          <label>Роль<select value={form.role} onChange={(event) => update("role", event.target.value)}>{allowedRoles.map((role) => <option key={role} value={role}>{roleLabels[role]}</option>)}</select></label>
-          <label>Статус<input value={form.status ?? "active"} readOnly /></label>
-          {!remoteAuth && isNew && <label>Временный пароль<input type="password" minLength={6} value={form.password} onChange={(event) => update("password", event.target.value)} required /></label>}
-          {remoteAuth && isNew && <div className="invitation-hint">Пользователь получит письмо и самостоятельно задаст пароль по защищённой ссылке.</div>}
-        </div>
-        <h3 className="modal-subtitle">Назначенные объекты</h3>
-        <div className="checkbox-grid">{objects.map((object) => <label key={object.id}><input type="checkbox" checked={form.assignedObjectIds.includes(object.id)} onChange={() => toggle("assignedObjectIds", object.id)} />{object.name}</label>)}</div>
-        <h3 className="modal-subtitle">Назначенные корпуса</h3>
-        <div className="checkbox-grid">{buildings.map((building) => <label key={building.id}><input type="checkbox" checked={form.assignedBuildingIds.includes(building.id)} onChange={() => toggle("assignedBuildingIds", building.id)} />{building.objectName} / {building.name}</label>)}</div>
-        <div className="form-actions"><button className="secondary-button" type="button" onClick={onClose}>Отмена</button><button className="primary-button">Сохранить пользователя</button></div>
-      </form>
-    </div>
-  );
 }
 
 function isoDateOffset(days = 0) {
