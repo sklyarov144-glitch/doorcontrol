@@ -26,6 +26,25 @@ Sentry включается только при наличии `VITE_SENTRY_DSN`
 отправляется; request headers/cookies удаляются, пользователь представлен только
 `id` и `role`.
 
+Каждый deployment выполняет отдельный ingestion smoke через Sentry Envelope API.
+Событие содержит только environment, release SHA и технический тег
+`smoke_test=deployment`. Результат сохраняется артефактом
+`*-sentry-smoke-<release SHA>` с `eventId` и HTTP-статусом. Staging до подключения
+DSN сохраняет evidence с `configured=false` и явное предупреждение; production
+без принятого Sentry события не выпускается.
+
+Локальная проверка тем же механизмом:
+
+```bash
+VITE_SENTRY_DSN=https://... \
+SENTRY_ENVIRONMENT=staging \
+SENTRY_RELEASE=$(git rev-parse HEAD) \
+npm run monitoring:smoke
+```
+
+Успешный ingestion smoke подтверждает приём события, но не заменяет ручную
+проверку alert rule и контакта ответственного в Sentry.
+
 ## Production bundle
 
 После `vercel build`, но до публикации, workflow запускает `verify:bundle`.

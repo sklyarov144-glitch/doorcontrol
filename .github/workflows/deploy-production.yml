@@ -134,6 +134,20 @@ jobs:
           echo "DEPLOY_URL=$DEPLOY_URL" >> "$GITHUB_ENV"
       - name: Smoke test
         run: SMOKE_URL="$APP_PUBLIC_URL" SMOKE_EXPECT_RELEASE="$RELEASE_SHA" SMOKE_RETRIES=12 SMOKE_REQUIRE_SECURITY_HEADERS=true npm run smoke
+      - name: Smoke test Sentry ingestion
+        env:
+          VITE_SENTRY_DSN: ${{ secrets.VITE_SENTRY_DSN }}
+          SENTRY_ENVIRONMENT: production
+          SENTRY_RELEASE: ${{ env.RELEASE_SHA }}
+          SENTRY_EVIDENCE_PATH: sentry-smoke-evidence.json
+        run: npm run monitoring:smoke
+      - name: Upload Sentry smoke evidence
+        uses: actions/upload-artifact@v4
+        with:
+          name: production-sentry-smoke-${{ env.RELEASE_SHA }}
+          path: sentry-smoke-evidence.json
+          retention-days: 90
+          if-no-files-found: error
       - name: Smoke test four authenticated production roles
         run: npm run auth:smoke
       - name: Install browser for published UI smoke
