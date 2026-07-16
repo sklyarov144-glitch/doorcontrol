@@ -84,6 +84,8 @@ import StandaloneObjectPage from "../pages/ObjectPage";
 import UsersPage from "../pages/UsersPage";
 import ProfilePage from "../pages/ProfilePage";
 import AdminPanel from "../pages/AdminPage";
+import ManualTasksPage, { TaskLinkModal } from "../pages/TasksPage";
+import NotificationsPage from "../pages/NotificationsPage";
 import BuildingVisualization from "../pages/BuildingPage";
 import FloorPlan from "../pages/FloorPage";
 import DoorDetails from "../pages/DoorPage";
@@ -92,6 +94,7 @@ import { roleLabels } from "../domain/roles";
 import { normalizeUser } from "../domain/users";
 import { statusMeta } from "../domain/statuses";
 import { applyDoorWorkflow } from "../domain/doorWorkflow";
+import { getManualTaskNoticeCount } from "../domain/tasks";
 import {
   allObjectDoors as getAllDoors,
   visibleObjectsForUser as getVisibleObjectsForUser,
@@ -114,8 +117,6 @@ const manualTaskTypes = [
   "Другое",
 ];
 const manualTaskPriorities = ["низкий", "средний", "высокий"];
-const manualTaskStatuses = ["новая", "в работе", "выполнена", "отменена"];
-const taskLinkCategories = ["акт АОХ", "фото", "документ", "прочее"];
 const manpowerPriorities = ["низкий", "средний", "высокий", "критичный"];
 const manpowerReasons = ["монтаж дверей", "разгрузка", "подъём дверей", "разнос дверей", "установка фурнитуры", "устранение замечаний", "подготовка проёмов", "прочее"];
 const manpowerStatuses = ["черновик", "подана", "на рассмотрении", "утверждена", "скорректирована", "отклонена", "отменена"];
@@ -2582,126 +2583,6 @@ function taskStatusLabel(status) {
   }[status] ?? "Новая";
 }
 
-function isManualTaskOverdue(task) {
-  return task.dueDate && task.dueDate < new Date().toISOString().slice(0, 10) && !["выполнена", "отменена"].includes(task.status);
-}
-
-function canSeeManualTask(task, user) {
-  if (["creator", "company_head"].includes(user.role)) return true;
-  if (user.role === "construction_director") return true;
-  if (user.role === "itr") return task.assignedTo === user.id;
-  return false;
-}
-
-function getManualTaskNoticeCount(tasks, user) {
-  return tasks.filter((task) => canSeeManualTask(task, user) && (task.status === "новая" || isManualTaskOverdue(task))).length;
-}
-
-function getTaskContext(objects, task) {
-  const object = objects.find((item) => item.id === task.objectId);
-  const building = object?.buildings.find((item) => item.id === task.buildingId);
-  const floor = building?.floors.find((item) => item.id === task.floorId);
-  const door = floor?.doors.find((item) => item.id === task.doorId);
-  return {
-    objectName: object?.name ?? "—",
-    buildingName: building?.name ?? "—",
-    floorName: floor?.number ? `Этаж ${floor.number}` : "—",
-    doorName: door?.number ?? door?.mark ?? "—",
-  };
-}
-
-function ManualTasksPage({ tasks, objects, user, users, onOpen, onCreateTask, onUpdateTask, onAddComment, onAddLink }) {
-  const isItr = user.role === "itr";
-  const tabs = isItr
-    ? ["Мои задачи", "Новые", "В работе", "Просроченные", "Выполненные"]
-    : ["Все задачи", "Созданные мной", "Просроченные", "Выполненные"];
-  const [activeTab, setActiveTab] = useState(tabs[0]);
-  const [commentTask, setCommentTask] = useState(null);
-  const [linkTask, setLinkTask] = useState(null);
-  const userNames = new Map(users.map((item) => [item.id, item.name]));
-  const visibleTasks = tasks.filter((task) => canSeeManualTask(task, user));
-  const filteredTasks = visibleTasks.filter((task) => {
-    if (activeTab === "Созданные мной") return task.createdBy === user.id;
-    if (activeTab === "Новые") return task.status === "новая";
-    if (activeTab === "В работе") return task.status === "в работе";
-    if (activeTab === "Просроченные") return isManualTaskOverdue(task);
-    if (activeTab === "Выполненные") return task.status === "выполнена";
-    return true;
-  });
-  const stats = {
-    total: visibleTasks.length,
-    new: visibleTasks.filter((task) => task.status === "новая").length,
-    progress: visibleTasks.filter((task) => task.status === "в работе").length,
-    overdue: visibleTasks.filter(isManualTaskOverdue).length,
-    done: visibleTasks.filter((task) => task.status === "выполнена").length,
-  };
-
-  const openTaskTarget = (task) => {
-    if (task.doorId || task.floorId || task.buildingId || task.objectId) {
-      onOpen(task);
-    }
-  };
-
-  return (
-    <section className="manual-tasks-page">
-      <div className="tasks-hero">
-        <div>
-          <span>Ручное управление</span>
-          <h2>{isItr ? "Мои задачи" : "Задачи команды"}</h2>
-          <p>Руководитель ставит задачи по объекту, корпусу, этажу или двери. ИТР закрывает их прямо в карточке задачи.</p>
-        </div>
-        {!isItr && <button className="primary-button" onClick={onCreateTask}>Поставить задачу</button>}
-      </div>
-      <div className="tasks-summary">
-        <div><span>Всего задач</span><strong>{stats.total}</strong></div>
-        <div><span>Новые</span><strong>{stats.new}</strong></div>
-        <div><span>В работе</span><strong>{stats.progress}</strong></div>
-        <div className="danger"><span>Просроченные</span><strong>{stats.overdue}</strong></div>
-        <div className="success"><span>Выполненные</span><strong>{stats.done}</strong></div>
-      </div>
-      <div className="task-tabs">
-        {tabs.map((tab) => <button key={tab} className={activeTab === tab ? "active" : ""} onClick={() => setActiveTab(tab)}>{tab}</button>)}
-      </div>
-      <div className={isItr ? "manual-task-card-grid itr-task-grid" : "manual-task-card-grid"}>
-        {filteredTasks.map((task) => {
-          const context = getTaskContext(objects, task);
-          return (
-            <article className={`manual-task-card priority-${task.priority} ${isManualTaskOverdue(task) ? "overdue" : ""}`} key={task.id}>
-              <div className="manual-task-card-head">
-                <span className={`priority-badge priority-${task.priority}`}>{task.priority}</span>
-                <span className={`manual-task-status status-${task.status.replaceAll(" ", "-")}`}>{task.status}</span>
-              </div>
-              <h3>{task.title}</h3>
-              <p>{task.description || "Без описания"}</p>
-              <dl className="task-context-grid">
-                <div><dt>Объект</dt><dd>{context.objectName}</dd></div>
-                <div><dt>Корпус</dt><dd>{context.buildingName}</dd></div>
-                <div><dt>Этаж</dt><dd>{context.floorName}</dd></div>
-                <div><dt>Дверь</dt><dd>{context.doorName}</dd></div>
-                <div><dt>Срок</dt><dd>{task.dueDate || "—"}</dd></div>
-                <div><dt>Исполнитель</dt><dd>{userNames.get(task.assignedTo) ?? "—"}</dd></div>
-              </dl>
-              {task.comments?.[0] && <div className="task-last-comment"><strong>{task.comments[0].userName}</strong><span>{task.comments[0].text}</span></div>}
-              {task.documentLinks?.length > 0 && <div className="task-links-list">{task.documentLinks.slice(0, 2).map((link) => <a key={link.id} href={link.url} target="_blank" rel="noreferrer">{link.title}</a>)}</div>}
-              <div className="manual-task-actions">
-                <button className="secondary-button slim" onClick={() => openTaskTarget(task)}>Открыть</button>
-                {task.status !== "выполнена" && <button className="secondary-button slim" onClick={() => onUpdateTask(task.id, { status: "в работе" })}>В работу</button>}
-                {task.status !== "выполнена" && <button className="primary-button slim" onClick={() => onUpdateTask(task.id, { status: "выполнена" })}>Выполнено</button>}
-                <button className="secondary-button slim" onClick={() => setCommentTask(task)}>Комментарий</button>
-                <button className="secondary-button slim" onClick={() => setLinkTask(task)}>Ссылка</button>
-                {!isItr && task.status !== "отменена" && <button className="secondary-button slim" onClick={() => onUpdateTask(task.id, { status: "отменена" })}>Отменить</button>}
-              </div>
-            </article>
-          );
-        })}
-      </div>
-      {filteredTasks.length === 0 && <div className="empty-plan">Задач в этом режиме нет.</div>}
-      {commentTask && <TaskCommentModal task={commentTask} onClose={() => setCommentTask(null)} onSave={(text) => { onAddComment(commentTask.id, text); setCommentTask(null); }} />}
-      {linkTask && <TaskLinkModal task={linkTask} onClose={() => setLinkTask(null)} onSave={(link) => { onAddLink(linkTask, link); setLinkTask(null); }} />}
-    </section>
-  );
-}
-
 function TaskCreateModal({ context, objects, users, onClose, onCreate }) {
   const firstObject = objects.find((object) => object.id === context.objectId) ?? objects[0];
   const firstBuilding = firstObject?.buildings.find((building) => building.id === context.buildingId) ?? firstObject?.buildings[0];
@@ -2765,99 +2646,6 @@ function TaskCreateModal({ context, objects, users, onClose, onCreate }) {
         <div className="form-actions"><button className="secondary-button" type="button" onClick={onClose}>Отмена</button><button className="primary-button" type="submit">Поставить задачу</button></div>
       </form>
     </div>
-  );
-}
-
-function TaskCommentModal({ task, onClose, onSave }) {
-  const [text, setText] = useState("");
-  return (
-    <div className="modal-backdrop">
-      <form className="task-modal compact" onSubmit={(event) => { event.preventDefault(); onSave(text); }}>
-        <div className="modal-title"><div><h2>Комментарий</h2><p>{task.title}</p></div><button type="button" onClick={onClose}>×</button></div>
-        <textarea value={text} onChange={(event) => setText(event.target.value)} placeholder="Сделано, нет доступа, акт загрузил..." />
-        <div className="quick-comments">{["Сделано", "Нет доступа", "Акт загрузил", "Ждём технадзор"].map((item) => <button type="button" key={item} onClick={() => setText(item)}>{item}</button>)}</div>
-        <div className="form-actions"><button className="secondary-button" type="button" onClick={onClose}>Отмена</button><button className="primary-button">Добавить</button></div>
-      </form>
-    </div>
-  );
-}
-
-function TaskLinkModal({ task, defaultCategory = "документ", onClose, onSave }) {
-  const [form, setForm] = useState({ title: defaultCategory === "акт АОХ" ? "Акт АОХ" : "", url: "", category: defaultCategory, comment: "" });
-  const update = (field, value) => setForm((current) => ({ ...current, [field]: value }));
-  return (
-    <div className="modal-backdrop">
-      <form className="task-modal compact" onSubmit={(event) => { event.preventDefault(); onSave(form); }}>
-        <div className="modal-title"><div><h2>Добавить ссылку</h2><p>{task.title}</p></div><button type="button" onClick={onClose}>×</button></div>
-        <label>Название ссылки<input value={form.title} onChange={(event) => update("title", event.target.value)} placeholder="Акт АОХ / фото / документ" /></label>
-        <label>Ссылка на Яндекс.Диск<input type="url" value={form.url} onChange={(event) => update("url", event.target.value)} placeholder="https://disk.yandex.ru/..." /></label>
-        <label>Категория<select value={form.category} onChange={(event) => update("category", event.target.value)}>{taskLinkCategories.map((item) => <option key={item} value={item}>{item}</option>)}</select></label>
-        <label>Комментарий<textarea value={form.comment} onChange={(event) => update("comment", event.target.value)} /></label>
-        <div className="form-actions"><button className="secondary-button" type="button" onClick={onClose}>Отмена</button><button className="primary-button">Сохранить ссылку</button></div>
-      </form>
-    </div>
-  );
-}
-
-function NotificationsPage({ notifications, onOpen, onMarkRead, onMarkAll, onQuickAct, onQuickTn }) {
-  const [filter, setFilter] = useState("all");
-  const [search, setSearch] = useState("");
-  const priorityWeight = { высокий: 0, средний: 1, низкий: 2 };
-  const filtered = notifications
-    .filter((item) => {
-      const haystack = `${item.title} ${item.message}`.toLowerCase();
-      const matchesSearch = !search.trim() || haystack.includes(search.trim().toLowerCase());
-      if (!matchesSearch) return false;
-      if (filter === "unread") return item.status === "unread";
-      if (filter === "overdue") return item.type.includes("просроч") || item.priority === "высокий";
-      if (filter === "tasks") return item.taskId || item.type.includes("задач");
-      if (filter === "acts") return item.type.includes("АОХ") || item.title.includes("АОХ") || item.message.includes("акт");
-      if (filter === "tn") return item.type.includes("ТН") || item.title.includes("ТН");
-      return true;
-    })
-    .sort((a, b) => (priorityWeight[a.priority] ?? 2) - (priorityWeight[b.priority] ?? 2) || new Date(b.createdAt) - new Date(a.createdAt));
-
-  return (
-    <section className="notifications-page">
-      <div className="tasks-hero">
-        <div>
-          <span>Центр уведомлений</span>
-          <h2>Уведомления</h2>
-          <p>Автоматические просрочки, новые задачи, комментарии и быстрые действия по ТН и актам АОХ.</p>
-        </div>
-        <button className="secondary-button" onClick={onMarkAll}>Отметить все как прочитанные</button>
-      </div>
-      <div className="notification-filters">
-        {[
-          ["all", "Все"],
-          ["unread", "Непрочитанные"],
-          ["overdue", "Просроченные"],
-          ["tasks", "Задачи"],
-          ["acts", "Акты"],
-          ["tn", "ТН"],
-        ].map(([id, label]) => <button key={id} className={filter === id ? "active" : ""} onClick={() => setFilter(id)}>{label}</button>)}
-        <input value={search} onChange={(event) => setSearch(event.target.value)} placeholder="Поиск по объекту / корпусу" />
-      </div>
-      <div className="notifications-grid">
-        {filtered.map((item) => (
-          <article className={`notification-card ${item.status} priority-${item.priority}`} key={item.id}>
-            <div className="notification-card-head">
-              <span className={`priority-badge priority-${item.priority}`}>{item.priority}</span>
-              <small>{new Date(item.createdAt).toLocaleString("ru-RU")}</small>
-            </div>
-            <h3>{item.title}</h3>
-            <p>{item.message}</p>
-            <div className="manual-task-actions">
-              <button className="secondary-button slim" onClick={() => onOpen(item)}>Открыть</button>
-              {item.status === "unread" && <button className="secondary-button slim" onClick={() => onMarkRead(item.id)}>Прочитано</button>}
-              {(item.type.includes("АОХ") || item.title.includes("АОХ")) && item.doorId && <button className="primary-button slim" onClick={() => onQuickAct(item)}>Добавить акт</button>}
-              {(item.type.includes("ТН") || item.title.includes("ТН")) && item.doorId && <button className="primary-button slim" onClick={() => onQuickTn(item)}>Передано ТН</button>}
-            </div>
-          </article>
-        ))}
-      </div>
-      {filtered.length === 0 && <div className="empty-plan">Уведомлений по выбранному фильтру нет.</div>}
-    </section>
   );
 }
 
