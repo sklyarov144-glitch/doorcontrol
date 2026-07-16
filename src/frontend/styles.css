@@ -3984,6 +3984,8 @@ textarea {
 
 .profile-panel {
   max-width: 1050px;
+  display: grid;
+  gap: 22px;
 }
 
 .profile-card {
@@ -4042,6 +4044,142 @@ textarea {
 .profile-card form {
   display: grid;
   gap: 20px;
+}
+
+.mfa-gate {
+  min-height: 100vh;
+  display: grid;
+  place-items: center;
+  padding: 28px;
+  background: #0b172a;
+}
+
+.mfa-card {
+  display: grid;
+  gap: 16px;
+  border: 1px solid #dce4ed;
+  border-radius: 16px;
+  padding: 26px;
+  background: #ffffff;
+  box-shadow: 0 18px 42px rgba(20, 38, 62, 0.08);
+}
+
+.mfa-gate-card {
+  width: min(500px, 100%);
+  padding: 34px;
+  box-shadow: 0 28px 70px rgba(0, 0, 0, 0.3);
+}
+
+.mfa-card h1,
+.mfa-card p {
+  margin: 0;
+}
+
+.mfa-card h1 {
+  color: #172033;
+  font-size: clamp(24px, 3vw, 34px);
+}
+
+.mfa-card p,
+.mfa-loading {
+  color: #6b778c;
+  line-height: 1.55;
+}
+
+.mfa-eyebrow {
+  color: #c9202f;
+  font-size: 13px;
+  font-weight: 800;
+  text-transform: uppercase;
+}
+
+.mfa-enrollment {
+  display: grid;
+  grid-template-columns: 190px minmax(0, 1fr);
+  align-items: center;
+  gap: 18px;
+  border-radius: 12px;
+  padding: 16px;
+  background: #f3f6fa;
+}
+
+.mfa-enrollment img {
+  width: 190px;
+  max-width: 100%;
+  border-radius: 8px;
+  background: #ffffff;
+}
+
+.mfa-enrollment div {
+  display: grid;
+  gap: 8px;
+  min-width: 0;
+}
+
+.mfa-enrollment span {
+  color: #6b778c;
+  font-size: 13px;
+}
+
+.mfa-enrollment code {
+  overflow-wrap: anywhere;
+  color: #172033;
+  font-size: 15px;
+  font-weight: 800;
+}
+
+.mfa-code-form {
+  display: grid;
+  gap: 14px;
+}
+
+.mfa-code-form label {
+  display: grid;
+  gap: 8px;
+  color: #172033;
+  font-weight: 700;
+}
+
+.mfa-code-form input {
+  min-height: 56px;
+  border: 1px solid #ccd6e2;
+  border-radius: 10px;
+  padding: 0 16px;
+  color: #172033;
+  background: #ffffff;
+  font: inherit;
+  font-size: 24px;
+  font-weight: 800;
+  letter-spacing: 0;
+}
+
+.mfa-enabled-row {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 16px;
+  border-radius: 10px;
+  padding: 14px 16px;
+  color: #176345;
+  background: #eaf7f1;
+}
+
+.mfa-cancel {
+  justify-self: start;
+  border: 0;
+  padding: 6px 0;
+  color: #6b778c;
+  background: transparent;
+  font: inherit;
+  cursor: pointer;
+}
+
+@media (max-width: 620px) {
+  .mfa-enrollment {
+    grid-template-columns: 1fr;
+    justify-items: center;
+    text-align: center;
+  }
 }
 
 .profile-grid {

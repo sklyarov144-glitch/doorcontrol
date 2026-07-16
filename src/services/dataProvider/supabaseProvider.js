@@ -17,6 +17,23 @@ async function hydratePrivateAvatar(profile) {
 const asUuid = (value) => /^[0-9a-f]{8}-[0-9a-f]{4}-[1-5][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i.test(value ?? "") ? value : null;
 const PAGE_SIZE = 1000;
 
+export function normalizeMfaStatus(assurance = {}, factorData = {}) {
+  const factors = factorData.all ?? [
+    ...(factorData.totp ?? []),
+    ...(factorData.phone ?? []),
+  ];
+  const verifiedFactors = factors.filter((factor) => factor.status === "verified");
+  return {
+    currentLevel: assurance.currentLevel ?? "aal1",
+    nextLevel: assurance.nextLevel ?? "aal1",
+    factors,
+    verifiedFactors,
+    verifiedFactorId: verifiedFactors.find((factor) => (factor.factor_type ?? factor.factorType) === "totp")?.id
+      ?? verifiedFactors[0]?.id
+      ?? null,
+  };
+}
+
 async function fetchAllRows(table, select = "*", order = "created_at") {
   const rows = [];
   for (let from = 0; ; from += PAGE_SIZE) {
@@ -310,6 +327,55 @@ export const supabaseProvider = {
         redirectTo,
       });
       if (error) throw error;
+    },
+    async getMfaStatus() {
+      const client = requireSupabase();
+      const [assuranceResponse, factorsResponse] = await Promise.all([
+        client.auth.mfa.getAuthenticatorAssuranceLevel(),
+        client.auth.mfa.listFactors(),
+      ]);
+      if (assuranceResponse.error) throw assuranceResponse.error;
+      if (factorsResponse.error) throw factorsResponse.error;
+      return normalizeMfaStatus(assuranceResponse.data, factorsResponse.data);
+    },
+    async startMfaEnrollment(friendlyName = "ГРОСС Бережливый Монтаж") {
+      const client = requireSupabase();
+      const { data: existing, error: listError } = await client.auth.mfa.listFactors();
+      if (listError) throw listError;
+      const factors = existing?.all ?? existing?.totp ?? [];
+      for (const factor of factors.filter((item) => item.status === "unverified")) {
+        const { error } = await client.auth.mfa.unenroll({ factorId: factor.id });
+        if (error) throw error;
+      }
+      const { data, error } = await client.auth.mfa.enroll({
+        factorType: "totp",
+        friendlyName,
+      });
+      if (error) throw error;
+      return {
+        factorId: data.id,
+        type: data.type,
+        qrCode: data.totp?.qr_code ?? "",
+        secret: data.totp?.secret ?? "",
+        uri: data.totp?.uri ?? "",
+      };
+    },
+    async verifyMfa(factorId, code) {
+      const client = requireSupabase();
+      const { data: challenge, error: challengeError } = await client.auth.mfa.challenge({ factorId });
+      if (challengeError) throw challengeError;
+      const { data, error } = await client.auth.mfa.verify({
+        factorId,
+        challengeId: challenge.id,
+        code: String(code).replace(/\s/g, ""),
+      });
+      if (error) throw error;
+      return data;
+    },
+    async disableMfa(factorId) {
+      const { data, error } = await requireSupabase().auth.mfa.unenroll({ factorId });
+      if (error) throw error;
+      return data;
     },
     onAuthStateChange(callback) {
       return requireSupabase().auth.onAuthStateChange(callback);

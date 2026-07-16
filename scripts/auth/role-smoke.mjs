@@ -1,10 +1,12 @@
 import { createClient } from "@supabase/supabase-js";
+import { generateTotp } from "./totp.mjs";
 
 const roles = ["creator", "company_head", "construction_director", "itr"];
 const url = process.env.AUTH_SMOKE_SUPABASE_URL?.trim();
 const anonKey = process.env.AUTH_SMOKE_SUPABASE_ANON_KEY?.trim();
 if (!url || !anonKey) throw new Error("AUTH_SMOKE_SUPABASE_URL and AUTH_SMOKE_SUPABASE_ANON_KEY are required");
 const results = new Map();
+const requireMfa = process.env.AUTH_SMOKE_REQUIRE_MFA === "1";
 
 for (const role of roles) {
   const prefix = `AUTH_SMOKE_${role.toUpperCase()}`;
@@ -15,6 +17,25 @@ for (const role of roles) {
   const client = createClient(url, anonKey, { auth: { autoRefreshToken: false, persistSession: false } });
   const { data: authData, error: authError } = await client.auth.signInWithPassword({ email, password });
   if (authError || !authData.user) throw new Error(`${role}: sign-in failed (${authError?.message ?? "missing user"})`);
+
+  if (requireMfa && role !== "itr") {
+    const secret = process.env[`${prefix}_TOTP_SECRET`]?.trim();
+    if (!secret) throw new Error(`${prefix}_TOTP_SECRET is required for production MFA smoke`);
+    const { data: factors, error: factorError } = await client.auth.mfa.listFactors();
+    if (factorError) throw new Error(`${role}: MFA factors unavailable (${factorError.message})`);
+    const factor = (factors.totp ?? []).find((item) => item.status === "verified");
+    if (!factor) throw new Error(`${role}: verified TOTP factor is required`);
+    const { data: challenge, error: challengeError } = await client.auth.mfa.challenge({ factorId: factor.id });
+    if (challengeError) throw new Error(`${role}: MFA challenge failed (${challengeError.message})`);
+    const { error: verifyError } = await client.auth.mfa.verify({
+      factorId: factor.id,
+      challengeId: challenge.id,
+      code: generateTotp(secret),
+    });
+    if (verifyError) throw new Error(`${role}: MFA verification failed (${verifyError.message})`);
+    const { data: assurance, error: assuranceError } = await client.auth.mfa.getAuthenticatorAssuranceLevel();
+    if (assuranceError || assurance.currentLevel !== "aal2") throw new Error(`${role}: session did not reach aal2`);
+  }
 
   const { data: profile, error: profileError } = await client.from("profiles").select("id, company_id, role, status").eq("id", authData.user.id).single();
   if (profileError) throw new Error(`${role}: profile unavailable (${profileError.message})`);

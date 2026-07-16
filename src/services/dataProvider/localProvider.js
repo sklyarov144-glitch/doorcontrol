@@ -90,6 +90,16 @@ export const localProvider = {
       return session;
     },
     clearSession: () => localStorage.removeItem(keys.session),
+    getMfaStatus: async () => ({ currentLevel: "aal1", nextLevel: "aal1", factors: [], verifiedFactors: [], verifiedFactorId: null }),
+    startMfaEnrollment: async () => {
+      throw new Error("MFA is available only with Supabase authentication");
+    },
+    verifyMfa: async () => {
+      throw new Error("MFA is available only with Supabase authentication");
+    },
+    disableMfa: async () => {
+      throw new Error("MFA is available only with Supabase authentication");
+    },
   },
   companies: makeCrud(keys.companies, "company"),
   users: makeCrud(keys.users, "user"),

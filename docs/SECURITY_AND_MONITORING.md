@@ -8,6 +8,28 @@
 - Минимальный пароль: 10 символов, верхний/нижний регистр и цифры.
 - Роль, компания и статус профиля защищены отдельным trigger guard.
 
+## Двухфакторная защита
+
+Supabase TOTP используется для ролей `creator`, `company_head` и
+`construction_director`. ИТР входит по паролю без обязательного второго фактора.
+Регистрация фактора и его отключение доступны в личном кабинете. При включённом
+`VITE_REQUIRE_PRIVILEGED_MFA=true` приложение после пароля требует шестизначный
+код и не загружает доменные данные до достижения сессией уровня `aal2`.
+
+Staging сохраняет `VITE_REQUIRE_PRIVILEGED_MFA=false`, пока три привилегированных
+smoke-аккаунта не зарегистрируют TOTP. Production workflow всегда собирает
+приложение с `VITE_REQUIRE_PRIVILEGED_MFA=true` и требует отдельные GitHub secrets:
+
+- `AUTH_SMOKE_CREATOR_TOTP_SECRET`;
+- `AUTH_SMOKE_COMPANY_HEAD_TOTP_SECRET`;
+- `AUTH_SMOKE_CONSTRUCTION_DIRECTOR_TOTP_SECRET`.
+
+Эти секреты нужны только автоматическому production smoke и не попадают во
+frontend bundle. Перед первым production-релизом каждый фактор регистрируется
+через staging-профиль, после чего его TOTP secret добавляется в защищённый GitHub
+Environment `production`. Потерянный фактор сбрасывает только уполномоченный
+администратор Supabase после проверки личности пользователя.
+
 ## Аудит
 
 `activity_logs` автоматически фиксирует insert/update/delete для профилей,
@@ -76,7 +98,7 @@ Health остаётся под JWT-проверкой Supabase gateway. Uptime m
 
 ## Перед production
 
-1. Включить MFA для владельцев Supabase/Vercel/GitHub.
+1. Зарегистрировать TOTP у привилегированных пользователей приложения и включить MFA владельцам Supabase/Vercel/GitHub.
 2. Настроить Sentry alerts и uptime monitor на health endpoint.
 3. Провести RLS integration tests реальными JWT всех ролей.
 4. Зафиксировать процедуру отзыва пользователя и ротации ключей.

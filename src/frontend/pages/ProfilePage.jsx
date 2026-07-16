@@ -1,8 +1,10 @@
 import React, { useState } from "react";
 import { roleLabels } from "../domain/roles";
 import { normalizeUser } from "../domain/users";
+import { isPrivilegedMfaRole } from "../domain/mfa";
+import MfaPage from "./MfaPage";
 
-export default function ProfilePage({ user, objects, onSave, onAvatarUpload, remoteAuth = false }) {
+export default function ProfilePage({ user, objects, onSave, onAvatarUpload, remoteAuth = false, mfaAuth = null }) {
   const [form, setForm] = useState({ ...user, oldPassword: "", newPassword: "" });
   const [saved, setSaved] = useState(false);
   const [error, setError] = useState("");
@@ -107,6 +109,9 @@ export default function ProfilePage({ user, objects, onSave, onAvatarUpload, rem
           {saved && <div className="save-notice" role="status">Данные пользователя сохранены</div>}
         </form>
       </div>
+      {remoteAuth && mfaAuth && isPrivilegedMfaRole(user.role) && (
+        <MfaPage auth={mfaAuth} profile={user} />
+      )}
     </section>
   );
 }

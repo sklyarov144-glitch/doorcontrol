@@ -1,7 +1,18 @@
 import { describe, expect, it } from "vitest";
-import { assembleObjectTreeRows, assembleTaskRows, mapObjectTree, mapProfileAssignments, toDoorOperationalUpdate, toDoorWorkflowPayload, toHierarchyPayload, toStoredFloorTemplate } from "./supabaseProvider";
+import { assembleObjectTreeRows, assembleTaskRows, mapObjectTree, mapProfileAssignments, normalizeMfaStatus, toDoorOperationalUpdate, toDoorWorkflowPayload, toHierarchyPayload, toStoredFloorTemplate } from "./supabaseProvider";
 
 describe("Supabase object tree", () => {
+  it("normalizes verified TOTP factors and assurance levels", () => {
+    expect(normalizeMfaStatus(
+      { currentLevel: "aal1", nextLevel: "aal2" },
+      { totp: [{ id: "totp-1", factor_type: "totp", status: "verified" }] }
+    )).toMatchObject({
+      currentLevel: "aal1",
+      nextLevel: "aal2",
+      verifiedFactorId: "totp-1",
+    });
+  });
+
   it("assembles independently paginated hierarchy rows without dropping doors", () => {
     const rows = assembleObjectTreeRows(
       [{ id: "object-1", name: "Объект" }],

@@ -32,6 +32,7 @@ function verifyPublicEnvironment(overrides = {}) {
       VITE_SUPABASE_URL: "https://abcdefghijklmnopqrst.supabase.co",
       VITE_SUPABASE_ANON_KEY: "a".repeat(100),
       VITE_SENTRY_DSN: "https://public@example.ingest.sentry.io/1",
+      VITE_REQUIRE_PRIVILEGED_MFA: "true",
       ...overrides,
     },
     encoding: "utf8",
@@ -85,6 +86,10 @@ describe("public runtime configuration preflight", () => {
   it("rejects local providers and non-hosted database URLs", () => {
     expect(verifyPublicEnvironment({ VITE_DATA_PROVIDER: "local" }).status).not.toBe(0);
     expect(verifyPublicEnvironment({ VITE_SUPABASE_URL: "http://localhost:54321" }).status).not.toBe(0);
+  });
+
+  it("requires privileged MFA in production", () => {
+    expect(verifyPublicEnvironment({ VITE_REQUIRE_PRIVILEGED_MFA: "false" }).status).not.toBe(0);
   });
 });
 

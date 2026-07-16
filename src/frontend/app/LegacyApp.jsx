@@ -79,6 +79,7 @@ import UsersPage from "../pages/UsersPage";
 import RolesPage from "../pages/RolesPage";
 import CompanyPage from "../pages/CompanyPage";
 import ProfilePage from "../pages/ProfilePage";
+import MfaPage from "../pages/MfaPage";
 import AdminPanel from "../pages/AdminPage";
 import ManualTasksPage, { TaskLinkModal } from "../pages/TasksPage";
 import TodayTasksPage from "../pages/TodayTasksPage";
@@ -90,6 +91,7 @@ import DoorDetails from "../pages/DoorPage";
 import { permissionsFor } from "../domain/permissions";
 import { roleLabels } from "../domain/roles";
 import { normalizeUser } from "../domain/users";
+import { requiresMfa } from "../domain/mfa";
 import { applyDoorWorkflow } from "../domain/doorWorkflow";
 import { getManualTaskNoticeCount } from "../domain/tasks";
 import {
@@ -494,6 +496,7 @@ export function App({ demoUsers = [], demoPassword = "" }) {
   const [persistenceError, setPersistenceError] = useState("");
   const [users, setUsers] = useState(() => isRemoteAuth ? [] : loadUsers(demoUsers));
   const [currentUserId, setCurrentUserId] = useState(() => localSession?.userId || (isRemoteAuth ? "" : "creator-1"));
+  const [mfaFlow, setMfaFlow] = useState(null);
   const user = users.find((item) => item.id === currentUserId) ?? users[0] ?? { id: "", name: "", role: "itr", assignedObjectIds: [], assignedBuildingIds: [] };
   const [screen, setScreen] = useState(initialRoute.screen === "login" ? "objects" : initialRoute.screen);
   const [selectedObjectId, setSelectedObjectId] = useState(initialRoute.objectId ?? objects[0]?.id ?? "");
@@ -511,6 +514,28 @@ export function App({ demoUsers = [], demoPassword = "" }) {
   const [actNotificationTask, setActNotificationTask] = useState(null);
   const [sidebarCollapsed, setSidebarCollapsed] = useState(false);
   const visibleObjects = useMemo(() => getVisibleObjectsForUser(user, objects), [user, objects]);
+
+  const finalizeRemoteAuthentication = React.useCallback((profile) => {
+    setUsers((current) => [profile, ...current.filter((item) => item.id !== profile.id)]);
+    setCurrentUserId(profile.id);
+    setMfaFlow(null);
+    setIsLoggedIn(true);
+  }, []);
+
+  const admitRemoteProfile = React.useCallback(async (profile) => {
+    if (requiresMfa(profile.role)) {
+      const mfaStatus = await dataProvider.auth.getMfaStatus();
+      if (mfaStatus.currentLevel !== "aal2") {
+        setUsers((current) => [profile, ...current.filter((item) => item.id !== profile.id)]);
+        setCurrentUserId(profile.id);
+        setMfaFlow({ profile, status: mfaStatus });
+        setIsLoggedIn(false);
+        return false;
+      }
+    }
+    finalizeRemoteAuthentication(profile);
+    return true;
+  }, [finalizeRemoteAuthentication]);
 
   const selectedObject = useMemo(
     () => visibleObjects.find((object) => object.id === selectedObjectId) ?? visibleObjects[0] ?? objects[0] ?? null,
@@ -608,9 +633,7 @@ export function App({ demoUsers = [], demoPassword = "" }) {
           return;
         }
         if (!active) return;
-        setUsers((current) => [profile, ...current.filter((item) => item.id !== profile.id)]);
-        setCurrentUserId(profile.id);
-        setIsLoggedIn(true);
+        await admitRemoteProfile(profile);
       } catch (error) {
         console.error("Unable to restore Supabase session", error);
       } finally {
@@ -626,7 +649,7 @@ export function App({ demoUsers = [], demoPassword = "" }) {
       active = false;
       subscription?.data?.subscription?.unsubscribe();
     };
-  }, [isRemoteAuth]);
+  }, [admitRemoteProfile, isRemoteAuth]);
 
   React.useEffect(() => {
     if (!isRemoteAuth || !isLoggedIn) return;
@@ -1125,13 +1148,13 @@ export function App({ demoUsers = [], demoPassword = "" }) {
           await dataProvider.auth.signOut();
           return { ok: false, message: "Учётная запись неактивна" };
         }
-        setUsers((current) => [profile, ...current.filter((item) => item.id !== profile.id)]);
-        setCurrentUserId(profile.id);
-        const nextScreen = defaultScreenForRole(profile.role);
-        setScreen(nextScreen);
-        setIsLoggedIn(true);
-        routerNavigate(buildAppPath(nextScreen), { replace: true });
-        return { ok: true };
+        const admitted = await admitRemoteProfile(profile);
+        if (admitted) {
+          const nextScreen = defaultScreenForRole(profile.role);
+          setScreen(nextScreen);
+          routerNavigate(buildAppPath(nextScreen), { replace: true });
+        }
+        return { ok: true, mfaRequired: !admitted };
       } catch (error) {
         return {
           ok: false,
@@ -1158,6 +1181,7 @@ export function App({ demoUsers = [], demoPassword = "" }) {
   const logoutUser = async () => {
     if (isRemoteAuth) await dataProvider.auth.signOut();
     else dataProvider.auth.clearSession();
+    setMfaFlow(null);
     setIsLoggedIn(false);
     routerNavigate("/login", { replace: true });
   };
@@ -1182,6 +1206,22 @@ export function App({ demoUsers = [], demoPassword = "" }) {
       setIsLoggedIn(false);
       routerNavigate("/login", { replace: true });
     }} />;
+  }
+
+  if (mfaFlow) {
+    return <AuthProvider value={authValue}><MfaPage
+      auth={dataProvider.auth}
+      profile={mfaFlow.profile}
+      gate
+      onVerified={() => {
+        const profile = mfaFlow.profile;
+        finalizeRemoteAuthentication(profile);
+        const nextScreen = defaultScreenForRole(profile.role);
+        setScreen(nextScreen);
+        routerNavigate(buildAppPath(nextScreen), { replace: true });
+      }}
+      onCancel={logoutUser}
+    /></AuthProvider>;
   }
 
   if (!isLoggedIn) {
@@ -1274,6 +1314,7 @@ export function App({ demoUsers = [], demoPassword = "" }) {
               user={user}
               objects={objects}
               remoteAuth={isRemoteAuth}
+              mfaAuth={isRemoteAuth ? dataProvider.auth : null}
               onSave={async (nextUser, passwordChange) => {
                 if (isRemoteAuth) {
                   if (passwordChange?.newPassword) {
