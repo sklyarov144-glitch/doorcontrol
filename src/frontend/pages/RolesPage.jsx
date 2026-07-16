@@ -3,7 +3,7 @@ import { canCreate, canEdit, canManageUsers, canView, roles } from "../domain/pe
 import { roleLabels } from "../domain/roles";
 
 const roleDescriptions = {
-  creator: "Системный владелец: контроль платформы, ролей и всех компаний.",
+  creator: "Системный владелец: контроль платформы, tenant компании и ролей.",
   company_head: "Управление компанией, объектами, финансами и командой.",
   construction_director: "Операционное управление назначенными объектами и ИТР.",
   itr: "Работа на назначенных объектах: корпуса, этажи, двери и документы.",

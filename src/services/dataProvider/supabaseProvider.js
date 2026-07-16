@@ -327,6 +327,7 @@ export const supabaseProvider = {
       ));
     },
   },
+  companies: makeCrud("companies"),
   users: {
     ...usersCrud,
     async getAll() {

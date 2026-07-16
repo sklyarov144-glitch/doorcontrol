@@ -2,6 +2,7 @@ export function normalizeUser(user) {
   const now = "2026-06-01T08:00:00.000Z";
   return {
     id: user.id,
+    companyId: user.companyId ?? "",
     name: user.name,
     email: user.email ?? "",
     phone: user.phone ?? "",

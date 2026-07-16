@@ -3,8 +3,9 @@ import { assignableRoles, canAssignRole, normalizeUser } from "./users";
 
 describe("user domain", () => {
   it("normalizes nullable account fields and assignments", () => {
-    expect(normalizeUser({ id: "user-1", name: "Иван" })).toMatchObject({
+    expect(normalizeUser({ id: "user-1", companyId: "company-1", name: "Иван" })).toMatchObject({
       id: "user-1",
+      companyId: "company-1",
       name: "Иван",
       role: "itr",
       status: "active",

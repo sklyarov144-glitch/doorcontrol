@@ -11,6 +11,7 @@ export const screenPaths = {
   brigade_plan: "/brigades",
   manpower: "/manpower",
   users: "/users",
+  companies: "/companies",
   profile: "/profile",
   admin: "/admin",
   reports: "/reports",

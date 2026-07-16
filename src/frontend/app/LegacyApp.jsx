@@ -77,6 +77,7 @@ import ObjectsPage from "../pages/ObjectsPage";
 import StandaloneObjectPage from "../pages/ObjectPage";
 import UsersPage from "../pages/UsersPage";
 import RolesPage from "../pages/RolesPage";
+import CompanyPage from "../pages/CompanyPage";
 import ProfilePage from "../pages/ProfilePage";
 import AdminPanel from "../pages/AdminPage";
 import ManualTasksPage, { TaskLinkModal } from "../pages/TasksPage";
@@ -1362,7 +1363,8 @@ export function App({ demoUsers = [], demoPassword = "" }) {
             saveUsers(nextUsers);
           }} />}
           {screen === "roles" && <RolesPage users={users} onOpenUsers={() => setScreen("users")} />}
-          {["companies", "itr_team"].includes(screen) && <PlaceholderPage screen={screen} />}
+          {screen === "companies" && <CompanyPage objects={visibleObjects} users={users} user={user} onOpenObjects={() => setScreen("objects")} />}
+          {screen === "itr_team" && <PlaceholderPage screen={screen} />}
           {screen === "objects" && <ObjectsPage objects={visibleObjects} onOpen={goToObject} />}
           {screen === "object" && selectedObject && (
             <StandaloneObjectPage
@@ -1446,7 +1448,7 @@ export function App({ demoUsers = [], demoPassword = "" }) {
 
 function Sidebar({ role, activeScreen, setScreen, onLogout, taskNoticeCount, collapsed, onToggleCollapsed }) {
   const menus = {
-    creator: [["company_dashboard", "Дашборд"], ["objects", "Объекты"], ["admin", "Админ-панель"], ["problem_center", "Центр проблем"], ["tasks", "Задачи"], ["manpower", "Расстановка"], ["notifications", "Уведомления"], ["custody_acts", "Акты ОХ"], ["tn_issues", "Замечания ТН"], ["brigade_plan", "План бригад"], ["reports", "Отчёты"], ["finance", "Финансы"], ["documents", "Документы"], ["users", "Пользователи"], ["roles", "Роли"], ["audit", "Журнал действий"], ["profile", "Личный кабинет"]],
+    creator: [["company_dashboard", "Дашборд"], ["companies", "Компания"], ["objects", "Объекты"], ["admin", "Админ-панель"], ["problem_center", "Центр проблем"], ["tasks", "Задачи"], ["manpower", "Расстановка"], ["notifications", "Уведомления"], ["custody_acts", "Акты ОХ"], ["tn_issues", "Замечания ТН"], ["brigade_plan", "План бригад"], ["reports", "Отчёты"], ["finance", "Финансы"], ["documents", "Документы"], ["users", "Пользователи"], ["roles", "Роли"], ["audit", "Журнал действий"], ["profile", "Личный кабинет"]],
     company_head: [["company_dashboard", "Дашборд"], ["objects", "Объекты"], ["admin", "Админ-панель"], ["problem_center", "Центр проблем"], ["tasks", "Задачи"], ["manpower", "Расстановка"], ["notifications", "Уведомления"], ["custody_acts", "Акты ОХ"], ["tn_issues", "Замечания ТН"], ["brigade_plan", "План бригад"], ["reports", "Отчёты"], ["finance", "Финансы"], ["documents", "Документы"], ["users", "Пользователи"], ["audit", "Журнал действий"], ["profile", "Личный кабинет"]],
     construction_director: [["company_dashboard", "Дашборд"], ["objects", "Мои объекты"], ["admin", "Админ-панель"], ["problem_center", "Центр проблем"], ["tasks", "Задачи"], ["manpower", "Расстановка"], ["notifications", "Уведомления"], ["custody_acts", "Акты ОХ"], ["tn_issues", "Замечания ТН"], ["brigade_plan", "План бригад"], ["reports", "Отчёты"], ["finance", "Финансы"], ["documents", "Документы"], ["users", "Пользователи"], ["audit", "Журнал действий"], ["profile", "Личный кабинет"]],
     itr: [["tasks", "Мои задачи"], ["objects", "Мои объекты"], ["manpower", "Заявка на рабочих"], ["brigade_plan", "План бригад"], ["documents", "Документы"], ["notifications", "Уведомления"], ["profile", "Личный кабинет"]],
@@ -1512,7 +1514,7 @@ function Header({
     door: "Карточка двери",
     admin: "Админ-панель",
     profile: "Личный кабинет",
-    companies: "Компании",
+    companies: "Компания",
     users: "Пользователи",
     roles: "Роли и доступы",
     reports: "Отчёты",

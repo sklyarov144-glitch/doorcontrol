@@ -3,6 +3,7 @@ import LZString from "lz-string";
 const COMPRESSED_PREFIX = "gross-lz:";
 
 const keys = {
+  companies: "gross-lean-montage.companies.v1",
   users: "gross-lean-montage.users.v1",
   objects: "gross-lean-montage.visual.mvp.v7",
   tasks: "gross-lean-montage.manual-tasks.v1",
@@ -90,6 +91,7 @@ export const localProvider = {
     },
     clearSession: () => localStorage.removeItem(keys.session),
   },
+  companies: makeCrud(keys.companies, "company"),
   users: makeCrud(keys.users, "user"),
   objects: makeCrud(keys.objects, "object"),
   buildings: {

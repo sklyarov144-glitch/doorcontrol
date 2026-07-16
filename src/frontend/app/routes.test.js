@@ -24,6 +24,7 @@ describe("application routes", () => {
     expect(parseAppRoute("/tasks").screen).toBe("tasks");
     expect(parseAppRoute("/admin").screen).toBe("admin");
     expect(parseAppRoute("/finance").screen).toBe("finance");
+    expect(parseAppRoute("/companies").screen).toBe("companies");
     expect(parseAppRoute("/audit").screen).toBe("audit");
     expect(parseAppRoute("/reset-password").screen).toBe("reset_password");
   });

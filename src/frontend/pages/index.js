@@ -15,6 +15,7 @@ export { default as BrigadePlanPage } from "./BrigadePlanPage";
 export { default as ManpowerPage } from "./ManpowerPage";
 export { default as UsersPage } from "./UsersPage";
 export { default as RolesPage } from "./RolesPage";
+export { default as CompanyPage } from "./CompanyPage";
 export { default as ProfilePage } from "./ProfilePage";
 export { default as AdminPage } from "./AdminPage";
 export { default as ReportsPage } from "./ReportsPage";
