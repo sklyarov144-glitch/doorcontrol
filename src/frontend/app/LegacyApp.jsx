@@ -80,6 +80,7 @@ import BrandMark from "../components/BrandMark";
 import { Detail, Metric, StatusBadge } from "../components/UiPrimitives";
 import LoginPage, { PasswordRecoveryPage } from "../pages/LoginPage";
 import ObjectsPage from "../pages/ObjectsPage";
+import StandaloneObjectPage from "../pages/ObjectPage";
 import BuildingVisualization from "../pages/BuildingPage";
 import FloorPlan from "../pages/FloorPage";
 import DoorDetails from "../pages/DoorPage";
@@ -598,6 +599,7 @@ export function App({ demoUsers = [], demoPassword = "" }) {
   const [taskContext, setTaskContext] = useState(null);
   const [notificationVersion, setNotificationVersion] = useState(0);
   const [remoteNotifications, setRemoteNotifications] = useState([]);
+  const [remoteTeams, setRemoteTeams] = useState([]);
   const [actNotificationTask, setActNotificationTask] = useState(null);
   const [sidebarCollapsed, setSidebarCollapsed] = useState(false);
   const visibleObjects = useMemo(() => getVisibleObjectsForUser(user, objects), [user, objects]);
@@ -728,14 +730,16 @@ export function App({ demoUsers = [], demoPassword = "" }) {
       dataProvider.users.getAll(),
       dataProvider.tasks.getAll(),
       dataProvider.notifications.getForCurrentUser(),
+      dataProvider.teams.getAll(),
     ])
-      .then(([objectRows, userRows, taskRows, notificationRows]) => {
+      .then(([objectRows, userRows, taskRows, notificationRows, teamRows]) => {
         if (!active) return;
         const normalizedObjects = objectRows.map(normalizeObject);
         setObjects(normalizedObjects);
         setUsers(userRows.map(normalizeUser));
         setRemoteTasks(taskRows);
         setRemoteNotifications(notificationRows);
+        setRemoteTeams(teamRows);
         if (normalizedObjects.length === 0 && !["admin", "profile", "users"].includes(screen)) {
           setScreen(user.role === "itr" ? "objects" : "admin");
         }
@@ -1511,17 +1515,18 @@ export function App({ demoUsers = [], demoPassword = "" }) {
           {["companies", "roles", "itr_team"].includes(screen) && <PlaceholderPage screen={screen} />}
           {screen === "objects" && <ObjectsPage objects={visibleObjects} onOpen={goToObject} />}
           {screen === "object" && selectedObject && (
-            <ObjectPage
+            <StandaloneObjectPage
               object={selectedObject}
               objects={objects}
               users={users}
+              teams={isRemoteAuth ? remoteTeams : getTeams()}
               user={user}
               onOpenBuilding={goToBuilding}
               onCreateTask={openTaskModal}
               canCreateTask={canCreateManualTask}
-              onChange={(nextObjects) => {
+              onChange={async (nextObjects) => {
+                await saveObjects(nextObjects);
                 setObjects(nextObjects);
-                saveObjects(nextObjects);
               }}
             />
           )}
