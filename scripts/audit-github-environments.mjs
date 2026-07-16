@@ -28,10 +28,26 @@ function environmentSettings(environment) {
     throw new Error(`Unable to inspect protection rules for ${environment}: ${result.stderr.trim()}`);
   }
   const settings = JSON.parse(result.stdout);
+  const deploymentBranchPolicy = settings.deployment_branch_policy ?? null;
+  let branchPolicies = [];
+  if (deploymentBranchPolicy?.custom_branch_policies) {
+    const policies = spawnSync("gh", [
+      "api", `repos/${repository}/environments/${environment}/deployment-branch-policies`,
+      "--paginate", "--slurp",
+    ], { encoding: "utf8", stdio: ["ignore", "pipe", "pipe"] });
+    if (policies.status !== 0) {
+      throw new Error(`Unable to inspect deployment branch policies for ${environment}: ${policies.stderr.trim()}`);
+    }
+    branchPolicies = JSON.parse(policies.stdout)
+      .flatMap((page) => page.branch_policies ?? [])
+      .map(({ name, type }) => ({ name, type }));
+  }
   return {
     exists: true,
     protectionRules: settings.protection_rules ?? [],
     canAdminsBypass: settings.can_admins_bypass,
+    deploymentBranchPolicy,
+    branchPolicies,
   };
 }
 

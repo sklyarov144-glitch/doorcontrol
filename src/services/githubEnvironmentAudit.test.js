@@ -11,6 +11,10 @@ function completeInventory(environment) {
       ? [{ type: "required_reviewers", prevent_self_review: true, reviewers: [{ type: "User", id: 1 }] }]
       : [],
     canAdminsBypass: ["production", "production-restore"].includes(environment) ? false : true,
+    deploymentBranchPolicy: environment === "production-backup"
+      ? { protected_branches: false, custom_branch_policies: true }
+      : null,
+    branchPolicies: environment === "production-backup" ? [{ name: "main", type: "branch" }] : [],
   };
 }
 
@@ -81,6 +85,14 @@ describe("auditEnvironmentInventory", () => {
     const result = auditEnvironmentInventory("production-backup", inventory);
     expect(result.ready).toBe(false);
     expect(result.missingProtections).toEqual(["scheduled backup must not require manual reviewer"]);
+  });
+
+  it("rejects backup secrets exposed to branches other than main", () => {
+    const inventory = completeInventory("production-backup");
+    inventory.branchPolicies.push({ name: "feature/*", type: "branch" });
+    const result = auditEnvironmentInventory("production-backup", inventory);
+    expect(result.ready).toBe(false);
+    expect(result.missingProtections).toEqual(["backup deployments restricted to main"]);
   });
 
   it("reports a missing GitHub environment without treating empty inventory as success", () => {

@@ -29,6 +29,13 @@ export function auditEnvironmentInventory(environment, inventory) {
     if (reviewerRule?.reviewers?.length) {
       missingProtections.push("scheduled backup must not require manual reviewer");
     }
+    const branchPolicies = inventory.branchPolicies ?? [];
+    const mainOnly = branchPolicies.length === 1
+      && branchPolicies[0].name === "main"
+      && (!branchPolicies[0].type || branchPolicies[0].type === "branch");
+    if (inventory.deploymentBranchPolicy?.custom_branch_policies !== true || !mainOnly) {
+      missingProtections.push("backup deployments restricted to main");
+    }
   }
 
   if (environment === "staging" && !secrets.has("VITE_SENTRY_DSN")) {
