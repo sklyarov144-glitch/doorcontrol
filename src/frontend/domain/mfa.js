@@ -18,7 +18,7 @@ export function requiresMfa(role, options = {}) {
 }
 
 export function resolveMfaStep(status = {}) {
-  if (status.currentLevel === "aal2") return "verified";
+  if (status.currentLevel === "aal2" && status.verifiedFactorId) return "verified";
   if (status.verifiedFactorId) return "challenge";
   return "enroll";
 }

@@ -22,5 +22,6 @@ describe("privileged MFA policy", () => {
     expect(resolveMfaStep({ currentLevel: "aal1" })).toBe("enroll");
     expect(resolveMfaStep({ currentLevel: "aal1", verifiedFactorId: "factor-1" })).toBe("challenge");
     expect(resolveMfaStep({ currentLevel: "aal2", verifiedFactorId: "factor-1" })).toBe("verified");
+    expect(resolveMfaStep({ currentLevel: "aal2", verifiedFactorId: null })).toBe("enroll");
   });
 });

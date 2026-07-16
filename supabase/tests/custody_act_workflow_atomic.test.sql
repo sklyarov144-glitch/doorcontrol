@@ -49,6 +49,7 @@ insert into public.doors (id, floor_id, label, mark, type) values
 
 set local role authenticated;
 select set_config('request.jwt.claim.role', 'authenticated', true);
+select set_config('request.jwt.claim.aal', 'aal2', true);
 select set_config('request.jwt.claim.sub', '41000000-0000-0000-0000-000000000001', true);
 
 select has_function(

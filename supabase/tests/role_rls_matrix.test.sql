@@ -48,6 +48,7 @@ insert into public.financial_transactions (
 
 set local role authenticated;
 select set_config('request.jwt.claim.role', 'authenticated', true);
+select set_config('request.jwt.claim.aal', 'aal2', true);
 
 select set_config('request.jwt.claim.sub', '21000000-0000-0000-0000-000000000001', true);
 select is((select count(*)::integer from public.objects), 2, 'creator sees every object in own company');
@@ -80,6 +81,7 @@ reset role;
 select is((select status from public.doors where id = '26000000-0000-0000-0000-000000000003'), 'не начато', 'ITR cannot update foreign door');
 set local role authenticated;
 select set_config('request.jwt.claim.role', 'authenticated', true);
+select set_config('request.jwt.claim.aal', 'aal2', true);
 select set_config('request.jwt.claim.sub', '21000000-0000-0000-0000-000000000004', true);
 select throws_ok(
   $$insert into public.objects (company_id, name) values ('20000000-0000-0000-0000-000000000001', 'Запрещённый объект ИТР')$$,

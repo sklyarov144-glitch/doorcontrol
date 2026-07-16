@@ -28,6 +28,7 @@ values (
 
 set local role authenticated;
 select set_config('request.jwt.claim.role', 'authenticated', true);
+select set_config('request.jwt.claim.aal', 'aal2', true);
 select set_config('request.jwt.claim.sub', '61000000-0000-0000-0000-000000000002', true);
 
 select has_function('public', 'update_task_status_workflow', array['uuid', 'text'], 'atomic task status workflow exists');

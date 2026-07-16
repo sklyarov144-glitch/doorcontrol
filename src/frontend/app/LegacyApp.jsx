@@ -91,7 +91,7 @@ import DoorDetails from "../pages/DoorPage";
 import { permissionsFor } from "../domain/permissions";
 import { roleLabels } from "../domain/roles";
 import { normalizeUser } from "../domain/users";
-import { requiresMfa } from "../domain/mfa";
+import { isPrivilegedMfaRole, requiresMfa } from "../domain/mfa";
 import { applyDoorWorkflow } from "../domain/doorWorkflow";
 import { getManualTaskNoticeCount } from "../domain/tasks";
 import {
@@ -523,9 +523,10 @@ export function App({ demoUsers = [], demoPassword = "" }) {
   }, []);
 
   const admitRemoteProfile = React.useCallback(async (profile) => {
-    if (requiresMfa(profile.role)) {
+    if (isPrivilegedMfaRole(profile.role)) {
       const mfaStatus = await dataProvider.auth.getMfaStatus();
-      if (mfaStatus.currentLevel !== "aal2") {
+      const mustVerify = requiresMfa(profile.role) || Boolean(mfaStatus.verifiedFactorId);
+      if (mustVerify && mfaStatus.currentLevel !== "aal2") {
         setUsers((current) => [profile, ...current.filter((item) => item.id !== profile.id)]);
         setCurrentUserId(profile.id);
         setMfaFlow({ profile, status: mfaStatus });

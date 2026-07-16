@@ -114,6 +114,10 @@ const operationalQueryIndexes = readFileSync(
   resolve("supabase/migrations/202607150029_operational_query_indexes.sql"),
   "utf8"
 );
+const privilegedMfaWriteGuard = readFileSync(
+  resolve("supabase/migrations/202607160032_privileged_mfa_write_guard.sql"),
+  "utf8"
+);
 
 describe("Supabase schema", () => {
   it("defines the core hierarchy and assignment tables", () => {
@@ -142,6 +146,14 @@ describe("Supabase schema", () => {
     expect(authHardening).toContain("protect_profile_security_fields");
     expect(authHardening).toContain("new.role is distinct from old.role");
     expect(authHardening).toContain("new.company_id is distinct from old.company_id");
+  });
+
+  it("requires aal2 for privileged writes while preserving ITR operations", () => {
+    expect(privilegedMfaWriteGuard).toContain("function public.privileged_mfa_satisfied");
+    expect(privilegedMfaWriteGuard).toContain("auth.jwt() ->> 'aal'");
+    expect(privilegedMfaWriteGuard).toContain("MFA verification is required for privileged writes");
+    expect(privilegedMfaWriteGuard).toContain("'financial_transactions'");
+    expect(privilegedMfaWriteGuard).toContain("create trigger privileged_mfa_write_guard");
   });
 
   it("enforces role hierarchy for profile management", () => {
