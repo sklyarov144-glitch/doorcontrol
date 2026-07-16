@@ -118,6 +118,10 @@ const privilegedMfaWriteGuard = readFileSync(
   resolve("supabase/migrations/202607160032_privileged_mfa_write_guard.sql"),
   "utf8"
 );
+const domainScopeIntegrity = readFileSync(
+  resolve("supabase/migrations/202607160035_domain_scope_integrity.sql"),
+  "utf8"
+);
 
 describe("Supabase schema", () => {
   it("defines the core hierarchy and assignment tables", () => {
@@ -224,6 +228,15 @@ describe("Supabase schema", () => {
     for (const table of ["tasks", "task_comments", "task_links", "notifications", "document_items", "custody_acts", "tn_issues", "activity_logs"]) {
       expect(operationalRls).toContain(`alter table public.${table} enable row level security`);
     }
+  });
+
+  it("rejects inconsistent domain hierarchy scopes", () => {
+    expect(domainScopeIntegrity).toContain("function public.scope_hierarchy_matches");
+    expect(domainScopeIntegrity).toContain("function public.can_access_domain_scope");
+    expect(domainScopeIntegrity).toContain("document_items_enforce_scope");
+    expect(domainScopeIntegrity).toContain("daily_work_reports_enforce_scope");
+    expect(domainScopeIntegrity).toContain("financial_transactions_enforce_scope");
+    expect(domainScopeIntegrity).toContain("p_require_complete");
   });
 
   it("creates private scoped storage buckets", () => {
