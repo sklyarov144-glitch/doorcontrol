@@ -60,6 +60,14 @@ jobs:
           git checkout --detach "$RELEASE_SHA"
           test "$(git rev-parse HEAD)" = "$RELEASE_SHA"
       - run: npm ci
+      - name: Download and verify immutable staging evidence
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: |
+          evidence_dir="$(mktemp -d)"
+          trap 'rm -rf "$evidence_dir"' EXIT
+          gh run download "$STAGING_RUN_ID" --repo "$GITHUB_REPOSITORY" --name "staging-release-$RELEASE_SHA" --dir "$evidence_dir"
+          node scripts/verify-staging-release-evidence.mjs "$evidence_dir/staging-release-evidence.json"
       - run: npm run ci
       - name: Verify signed UAT for release SHA
         env:

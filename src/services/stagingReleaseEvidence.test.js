@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { createStagingReleaseEvidence } from "./stagingReleaseEvidence";
+import { createStagingReleaseEvidence, validateStagingReleaseEvidence } from "./stagingReleaseEvidence";
 
 const valid = {
   releaseSha: "a".repeat(40),
@@ -48,6 +48,23 @@ describe("staging release evidence", () => {
     expect(result.productionEligible).toBe(false);
     expect(result.sourceCiRunId).toBeNull();
     expect(result.checks.sentryIngestion).toBe("not_configured");
+    expect(result.productionEligibilityReasons).toEqual(["missing_source_ci", "sentry_not_verified"]);
+  });
+
+  it("blocks a CI-linked release until staging monitoring is verified", () => {
+    const result = createStagingReleaseEvidence({
+      ...valid,
+      sentryEvidence: {
+        configured: false,
+        environment: "staging",
+        release: valid.releaseSha,
+        checkedAt: "2026-07-16T14:01:00.000Z",
+      },
+    });
+    expect(result.productionEligible).toBe(false);
+    expect(result.sourceCiRunId).toBe("21");
+    expect(result.sourceCiRunUrl).toBe(valid.sourceCiRunUrl);
+    expect(result.productionEligibilityReasons).toEqual(["sentry_not_verified"]);
   });
 
   it("rejects mismatched monitoring evidence and mutable release ids", () => {
@@ -56,5 +73,21 @@ describe("staging release evidence", () => {
       ...valid,
       sentryEvidence: { ...valid.sentryEvidence, release: "b".repeat(40) },
     })).toThrow("does not match");
+  });
+
+  it("validates the artifact against the exact production request", () => {
+    const evidence = createStagingReleaseEvidence(valid);
+    expect(validateStagingReleaseEvidence(evidence, {
+      releaseSha: valid.releaseSha,
+      githubRunId: valid.githubRunId,
+      githubRunUrl: valid.githubRunUrl,
+    })).toEqual({ valid: true, errors: [] });
+
+    const drifted = { ...evidence, checks: { ...evidence.checks, fourRoleUiSmoke: "failed" } };
+    const result = validateStagingReleaseEvidence(drifted, { releaseSha: "b".repeat(40), githubRunId: "99" });
+    expect(result.valid).toBe(false);
+    expect(result.errors.join(" ")).toMatch(/releaseSha does not match/);
+    expect(result.errors.join(" ")).toMatch(/githubRunId does not match/);
+    expect(result.errors.join(" ")).toMatch(/fourRoleUiSmoke must pass/);
   });
 });

@@ -9,8 +9,9 @@ URL, Supabase project id и результаты обязательных про
 а не изменяемая строка в документации, является источником истины для UAT.
 
 Ручной `workflow_dispatch` разрешён для диагностики, но его evidence содержит
-`productionEligible: false`. Production provenance принимает только staging,
-запущенный событием успешного `CI` для того же SHA.
+`productionEligible: false`. То же относится к релизу без принятого Sentry smoke.
+Production provenance принимает только staging, запущенный событием успешного
+`CI` для того же SHA, скачивает его artifact и повторно проверяет содержимое.
 
 ## Автоматические проверки
 

@@ -4,7 +4,7 @@
 
 - [x] CI зелёный на release SHA.
 - [x] Staging deployment и smoke успешны.
-- [x] Staging workflow сохраняет immutable release evidence и связывает его с CI run того же SHA.
+- [x] Staging workflow сохраняет immutable release evidence и связывает его с CI run того же SHA; production повторно скачивает и валидирует artifact.
 - [x] Все migrations применены к staging.
 - [ ] Структура production сверена со staging перед выпуском.
 - [ ] UAT evidence прошёл `npm run pilot:uat` и подписан владельцем продукта и представителем ИТР.
