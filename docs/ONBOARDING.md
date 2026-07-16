@@ -40,3 +40,16 @@ npm run pilot:users -- /absolute/path/pilot-users.json
 активный профиль, компанию и роль. Результат `pilot/user-assignments.json`
 содержит только ключи и UUID для полей ответственных import-файла; он игнорируется
 Git и не содержит email, паролей или service key.
+
+Не вставляйте UUID в общий шаблон вручную. Используйте те же ключи пользователей
+в `responsibleDirectorKey`, `responsibleItrKey` и `assignedUserKey`, затем соберите
+закрытый import-файл:
+
+```bash
+npm run pilot:prepare -- pilot/import-template.json \
+  --assignments pilot/user-assignments.json \
+  --output pilot/import-ready.json
+npm run pilot:validate -- pilot/import-ready.json --strict
+```
+
+`pilot/import-ready.json` игнорируется Git и создаётся с правами `0600`.

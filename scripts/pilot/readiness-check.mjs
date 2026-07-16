@@ -9,6 +9,7 @@ const required = [
   "scripts/backup/export-storage.mjs", "scripts/backup/verify-storage-export.mjs", "scripts/backup/import-storage.mjs",
   "scripts/backup/create-restore-evidence.mjs", ".github/workflows/backup-production.yml", ".github/workflows/restore-drill.yml",
   "scripts/pilot/domain-load-smoke.mjs",
+  "scripts/pilot/prepare-import.mjs",
   "scripts/pilot/reconcile-import.mjs",
   "scripts/pilot/validate-uat-evidence.mjs", "pilot/uat-evidence.template.json",
   "scripts/pilot/verify-users.mjs", "pilot/users.template.json",

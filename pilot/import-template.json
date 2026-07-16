@@ -6,12 +6,14 @@
       "district": "Очаково-Матвеевское",
       "metro": "Аминьевская",
       "status": "В работе",
+      "responsibleDirectorKey": "construction_director",
       "buildings": [
         {
           "legacyId": "pilot-building-4-1",
           "name": "Корпус 4.1",
           "floorsCount": 2,
           "hasParking": true,
+          "responsibleItrKey": "itr_one",
           "floors": [
             {
               "legacyId": "pilot-building-4-1-floor-1",

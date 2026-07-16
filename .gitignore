@@ -7,6 +7,7 @@
 !.env.example
 pilot/uat-evidence.json
 pilot/user-assignments.json
+pilot/import-ready.json
 
 # Dependencies
 node_modules/
