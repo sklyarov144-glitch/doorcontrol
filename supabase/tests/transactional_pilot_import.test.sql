@@ -1,6 +1,6 @@
 begin;
 
-select plan(7);
+select plan(8);
 
 select has_function(
   'public',
@@ -70,6 +70,13 @@ select lives_ok(
               "mark": "Д-1",
               "type": "apartment",
               "openingNumber": 1,
+              "status": "передано по акту",
+              "tnStatus": "принято ТН",
+              "custodyActStatus": "передано по акту",
+              "mountedAt": "2026-07-10T08:00:00Z",
+              "tnAcceptedAt": "2026-07-11T08:00:00Z",
+              "custodyActUploadedAt": "2026-07-11T09:00:00Z",
+              "custodyActClosedAt": "2026-07-12T08:00:00Z",
               "x": 30,
               "y": 45
             }]
@@ -91,6 +98,26 @@ select is(
   (select count(*)::integer from public.doors where legacy_id = 'pgtap-door-1' and x = 30 and y = 45),
   1,
   'repeat import updates the same door'
+);
+
+select is(
+  (
+    select jsonb_build_object(
+      'mountedAt', mounted_at at time zone 'UTC',
+      'tnAcceptedAt', tn_accepted_at at time zone 'UTC',
+      'custodyActUploadedAt', custody_act_uploaded_at at time zone 'UTC',
+      'custodyActClosedAt', custody_act_closed_at at time zone 'UTC'
+    )
+    from public.doors
+    where legacy_id = 'pgtap-door-1'
+  ),
+  jsonb_build_object(
+    'mountedAt', timestamp '2026-07-10 08:00:00',
+    'tnAcceptedAt', timestamp '2026-07-11 08:00:00',
+    'custodyActUploadedAt', timestamp '2026-07-11 09:00:00',
+    'custodyActClosedAt', timestamp '2026-07-12 08:00:00'
+  ),
+  'repeat import preserves workflow dates exactly'
 );
 
 select * from finish();

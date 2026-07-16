@@ -24,7 +24,7 @@ const expectedObjectIds = payload.objects.map((item) => item.legacyId);
 
 const { data: objectRows, error: objectError } = await client
   .from("objects")
-  .select("id,legacy_id,name,district,metro,status,responsible_director_id,company_id")
+  .select("id,legacy_id,name,address,district,metro,status,responsible_director_id,company_id")
   .eq("company_id", companyId)
   .in("legacy_id", expectedObjectIds);
 if (objectError) throw new Error(`objects reconciliation query failed: ${objectError.message}`);
@@ -42,7 +42,7 @@ async function selectByParent(table, select, parentColumn, parentIds) {
 
 const buildingRows = await selectByParent(
   "buildings",
-  "id,legacy_id,object_id,name,floors_count,has_parking,responsible_itr_id",
+  "id,legacy_id,object_id,name,floors_count,has_parking,readiness,responsible_itr_id",
   "object_id",
   objectRows.map((row) => row.id),
 );
@@ -54,7 +54,7 @@ const floorRows = await selectByParent(
 );
 const doorRows = await selectByParent(
   "doors",
-  "id,legacy_id,floor_id,label,mark,type,opening_number,status,opening_status,issue_status,custody_act_status,tn_status,assigned_user_id,x,y,model,width_fact,height_fact",
+  "id,legacy_id,floor_id,label,mark,type,opening_number,status,opening_status,issue_status,custody_act_status,tn_status,assigned_user_id,x,y,model,width_fact,height_fact,mounted_at,tn_accepted_at,custody_act_uploaded_at,custody_act_closed_at",
   "floor_id",
   floorRows.map((row) => row.id),
 );
@@ -64,12 +64,12 @@ const buildingsById = new Map(buildingRows.map((row) => [row.id, row]));
 const floorsById = new Map(floorRows.map((row) => [row.id, row]));
 const actual = {
   objects: objectRows.map((row) => ({
-    legacyId: row.legacy_id, name: row.name, district: row.district, metro: row.metro, status: row.status,
+    legacyId: row.legacy_id, name: row.name, address: row.address, district: row.district, metro: row.metro, status: row.status,
     responsibleDirectorId: row.responsible_director_id,
   })),
   buildings: buildingRows.map((row) => ({
     id: row.id, legacyId: row.legacy_id, objectLegacyId: objectsById.get(row.object_id)?.legacy_id,
-    name: row.name, floorsCount: row.floors_count, hasParking: row.has_parking, responsibleItrId: row.responsible_itr_id,
+    name: row.name, floorsCount: row.floors_count, hasParking: row.has_parking, readiness: Number(row.readiness), responsibleItrId: row.responsible_itr_id,
   })),
   floors: floorRows.map((row) => ({
     id: row.id, legacyId: row.legacy_id, buildingLegacyId: buildingsById.get(row.building_id)?.legacy_id,
@@ -82,6 +82,8 @@ const actual = {
     tnStatus: row.tn_status, assignedUserId: row.assigned_user_id, x: Number(row.x), y: Number(row.y),
     model: row.model, widthFact: row.width_fact == null ? null : Number(row.width_fact),
     heightFact: row.height_fact == null ? null : Number(row.height_fact),
+    mountedAt: row.mounted_at, tnAcceptedAt: row.tn_accepted_at,
+    custodyActUploadedAt: row.custody_act_uploaded_at, custodyActClosedAt: row.custody_act_closed_at,
   })),
 };
 

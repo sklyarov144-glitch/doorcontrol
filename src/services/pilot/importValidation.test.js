@@ -77,4 +77,62 @@ describe("pilot import validation", () => {
     expect(result.errors.join(" ")).toMatch(/responsibleItrId must be a UUID/);
     expect(result.errors.join(" ")).toMatch(/assignedUserId must be a UUID/);
   });
+
+  it("accepts consistent workflow dates for an installed door", () => {
+    const payload = structuredClone(validPayload);
+    payload.objects[0].responsibleDirectorId = "11111111-1111-4111-8111-111111111111";
+    payload.objects[0].buildings[0].responsibleItrId = "22222222-2222-4222-8222-222222222222";
+    Object.assign(payload.objects[0].buildings[0].floors[0].doors[0], {
+      status: "передано по акту",
+      tnStatus: "принято ТН",
+      custodyActStatus: "передано по акту",
+      mountedAt: "2026-07-10T08:00:00Z",
+      tnAcceptedAt: "2026-07-11T08:00:00Z",
+      custodyActUploadedAt: "2026-07-11T09:00:00Z",
+      custodyActClosedAt: "2026-07-12T08:00:00Z",
+      widthFact: 980,
+      heightFact: 2100,
+    });
+
+    const result = validatePilotImport(payload);
+
+    expect(result.valid).toBe(true);
+    expect(result.warnings).toEqual([]);
+  });
+
+  it("rejects unsupported statuses, invalid dimensions and reversed workflow dates", () => {
+    const payload = structuredClone(validPayload);
+    Object.assign(payload.objects[0].buildings[0].floors[0].doors[0], {
+      status: "почти готово",
+      openingStatus: "неизвестно",
+      widthFact: -10,
+      mountedAt: "2026-07-12T08:00:00Z",
+      tnAcceptedAt: "2026-07-11T08:00:00Z",
+    });
+
+    const result = validatePilotImport(payload);
+
+    expect(result.valid).toBe(false);
+    expect(result.errors.join(" ")).toMatch(/status is unsupported/);
+    expect(result.errors.join(" ")).toMatch(/openingStatus is unsupported/);
+    expect(result.errors.join(" ")).toMatch(/widthFact must be a positive number/);
+    expect(result.errors.join(" ")).toMatch(/tnAcceptedAt cannot precede mountedAt/);
+  });
+
+  it("warns when completed workflow statuses have no source dates", () => {
+    const payload = structuredClone(validPayload);
+    Object.assign(payload.objects[0].buildings[0].floors[0].doors[0], {
+      status: "смонтирована",
+      tnStatus: "принято ТН",
+      custodyActStatus: "передано по акту",
+    });
+
+    const result = validatePilotImport(payload);
+
+    expect(result.valid).toBe(true);
+    expect(result.warnings.join(" ")).toMatch(/without mountedAt/);
+    expect(result.warnings.join(" ")).toMatch(/without tnAcceptedAt/);
+    expect(result.warnings.join(" ")).toMatch(/without custodyActUploadedAt/);
+    expect(result.warnings.join(" ")).toMatch(/without custodyActClosedAt/);
+  });
 });

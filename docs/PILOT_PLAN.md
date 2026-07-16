@@ -20,8 +20,9 @@
 2. Создать компанию и пользователей через контролируемый invite flow, после принятия приглашений проверить состав командой `npm run pilot:users -- users.json`.
 3. Указать в import template ключи `responsibleDirectorKey`, `responsibleItrKey` и при необходимости `assignedUserKey`, совпадающие с ключами user manifest. Подготовить файл с проверенными UUID командой `npm run pilot:prepare -- path.json --assignments pilot/user-assignments.json --output pilot/import-ready.json`. Команда не перезаписывает исходники, записывает результат атомарно с правами `0600` и завершается ошибкой при неизвестном или неоднозначном назначении.
 4. Выполнить strict preflight: `npm run pilot:validate -- pilot/import-ready.json --strict`.
+   Для уже смонтированных, принятых ТН или переданных по акту дверей источник должен содержать `mountedAt`, `tnAcceptedAt`, `custodyActUploadedAt` и `custodyActClosedAt` согласно достигнутому этапу. Preflight проверяет ISO-формат и хронологию; без дат импорт завершённых статусов блокируется, чтобы не исказить просрочки и отчёты.
 5. Импортировать сначала в staging командой `npm run pilot:import -- pilot/import-ready.json --apply`.
-6. Сверить импорт с исходником командой `npm run pilot:reconcile -- pilot/import-ready.json`. Команда проверяет количества, иерархию, основные поля, координаты и ответственных и завершается ошибкой при любом расхождении.
+6. Сверить импорт с исходником командой `npm run pilot:reconcile -- pilot/import-ready.json`. Команда проверяет количества, иерархию, адрес, готовность корпуса, статусы, фактические размеры, workflow-даты, координаты и ответственных и завершается ошибкой при любом расхождении.
 7. Выполнить UAT каждой ролью и тест RLS между двумя тестовыми компаниями.
 8. Провести restore drill, статический load smoke и authenticated domain load smoke под ролью ИТР.
 9. Обучить пилотную группу и запустить параллельную сверку на 3 дня.

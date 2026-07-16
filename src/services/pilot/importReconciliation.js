@@ -1,16 +1,19 @@
 const comparableFields = {
-  objects: ["name", "district", "metro", "status", "responsibleDirectorId"],
-  buildings: ["objectLegacyId", "name", "floorsCount", "hasParking", "responsibleItrId"],
+  objects: ["name", "address", "district", "metro", "status", "responsibleDirectorId"],
+  buildings: ["objectLegacyId", "name", "floorsCount", "hasParking", "readiness", "responsibleItrId"],
   floors: ["buildingLegacyId", "number", "planImageUrl"],
   doors: [
     "floorLegacyId", "label", "mark", "type", "openingNumber", "status", "openingStatus",
     "issueStatus", "custodyActStatus", "tnStatus", "assignedUserId", "x", "y", "model",
-    "widthFact", "heightFact",
+    "widthFact", "heightFact", "mountedAt", "tnAcceptedAt", "custodyActUploadedAt", "custodyActClosedAt",
   ],
 };
 
-function normalize(value) {
-  if (value === undefined || value === "") return null;
+const timestampFields = new Set(["mountedAt", "tnAcceptedAt", "custodyActUploadedAt", "custodyActClosedAt"]);
+
+function normalize(value, field) {
+  if (value == null || value === "") return null;
+  if (timestampFields.has(field) && value != null) return new Date(value).toISOString();
   return typeof value === "number" ? Number(value) : value;
 }
 
@@ -20,6 +23,7 @@ function flattenExpected(payload) {
     result.objects.push({
       legacyId: object.legacyId,
       name: object.name,
+      address: object.address,
       district: object.district,
       metro: object.metro,
       status: object.status ?? "В работе",
@@ -32,6 +36,7 @@ function flattenExpected(payload) {
         name: building.name,
         floorsCount: building.floorsCount,
         hasParking: building.hasParking ?? false,
+        readiness: building.readiness ?? 0,
         responsibleItrId: building.responsibleItrId,
       });
       for (const floor of building.floors) {
@@ -60,6 +65,10 @@ function flattenExpected(payload) {
             model: door.model,
             widthFact: door.widthFact,
             heightFact: door.heightFact,
+            mountedAt: door.mountedAt,
+            tnAcceptedAt: door.tnAcceptedAt,
+            custodyActUploadedAt: door.custodyActUploadedAt,
+            custodyActClosedAt: door.custodyActClosedAt,
           });
         }
       }
@@ -80,9 +89,9 @@ function compareCollection(kind, expectedRows, actualRows) {
       continue;
     }
     for (const field of comparableFields[kind]) {
-      if (normalize(actual[field]) !== normalize(expected[field])) {
+      if (normalize(actual[field], field) !== normalize(expected[field], field)) {
         errors.push(
-          `${kind} ${expected.legacyId}.${field}: expected ${JSON.stringify(normalize(expected[field]))}, received ${JSON.stringify(normalize(actual[field]))}`,
+          `${kind} ${expected.legacyId}.${field}: expected ${JSON.stringify(normalize(expected[field], field))}, received ${JSON.stringify(normalize(actual[field], field))}`,
         );
       }
     }

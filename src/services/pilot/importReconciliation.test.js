@@ -15,14 +15,15 @@ const payload = {
 };
 
 const actual = {
-  objects: [{ legacyId: "object-1", name: "ЖК Тест", district: null, metro: null, status: "В работе", responsibleDirectorId: "director-1" }],
-  buildings: [{ legacyId: "building-1", objectLegacyId: "object-1", name: "Корпус 1", floorsCount: 1, hasParking: false, responsibleItrId: "itr-1" }],
+  objects: [{ legacyId: "object-1", name: "ЖК Тест", address: null, district: null, metro: null, status: "В работе", responsibleDirectorId: "director-1" }],
+  buildings: [{ legacyId: "building-1", objectLegacyId: "object-1", name: "Корпус 1", floorsCount: 1, hasParking: false, readiness: 0, responsibleItrId: "itr-1" }],
   floors: [{ legacyId: "floor-1", buildingLegacyId: "building-1", number: 1, planImageUrl: null }],
   doors: [{
     legacyId: "door-1", floorLegacyId: "floor-1", label: "Квартира 1", mark: "Д-1", type: "apartment",
     openingNumber: 1, status: "не начато", openingStatus: "готов", issueStatus: "нет",
     custodyActStatus: "не передана", tnStatus: "не передано", assignedUserId: null, x: 20, y: 30,
     model: null, widthFact: null, heightFact: null,
+    mountedAt: null, tnAcceptedAt: null, custodyActUploadedAt: null, custodyActClosedAt: null,
   }],
 };
 
@@ -49,5 +50,14 @@ describe("pilot import reconciliation", () => {
     const result = reconcilePilotImport(payload, changed);
     expect(result.valid).toBe(false);
     expect(result.errors.join(" ")).toContain("floors floor-extra was not present");
+  });
+
+  it("normalizes equivalent workflow timestamp formats", () => {
+    const datedPayload = structuredClone(payload);
+    datedPayload.objects[0].buildings[0].floors[0].doors[0].mountedAt = "2026-07-10T08:00:00Z";
+    const datedActual = structuredClone(actual);
+    datedActual.doors[0].mountedAt = "2026-07-10T11:00:00+03:00";
+
+    expect(reconcilePilotImport(datedPayload, datedActual).valid).toBe(true);
   });
 });
