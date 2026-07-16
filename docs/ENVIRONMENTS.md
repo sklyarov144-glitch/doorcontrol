@@ -76,6 +76,8 @@ workflow завершается ошибкой и не выдаёт отсутс
   пилотной иерархии для выпускаемого staging SHA.
 - `RESTORE_EVIDENCE_JSON` — evidence последнего успешного restore drill; на момент
   выпуска он должен быть не старше 30 дней, а восстановление укладываться в RTO 4 часа.
+- `PRODUCTION_HANDOFF_JSON` — подписанный операционный handoff для конкретного
+  release SHA, production-домена, hash импорта и согласованного окна выпуска.
 
 `production-backup` не должен иметь required reviewer: иначе scheduled workflow
 будет ждать ручного подтверждения и RPO перестанет выполняться. Его workflow
@@ -176,10 +178,13 @@ npm run deployment:configure -- staging
 stdin в GitHub CLI и не печатает их. Credentials четырёх role-smoke аккаунтов
 обязательны для deployment-сред. Все четыре environments настраиваются отдельно;
 backup/restore credentials не дублируются в `production`.
-Production также требует три evidence secrets: `UAT_EVIDENCE_JSON`,
-`PILOT_RECONCILIATION_EVIDENCE_JSON` и `RESTORE_EVIDENCE_JSON`. Workflow до
+Production также требует четыре evidence secrets: `UAT_EVIDENCE_JSON`,
+`PILOT_RECONCILIATION_EVIDENCE_JSON`, `RESTORE_EVIDENCE_JSON` и
+`PRODUCTION_HANDOFF_JSON`. Workflow до
 применения миграций проверяет подписи UAT, точное совпадение SHA и счётчиков
-импорта, свежесть restore drill и RTO, не печатая содержимое протоколов.
+импорта, свежесть restore drill и RTO, владельцев, домен и окно выпуска, не
+печатая содержимое протоколов. Формат handoff описан в
+[`PRODUCTION_HANDOFF.md`](PRODUCTION_HANDOFF.md).
 
 TOTP secrets создаются отдельно в каждой среде командой
 `npm run auth:mfa:bootstrap`. Команда требует явного

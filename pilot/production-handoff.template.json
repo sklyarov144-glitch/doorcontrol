@@ -1,0 +1,35 @@
+{
+  "version": 1,
+  "environment": "production",
+  "releaseSha": "REPLACE_WITH_FULL_40_CHARACTER_SHA",
+  "productionUrl": "https://production.example.ru",
+  "repository": "sklyarov144-glitch/doorcontrol",
+  "companyName": "ООО ГРОСС",
+  "owners": {
+    "businessOwner": { "name": "", "email": "" },
+    "technicalOwner": { "name": "", "email": "", "githubLogin": "" },
+    "dataOwner": { "name": "", "email": "" },
+    "supportOwner": { "name": "", "email": "", "phone": "" },
+    "releaseReviewer": { "name": "", "email": "", "githubLogin": "" }
+  },
+  "pilot": {
+    "sourceSha256": "REPLACE_WITH_64_CHARACTER_IMPORT_SHA256",
+    "expectedCounts": { "objects": 1, "buildings": 1, "floors": 1, "doors": 1 },
+    "dataFrozenAt": "2026-01-01T08:00:00Z"
+  },
+  "releaseWindow": {
+    "startsAt": "2026-01-01T09:00:00Z",
+    "endsAt": "2026-01-01T13:00:00Z"
+  },
+  "approvals": {
+    "businessOwner": { "approved": false, "approvedByEmail": "", "approvedAt": "" },
+    "technicalOwner": { "approved": false, "approvedByEmail": "", "approvedAt": "" },
+    "dataOwner": { "approved": false, "approvedByEmail": "", "approvedAt": "" }
+  },
+  "operations": {
+    "runbookAcknowledged": false,
+    "rollbackPlanAcknowledged": false,
+    "backupOwnerEmail": "",
+    "supportEmail": ""
+  }
+}

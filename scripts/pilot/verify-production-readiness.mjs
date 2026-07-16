@@ -16,11 +16,15 @@ const result = validateProductionReadinessEvidence({
   uat: readJson("UAT_EVIDENCE_PATH"),
   reconciliation: readJson("PILOT_RECONCILIATION_EVIDENCE_PATH"),
   restore: readJson("RESTORE_EVIDENCE_PATH"),
-}, releaseSha);
+  handoff: readJson("PRODUCTION_HANDOFF_PATH"),
+}, releaseSha, {
+  expectedProductionUrl: required("EXPECTED_PRODUCTION_URL"),
+  repository: required("EXPECTED_GITHUB_REPOSITORY"),
+});
 
 if (!result.valid) {
   result.errors.forEach((error) => console.error(`NOT READY ${error}`));
   throw new Error(`Production readiness failed with ${result.errors.length} error(s)`);
 }
 console.log(`Production readiness evidence passed for release ${releaseSha}.`);
-console.log("Checks passed: signed UAT, exact pilot reconciliation, fresh restore drill.");
+console.log("Checks passed: signed UAT, exact pilot reconciliation, fresh restore drill, approved production handoff.");

@@ -75,14 +75,18 @@ Staging использует отдельный Vercel project и публику
 1. Убедиться, что staging acceptance checklist пройден, а подписанный JSON из `UAT_CHECKLIST.md` сохранён в production secret `UAT_EVIDENCE_JSON`.
 2. Сохранить успешную post-import сверку того же SHA в
    `PILOT_RECONCILIATION_EVIDENCE_JSON`, а evidence restore drill не старше 30
-   дней — в `RESTORE_EVIDENCE_JSON`. Production workflow объединённо проверяет
-   эти три протокола командой `npm run pilot:production-readiness`.
-3. Подключить отдельные production TOTP-факторы командой `auth:mfa:bootstrap`, загрузить три secrets в GitHub Environment `production` и выполнить `MFA_BOOTSTRAP_CONFIRM=PRODUCTION npm run auth:mfa:verify`.
-4. Проверить свежий backup и окно восстановления.
-5. Взять полный 40-символьный SHA из успешного `Deploy staging`, запустить `Deploy production`, указать этот SHA и ввести `DEPLOY`.
-6. Approver подтверждает GitHub environment.
-7. После smoke-test вручную проверить вход и основной ИТР-маршрут.
-8. Скачать и сохранить artifact `production-release-<SHA>`: он содержит SHA, staging run, Supabase project, deployment URL, канонический домен, время, исполнителя и результаты обязательных smoke-проверок. Workflow отклонит SHA, для которого нет успешного staging deployment из ветки `main`.
+   дней — в `RESTORE_EVIDENCE_JSON`.
+3. Заполнить [`PRODUCTION_HANDOFF.md`](PRODUCTION_HANDOFF.md), связать его с тем
+   же SHA и reconciliation evidence и сохранить как `PRODUCTION_HANDOFF_JSON`.
+   Production workflow объединённо проверяет четыре протокола командой
+   `npm run pilot:production-readiness` и допускает запуск только внутри
+   согласованного release window.
+4. Подключить отдельные production TOTP-факторы командой `auth:mfa:bootstrap`, загрузить три secrets в GitHub Environment `production` и выполнить `MFA_BOOTSTRAP_CONFIRM=PRODUCTION npm run auth:mfa:verify`.
+5. Проверить свежий backup и окно восстановления.
+6. Взять полный 40-символьный SHA из успешного `Deploy staging`, запустить `Deploy production`, указать этот SHA и ввести `DEPLOY`.
+7. Approver подтверждает GitHub environment.
+8. После smoke-test вручную проверить вход и основной ИТР-маршрут.
+9. Скачать и сохранить artifact `production-release-<SHA>`: он содержит SHA, staging run, Supabase project, deployment URL, канонический домен, время, исполнителя и результаты обязательных smoke-проверок. Workflow отклонит SHA, для которого нет успешного staging deployment из ветки `main`.
 
 SQL migrations должны быть backward-compatible: сначала расширение схемы, затем код, удаление старых колонок — отдельным будущим релизом после проверки использования.
 

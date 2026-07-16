@@ -15,6 +15,8 @@
   объектов, корпусов, этажей и дверей для выпускаемого staging SHA.
 - [ ] `RESTORE_EVIDENCE_JSON` подтверждает restore drill не старше 30 дней и RTO
   не более 4 часов.
+- [ ] `PRODUCTION_HANDOFF_JSON` связан с release SHA, production-доменом и
+  reconciliation evidence; владельцы и окно выпуска подтверждены.
 - [ ] UAT использует staging evidence с `productionEligible: true`.
 - [x] RLS автоматически проверен в CI минимум двумя компаниями и четырьмя ролями.
 - [ ] RLS повторно проверен на staging реальными Auth JWT минимум двумя компаниями и четырьмя ролями.
@@ -31,7 +33,7 @@
 - [ ] Последний encrypted backup содержит роли, схему, данные и приватные Storage-объекты и прошёл обе manifest verification.
 - [x] Authenticated domain load smoke под ИТР прошёл с p95 не более 2,5 секунд.
 - [ ] Sentry alert и контакт ответственного проверены.
-- [ ] Runbook доступен техническому и бизнес-ответственному.
+- [ ] Runbook доступен техническому и бизнес-ответственному и подтверждён в handoff.
 - [ ] План отката и окно выпуска согласованы.
 
 Подтверждения текущего staging-релиза: [STAGING_EVIDENCE.md](STAGING_EVIDENCE.md).
