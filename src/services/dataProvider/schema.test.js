@@ -122,6 +122,10 @@ const domainScopeIntegrity = readFileSync(
   resolve("supabase/migrations/202607160035_domain_scope_integrity.sql"),
   "utf8"
 );
+const companyReferenceIntegrity = readFileSync(
+  resolve("supabase/migrations/202607160036_company_reference_integrity.sql"),
+  "utf8"
+);
 
 describe("Supabase schema", () => {
   it("defines the core hierarchy and assignment tables", () => {
@@ -239,6 +243,16 @@ describe("Supabase schema", () => {
     expect(domainScopeIntegrity).toContain("p_require_complete");
     expect(domainScopeIntegrity).toContain("drop policy if exists buildings_write");
     expect(domainScopeIntegrity).toContain("create policy buildings_insert");
+  });
+
+  it("rejects cross-company user and business references", () => {
+    expect(companyReferenceIntegrity).toContain("function public.profile_reference_is_valid");
+    expect(companyReferenceIntegrity).toContain("function public.enforce_company_reference_integrity");
+    expect(companyReferenceIntegrity).toContain("Object director must be an active construction director");
+    expect(companyReferenceIntegrity).toContain("Team member must belong to the team company");
+    expect(companyReferenceIntegrity).toContain("Task assignee must be an active user from the task company");
+    expect(companyReferenceIntegrity).toContain("Financial transaction contract must belong to the same object");
+    expect(companyReferenceIntegrity).toContain("custody_acts_enforce_company_references");
   });
 
   it("creates private scoped storage buckets", () => {
