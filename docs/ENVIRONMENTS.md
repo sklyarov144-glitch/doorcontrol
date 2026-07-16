@@ -93,8 +93,10 @@ npm run deployment:audit -- production --strict
 ```
 
 Второй вариант завершается ошибкой, пока обязательный production inventory не
-собран полностью. Отдельное предупреждение сообщает об отсутствии Sentry в
-staging, где DSN пока не является блокирующим deployment secret.
+собран полностью. Для production также проверяется хотя бы один required reviewer
+и отключённый admin bypass; наличие одних только secrets больше не считается
+готовой release-защитой. Отдельное предупреждение сообщает об отсутствии Sentry
+в staging, где DSN пока не является блокирующим deployment secret.
 
 ## Безопасная загрузка GitHub Environment
 

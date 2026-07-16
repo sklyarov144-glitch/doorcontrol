@@ -4,7 +4,14 @@ import { auditEnvironmentInventory } from "./githubEnvironmentAudit";
 
 function completeInventory(environment) {
   const requirements = environmentRequirements(environment);
-  return { secrets: requirements.secrets, variables: requirements.variables };
+  return {
+    secrets: requirements.secrets,
+    variables: requirements.variables,
+    protectionRules: environment === "production"
+      ? [{ type: "required_reviewers", reviewers: [{ type: "User", id: 1 }] }]
+      : [],
+    canAdminsBypass: environment === "production" ? false : true,
+  };
 }
 
 describe("auditEnvironmentInventory", () => {
@@ -14,6 +21,7 @@ describe("auditEnvironmentInventory", () => {
     expect(result.ready).toBe(true);
     expect(result.missingSecrets).toEqual([]);
     expect(result.missingVariables).toEqual([]);
+    expect(result.missingProtections).toEqual([]);
   });
 
   it("reports missing production secrets and variables", () => {
@@ -26,6 +34,18 @@ describe("auditEnvironmentInventory", () => {
     expect(result.missingSecrets).toContain("SUPABASE_PROJECT_ID");
     expect(result.missingSecrets).toContain("UAT_EVIDENCE_JSON");
     expect(result.missingVariables).toEqual(["APP_ALLOWED_ORIGINS"]);
+  });
+
+  it("rejects production without an independent reviewer gate", () => {
+    const inventory = completeInventory("production");
+    const result = auditEnvironmentInventory("production", {
+      ...inventory,
+      protectionRules: [],
+      canAdminsBypass: true,
+    });
+
+    expect(result.ready).toBe(false);
+    expect(result.missingProtections).toEqual(["required reviewer", "admin bypass disabled"]);
   });
 
   it("warns when optional staging monitoring is absent", () => {

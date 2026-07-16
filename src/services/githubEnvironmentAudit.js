@@ -7,6 +7,17 @@ export function auditEnvironmentInventory(environment, inventory) {
   const missingSecrets = requirements.secrets.filter((name) => !secrets.has(name));
   const missingVariables = requirements.variables.filter((name) => !variables.has(name));
   const warnings = [];
+  const missingProtections = [];
+
+  if (environment === "production") {
+    const reviewerRule = (inventory.protectionRules ?? []).find((rule) => rule.type === "required_reviewers");
+    if (!reviewerRule?.reviewers?.length) {
+      missingProtections.push("required reviewer");
+    }
+    if (inventory.canAdminsBypass !== false) {
+      missingProtections.push("admin bypass disabled");
+    }
+  }
 
   if (environment === "staging" && !secrets.has("VITE_SENTRY_DSN")) {
     warnings.push("VITE_SENTRY_DSN is not configured; staging frontend errors are not monitored in Sentry.");
@@ -14,9 +25,10 @@ export function auditEnvironmentInventory(environment, inventory) {
 
   return {
     environment,
-    ready: missingSecrets.length === 0 && missingVariables.length === 0,
+    ready: missingSecrets.length === 0 && missingVariables.length === 0 && missingProtections.length === 0,
     missingSecrets,
     missingVariables,
+    missingProtections,
     warnings,
   };
 }
