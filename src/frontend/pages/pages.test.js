@@ -20,6 +20,7 @@ describe("page module contract", () => {
       "BrigadePlanPage",
       "ManpowerPage",
       "UsersPage",
+      "RolesPage",
       "ProfilePage",
       "AdminPage",
       "ReportsPage",

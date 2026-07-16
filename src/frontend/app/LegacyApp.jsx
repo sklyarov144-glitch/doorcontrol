@@ -76,6 +76,7 @@ import LoginPage, { PasswordRecoveryPage } from "../pages/LoginPage";
 import ObjectsPage from "../pages/ObjectsPage";
 import StandaloneObjectPage from "../pages/ObjectPage";
 import UsersPage from "../pages/UsersPage";
+import RolesPage from "../pages/RolesPage";
 import ProfilePage from "../pages/ProfilePage";
 import AdminPanel from "../pages/AdminPage";
 import ManualTasksPage, { TaskLinkModal } from "../pages/TasksPage";
@@ -1360,7 +1361,8 @@ export function App({ demoUsers = [], demoPassword = "" }) {
             setUsers(nextUsers);
             saveUsers(nextUsers);
           }} />}
-          {["companies", "roles", "itr_team"].includes(screen) && <PlaceholderPage screen={screen} />}
+          {screen === "roles" && <RolesPage users={users} onOpenUsers={() => setScreen("users")} />}
+          {["companies", "itr_team"].includes(screen) && <PlaceholderPage screen={screen} />}
           {screen === "objects" && <ObjectsPage objects={visibleObjects} onOpen={goToObject} />}
           {screen === "object" && selectedObject && (
             <StandaloneObjectPage
