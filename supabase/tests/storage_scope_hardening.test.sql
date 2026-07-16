@@ -73,9 +73,9 @@ select lives_ok(
   'assigned ITR can upload an object document'
 );
 
-select like(
-  (select qual from pg_policies where schemaname = 'storage' and tablename = 'objects' and policyname = 'documents_storage_delete'),
-  '%owner_id%auth.uid%has_admin_access%',
+select ok(
+  (select qual from pg_policies where schemaname = 'storage' and tablename = 'objects' and policyname = 'documents_storage_delete')
+    like '%owner_id%auth.uid%has_admin_access%',
   'document delete policy permits the uploader or an administrative role through the Storage API'
 );
 
@@ -100,9 +100,9 @@ select is((select count(*)::integer from storage.objects where id = '35000000-00
 
 select set_config('request.jwt.claim.sub', '31000000-0000-0000-0000-000000000003', true);
 select is((select count(*)::integer from storage.objects where id = '35000000-0000-0000-0000-000000000005'), 0, 'foreign-company avatar is hidden');
-select like(
-  (select qual from pg_policies where schemaname = 'storage' and tablename = 'objects' and policyname = 'avatars_storage_delete'),
-  '%owner_id%auth.uid%',
+select ok(
+  (select qual from pg_policies where schemaname = 'storage' and tablename = 'objects' and policyname = 'avatars_storage_delete')
+    like '%owner_id%auth.uid%',
   'avatar delete policy remains restricted to the file owner'
 );
 
