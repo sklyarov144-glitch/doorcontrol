@@ -84,6 +84,7 @@ import CompanyPage from "../pages/CompanyPage";
 import ProfilePage from "../pages/ProfilePage";
 import StandaloneManpowerPage from "../pages/ManpowerPage";
 import StandaloneBrigadePlanPage from "../pages/BrigadePlanPage";
+import StandaloneCustodyActsPage from "../pages/CustodyActsPage";
 import MfaPage from "../pages/MfaPage";
 import AdminPanel from "../pages/AdminPage";
 import ManualTasksPage, { TaskLinkModal } from "../pages/TasksPage";
@@ -1433,7 +1434,7 @@ export function App({ demoUsers = [], demoPassword = "" }) {
           )}
           {screen === "custody_acts" && (isRemoteAuth
             ? <RemoteCustodyActsPage objects={visibleObjects} users={users} onOpen={openProblem} onUpdateAct={updateCustodyAct} />
-            : <CustodyActsPage objects={visibleObjects} user={user} users={users} onOpen={openProblem} onUpdateAct={updateCustodyAct} />)}
+            : <StandaloneCustodyActsPage objects={visibleObjects} user={user} users={users} onOpen={openProblem} onUpdateAct={updateCustodyAct} />)}
           {screen === "tn_issues" && (isRemoteAuth ? <RemoteTnIssuesPage objects={visibleObjects} users={users} onOpen={openProblem} onResolve={(doorId) => updateDoor(doorId, { issue: "устранено", tnIssues: "Нет" })} /> : <TnIssuesPage objects={visibleObjects} user={user} users={users} onOpen={openProblem} />)}
           {screen === "today_tasks" && <TodayTasksPage tasks={manualTasks} objects={visibleObjects} user={user} users={users} onOpen={openProblem} onUpdateTask={changeManualTask} />}
           {screen === "problem_center" && (isRemoteAuth
