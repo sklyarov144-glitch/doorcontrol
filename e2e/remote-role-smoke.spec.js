@@ -64,6 +64,10 @@ test.describe("published Supabase authentication", () => {
       if (account.role === "itr") {
         await expect(page.getByRole("button", { name: "Админ-панель", exact: true })).toHaveCount(0);
       }
+      await page.getByRole("button", { name: "Документы", exact: true }).click();
+      await expect(page).toHaveURL(/\/documents$/);
+      await expect(page.getByRole("heading", { name: "Единый реестр документов", exact: true })).toBeVisible();
+      await expect(page.getByRole("alert")).toHaveCount(0);
       expect(runtimeErrors).toEqual([]);
     });
   }
