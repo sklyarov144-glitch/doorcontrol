@@ -43,7 +43,11 @@ Vercel rewrite направляет прямые запросы на `index.html
 
 ## Следующий этап
 
-1. Создать Supabase provider с тем же контрактом.
-2. Вынести Supabase-конфигурацию в переменные окружения.
-3. Перенести сначала пользователей и объекты, затем рабочие сущности.
-4. Оставить local provider только для demo-режима.
+1. Вынести оставшийся app shell и transition-router из `app/AppRoot.jsx` в
+   самостоятельные компоненты, не расширяя orchestration-слой.
+2. Завершить пилотную сверку реального объекта и подписать UAT для руководителя
+   и ИТР.
+3. Закрыть внешние deployment gates: staging Vercel, Sentry, production MFA,
+   PITR, backup/restore drill, SMTP и защищённый production release.
+4. Оставить local provider только для явного demo-режима; production должен
+   использовать Supabase provider и реальные environment secrets.
