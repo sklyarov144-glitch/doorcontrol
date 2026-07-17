@@ -83,6 +83,7 @@ import RolesPage from "../pages/RolesPage";
 import CompanyPage from "../pages/CompanyPage";
 import ProfilePage from "../pages/ProfilePage";
 import StandaloneManpowerPage from "../pages/ManpowerPage";
+import StandaloneBrigadePlanPage from "../pages/BrigadePlanPage";
 import MfaPage from "../pages/MfaPage";
 import AdminPanel from "../pages/AdminPage";
 import ManualTasksPage, { TaskLinkModal } from "../pages/TasksPage";
@@ -1397,7 +1398,7 @@ export function App({ demoUsers = [], demoPassword = "" }) {
           {screen === "documents" && (isRemoteAuth
             ? <RemoteDocumentsPage objects={visibleObjects} user={user} />
             : <DocumentsPage objects={visibleObjects} user={user} />)}
-          {screen === "brigade_plan" && (isRemoteAuth ? <RemoteBrigadePlanPage objects={visibleObjects} user={user} users={users} /> : <BrigadePlanPage objects={visibleObjects} user={user} users={users} />)}
+          {screen === "brigade_plan" && (isRemoteAuth ? <RemoteBrigadePlanPage objects={visibleObjects} user={user} users={users} /> : <StandaloneBrigadePlanPage objects={visibleObjects} user={user} users={users} />)}
           {screen === "manpower" && (isRemoteAuth ? <RemoteManpowerPage objects={visibleObjects} user={user} users={users} onNotify={refreshNotifications} /> : <StandaloneManpowerPage objects={visibleObjects} user={user} users={users} onNotify={refreshNotifications} />)}
           {screen === "notifications" && (
             <NotificationsPage
