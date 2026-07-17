@@ -67,6 +67,7 @@ test.describe("published Supabase authentication", () => {
       await page.getByRole("button", { name: "Документы", exact: true }).click();
       await expect(page).toHaveURL(/\/documents$/);
       await expect(page.getByRole("heading", { name: "Единый реестр документов", exact: true })).toBeVisible();
+      await expect(page.locator(".documents-grid")).toBeVisible();
       await expect(page.getByRole("alert")).toHaveCount(0);
       expect(runtimeErrors).toEqual([]);
     });
