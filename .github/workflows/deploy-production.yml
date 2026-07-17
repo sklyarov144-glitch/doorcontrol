@@ -48,6 +48,7 @@ jobs:
       UAT_EVIDENCE_JSON: ${{ secrets.UAT_EVIDENCE_JSON }}
       PILOT_RECONCILIATION_EVIDENCE_JSON: ${{ secrets.PILOT_RECONCILIATION_EVIDENCE_JSON }}
       RESTORE_EVIDENCE_JSON: ${{ secrets.RESTORE_EVIDENCE_JSON }}
+      PRODUCTION_HANDOFF_JSON: ${{ secrets.PRODUCTION_HANDOFF_JSON }}
     steps:
       - uses: actions/checkout@v7
         with:
@@ -81,14 +82,19 @@ jobs:
           test -n "$UAT_EVIDENCE_JSON" || { echo "::error::UAT_EVIDENCE_JSON is required"; exit 1; }
           test -n "$PILOT_RECONCILIATION_EVIDENCE_JSON" || { echo "::error::PILOT_RECONCILIATION_EVIDENCE_JSON is required"; exit 1; }
           test -n "$RESTORE_EVIDENCE_JSON" || { echo "::error::RESTORE_EVIDENCE_JSON is required"; exit 1; }
+          test -n "$PRODUCTION_HANDOFF_JSON" || { echo "::error::PRODUCTION_HANDOFF_JSON is required"; exit 1; }
           umask 077
-          trap 'rm -f /tmp/uat-evidence.json /tmp/pilot-reconciliation-evidence.json /tmp/restore-evidence.json' EXIT
+          trap 'rm -f /tmp/uat-evidence.json /tmp/pilot-reconciliation-evidence.json /tmp/restore-evidence.json /tmp/production-handoff.json' EXIT
           printf '%s' "$UAT_EVIDENCE_JSON" > /tmp/uat-evidence.json
           printf '%s' "$PILOT_RECONCILIATION_EVIDENCE_JSON" > /tmp/pilot-reconciliation-evidence.json
           printf '%s' "$RESTORE_EVIDENCE_JSON" > /tmp/restore-evidence.json
+          printf '%s' "$PRODUCTION_HANDOFF_JSON" > /tmp/production-handoff.json
           UAT_EVIDENCE_PATH=/tmp/uat-evidence.json \
           PILOT_RECONCILIATION_EVIDENCE_PATH=/tmp/pilot-reconciliation-evidence.json \
           RESTORE_EVIDENCE_PATH=/tmp/restore-evidence.json \
+          PRODUCTION_HANDOFF_PATH=/tmp/production-handoff.json \
+          EXPECTED_PRODUCTION_URL="$APP_PUBLIC_URL" \
+          EXPECTED_GITHUB_REPOSITORY="$GITHUB_REPOSITORY" \
           npm run pilot:production-readiness
       - name: Validate production configuration
         env:
@@ -111,6 +117,7 @@ jobs:
           [[ -z "$UAT_EVIDENCE_JSON" ]] && missing+=(UAT_EVIDENCE_JSON)
           [[ -z "$PILOT_RECONCILIATION_EVIDENCE_JSON" ]] && missing+=(PILOT_RECONCILIATION_EVIDENCE_JSON)
           [[ -z "$RESTORE_EVIDENCE_JSON" ]] && missing+=(RESTORE_EVIDENCE_JSON)
+          [[ -z "$PRODUCTION_HANDOFF_JSON" ]] && missing+=(PRODUCTION_HANDOFF_JSON)
           required_auth=(AUTH_SMOKE_SUPABASE_URL AUTH_SMOKE_SUPABASE_ANON_KEY AUTH_SMOKE_CREATOR_EMAIL AUTH_SMOKE_CREATOR_PASSWORD AUTH_SMOKE_CREATOR_TOTP_SECRET AUTH_SMOKE_COMPANY_HEAD_EMAIL AUTH_SMOKE_COMPANY_HEAD_PASSWORD AUTH_SMOKE_COMPANY_HEAD_TOTP_SECRET AUTH_SMOKE_CONSTRUCTION_DIRECTOR_EMAIL AUTH_SMOKE_CONSTRUCTION_DIRECTOR_PASSWORD AUTH_SMOKE_CONSTRUCTION_DIRECTOR_TOTP_SECRET AUTH_SMOKE_ITR_EMAIL AUTH_SMOKE_ITR_PASSWORD)
           for name in "${required_auth[@]}"; do [[ -z "${!name}" ]] && missing+=("$name"); done
           [[ "$AUTH_SMOKE_SUPABASE_URL" != "$VITE_SUPABASE_URL" ]] && missing+=(AUTH_SMOKE_SUPABASE_URL_MISMATCH)

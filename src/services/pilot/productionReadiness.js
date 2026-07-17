@@ -1,4 +1,5 @@
 import { validatePilotReconciliationEvidence } from "./importReconciliation.js";
+import { validateProductionHandoff } from "./productionHandoff.js";
 import { validateUatEvidence } from "./uatEvidence.js";
 
 const requiredRestoreCounts = ["companies", "profiles", "objects", "buildings", "floors", "doors"];
@@ -42,14 +43,32 @@ export function validateProductionReadinessEvidence(input, expectedReleaseSha, o
   const uat = validateUatEvidence(input.uat, expectedReleaseSha);
   const reconciliation = validatePilotReconciliationEvidence(input.reconciliation, expectedReleaseSha, options);
   const restore = validateRestoreEvidence(input.restore, options);
+  const evidenceTimestamps = [
+    input.reconciliation?.generatedAt,
+    input.restore?.completedAt,
+    input.uat?.signoffs?.productOwner?.approvedAt,
+    input.uat?.signoffs?.itrRepresentative?.approvedAt,
+  ].map((value) => Date.parse(value)).filter(Number.isFinite);
+  const handoff = validateProductionHandoff(input.handoff, expectedReleaseSha, input.reconciliation, {
+    ...options,
+    approvalNotBefore: evidenceTimestamps.length
+      ? new Date(Math.max(...evidenceTimestamps))
+      : undefined,
+  });
   const errors = [
     ...uat.errors.map((error) => `UAT: ${error}`),
     ...reconciliation.errors.map((error) => `reconciliation: ${error}`),
     ...restore.errors.map((error) => `restore: ${error}`),
+    ...handoff.errors.map((error) => `handoff: ${error}`),
   ];
   return {
     valid: errors.length === 0,
     errors,
-    checks: { uat: uat.valid, reconciliation: reconciliation.valid, restore: restore.valid },
+    checks: {
+      uat: uat.valid,
+      reconciliation: reconciliation.valid,
+      restore: restore.valid,
+      handoff: handoff.valid,
+    },
   };
 }
