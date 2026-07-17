@@ -65,6 +65,7 @@ import { persistUploadedFile } from "../../services/files/uploadLifecycle";
 import { setMonitoringUser } from "../../services/monitoring";
 import FinancePage from "../pages/FinancePage";
 import DocumentsPage from "../pages/DocumentsPage";
+import RemoteDocumentsPage from "../pages/RemoteDocumentsPage";
 import RemoteExecutiveDashboard from "../pages/RemoteExecutiveDashboard";
 import RemoteTnIssuesPage from "../pages/RemoteTnIssuesPage";
 import RemoteProblemCenterPage from "../pages/RemoteProblemCenterPage";
@@ -1396,7 +1397,9 @@ export function App({ demoUsers = [], demoPassword = "" }) {
               }}
             />
           )}
-          {screen === "documents" && <DocumentsPage objects={visibleObjects} user={user} />}
+          {screen === "documents" && (isRemoteAuth
+            ? <RemoteDocumentsPage objects={visibleObjects} user={user} />
+            : <DocumentsPage objects={visibleObjects} user={user} />)}
           {screen === "brigade_plan" && (isRemoteAuth ? <RemoteBrigadePlanPage objects={visibleObjects} user={user} users={users} /> : <BrigadePlanPage objects={visibleObjects} user={user} users={users} />)}
           {screen === "manpower" && (isRemoteAuth ? <RemoteManpowerPage objects={visibleObjects} user={user} users={users} onNotify={refreshNotifications} /> : <ManpowerPage objects={visibleObjects} user={user} users={users} onNotify={refreshNotifications} />)}
           {screen === "notifications" && (

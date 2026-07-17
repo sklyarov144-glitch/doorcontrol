@@ -1,10 +1,15 @@
-import { useEffect, useMemo, useState } from "react";
+import { useCallback, useEffect, useMemo, useState } from "react";
 import { dataProvider } from "../../services/dataProvider";
 import { fileService } from "../../services/files";
 import { storageLocationFromUri } from "../../services/files/filePolicy";
 import { persistUploadedFile } from "../../services/files/uploadLifecycle";
 
-export default function RemoteDocumentsPage({ objects, user }) {
+export default function RemoteDocumentsPage({
+  objects,
+  user,
+  provider = dataProvider,
+  files = fileService,
+}) {
   const [documents, setDocuments] = useState([]);
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
@@ -25,19 +30,19 @@ export default function RemoteDocumentsPage({ objects, user }) {
     buildings: new Map(objects.flatMap((object) => object.buildings.map((building) => [building.id, building.name]))),
   }), [objects]);
 
-  const load = async () => {
+  const load = useCallback(async () => {
     setLoading(true);
     setError("");
     try {
-      setDocuments(await dataProvider.documents.getAll());
+      setDocuments(await provider.documents.getAll());
     } catch (loadError) {
       setError(loadError?.message ?? "Не удалось загрузить документы");
     } finally {
       setLoading(false);
     }
-  };
+  }, [provider]);
 
-  useEffect(() => { load(); }, []);
+  useEffect(() => { load(); }, [load]);
   useEffect(() => {
     if (!form.objectId && objects[0]) {
       setForm((current) => ({ ...current, objectId: objects[0].id, buildingId: objects[0].buildings[0]?.id ?? "" }));
@@ -51,7 +56,7 @@ export default function RemoteDocumentsPage({ objects, user }) {
     setSaving(true);
     setError("");
     try {
-      const persist = (url) => dataProvider.documents.create({
+      const persist = (url) => provider.documents.create({
         companyId: user.companyId,
         objectId: form.objectId,
         buildingId: form.buildingId || null,
@@ -63,9 +68,9 @@ export default function RemoteDocumentsPage({ objects, user }) {
       });
       if (form.file) {
         await persistUploadedFile({
-          upload: () => fileService.uploadDocument({ companyId: user.companyId, objectId: form.objectId }, form.file),
+          upload: () => files.uploadDocument({ companyId: user.companyId, objectId: form.objectId }, form.file),
           persist: (uploaded) => persist(uploaded.uri),
-          remove: (uploaded) => fileService.remove(uploaded.bucket, [uploaded.path]),
+          remove: (uploaded) => files.remove(uploaded.bucket, [uploaded.path]),
         });
       } else {
         await persist(form.url.trim());
@@ -84,7 +89,7 @@ export default function RemoteDocumentsPage({ objects, user }) {
     setError("");
     try {
       const location = storageLocationFromUri(document.url);
-      const url = location ? await fileService.createSignedUrl(location.bucket, location.path) : document.url;
+      const url = location ? await files.createSignedUrl(location.bucket, location.path) : document.url;
       if (!url) throw new Error("У документа не указана ссылка");
       window.open(url, "_blank", "noopener,noreferrer");
     } catch (openError) {
