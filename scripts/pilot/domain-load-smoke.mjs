@@ -18,7 +18,7 @@ const client = createClient(url, anonKey, { auth: { autoRefreshToken: false, per
 const { error: authError } = await client.auth.signInWithPassword({ email, password });
 if (authError) throw new Error(`ITR sign-in failed: ${authError.message}`);
 
-const tables = ["objects", "buildings", "floors", "doors", "tasks"];
+const tables = ["objects", "buildings", "floors", "doors", "tasks", "document_items"];
 const timings = [];
 const errors = [];
 let next = 0;

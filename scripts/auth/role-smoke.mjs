@@ -42,7 +42,7 @@ for (const role of roles) {
   if (profile.role !== role || profile.status !== "active") throw new Error(`${role}: unexpected profile role/status`);
 
   let objectCount = 0;
-  for (const table of ["objects", "buildings", "floors", "doors"]) {
+  for (const table of ["objects", "buildings", "floors", "doors", "document_items"]) {
     const { count, error } = await client.from(table).select("id", { head: true, count: "exact" });
     if (error) throw new Error(`${role}: ${table} read failed (${error.message})`);
     if (table === "objects") objectCount = count ?? 0;
