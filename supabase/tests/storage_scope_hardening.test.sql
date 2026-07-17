@@ -29,7 +29,7 @@ insert into public.floors (id, building_id, floor_number) values
   ('34000000-0000-0000-0000-000000000003', '33000000-0000-0000-0000-000000000003', 1);
 
 insert into public.document_items (
-  id, company_id, object_id, building_id, title, url
+  id, company_id, object_id, building_id, title, url, created_by
 ) values
   (
     '36000000-0000-0000-0000-000000000001',
@@ -37,7 +37,8 @@ insert into public.document_items (
     '32000000-0000-0000-0000-000000000001',
     '33000000-0000-0000-0000-000000000001',
     'Legacy assigned document',
-    'storage://documents/30000000-0000-0000-0000-000000000001/32000000-0000-0000-0000-000000000001/legacy.pdf'
+    'storage://documents/30000000-0000-0000-0000-000000000001/32000000-0000-0000-0000-000000000001/legacy.pdf',
+    '31000000-0000-0000-0000-000000000001'
   ),
   (
     '36000000-0000-0000-0000-000000000002',
@@ -45,7 +46,8 @@ insert into public.document_items (
     '32000000-0000-0000-0000-000000000001',
     '33000000-0000-0000-0000-000000000003',
     'Sibling building document',
-    'storage://documents/30000000-0000-0000-0000-000000000001/32000000-0000-0000-0000-000000000001/33000000-0000-0000-0000-000000000003/_/_/sibling.pdf'
+    'storage://documents/30000000-0000-0000-0000-000000000001/32000000-0000-0000-0000-000000000001/33000000-0000-0000-0000-000000000003/_/_/sibling.pdf',
+    '31000000-0000-0000-0000-000000000001'
   );
 
 insert into storage.objects (id, bucket_id, name, owner_id) values
