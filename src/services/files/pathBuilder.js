@@ -10,8 +10,25 @@ function identifier(value, field) {
   return normalized;
 }
 
-export function buildDocumentPath({ companyId, objectId, fileName, fileId = crypto.randomUUID() }) {
-  return `${identifier(companyId, "companyId")}/${identifier(objectId, "objectId")}/${identifier(fileId, "fileId")}.${extensionOf(fileName)}`;
+export function buildDocumentPath({
+  companyId,
+  objectId,
+  buildingId,
+  floorId,
+  doorId,
+  fileName,
+  fileId = crypto.randomUUID(),
+}) {
+  if (doorId && (!floorId || !buildingId)) throw new Error("doorId requires floorId and buildingId");
+  if (floorId && !buildingId) throw new Error("floorId requires buildingId");
+  const scope = [
+    identifier(companyId, "companyId"),
+    identifier(objectId, "objectId"),
+    buildingId ? identifier(buildingId, "buildingId") : "_",
+    floorId ? identifier(floorId, "floorId") : "_",
+    doorId ? identifier(doorId, "doorId") : "_",
+  ];
+  return `${scope.join("/")}/${identifier(fileId, "fileId")}.${extensionOf(fileName)}`;
 }
 
 export function buildFloorPlanPath({ companyId, objectId, buildingId, floorId, fileName, fileId = crypto.randomUUID() }) {

@@ -1,6 +1,6 @@
 begin;
 
-select plan(12);
+select plan(14);
 
 insert into public.companies (id, name) values
   ('30000000-0000-0000-0000-000000000001', 'Storage Company A'),
@@ -21,10 +21,44 @@ insert into public.objects (id, company_id, name) values
   ('32000000-0000-0000-0000-000000000002', '30000000-0000-0000-0000-000000000002', 'Storage Object B');
 insert into public.buildings (id, object_id, name, floors_count, responsible_itr_id) values
   ('33000000-0000-0000-0000-000000000001', '32000000-0000-0000-0000-000000000001', 'Storage Building A', 1, '31000000-0000-0000-0000-000000000002'),
-  ('33000000-0000-0000-0000-000000000002', '32000000-0000-0000-0000-000000000002', 'Storage Building B', 1, null);
+  ('33000000-0000-0000-0000-000000000002', '32000000-0000-0000-0000-000000000002', 'Storage Building B', 1, null),
+  ('33000000-0000-0000-0000-000000000003', '32000000-0000-0000-0000-000000000001', 'Unassigned sibling building', 1, null);
 insert into public.floors (id, building_id, floor_number) values
   ('34000000-0000-0000-0000-000000000001', '33000000-0000-0000-0000-000000000001', 1),
-  ('34000000-0000-0000-0000-000000000002', '33000000-0000-0000-0000-000000000002', 1);
+  ('34000000-0000-0000-0000-000000000002', '33000000-0000-0000-0000-000000000002', 1),
+  ('34000000-0000-0000-0000-000000000003', '33000000-0000-0000-0000-000000000003', 1);
+
+insert into public.document_items (
+  id, company_id, object_id, building_id, title, url
+) values
+  (
+    '36000000-0000-0000-0000-000000000001',
+    '30000000-0000-0000-0000-000000000001',
+    '32000000-0000-0000-0000-000000000001',
+    '33000000-0000-0000-0000-000000000001',
+    'Legacy assigned document',
+    'storage://documents/30000000-0000-0000-0000-000000000001/32000000-0000-0000-0000-000000000001/legacy.pdf'
+  ),
+  (
+    '36000000-0000-0000-0000-000000000002',
+    '30000000-0000-0000-0000-000000000001',
+    '32000000-0000-0000-0000-000000000001',
+    '33000000-0000-0000-0000-000000000003',
+    'Sibling building document',
+    'storage://documents/30000000-0000-0000-0000-000000000001/32000000-0000-0000-0000-000000000001/33000000-0000-0000-0000-000000000003/_/_/sibling.pdf'
+  );
+
+insert into storage.objects (id, bucket_id, name, owner_id) values
+  (
+    '35000000-0000-0000-0000-000000000008', 'documents',
+    '30000000-0000-0000-0000-000000000001/32000000-0000-0000-0000-000000000001/legacy.pdf',
+    '31000000-0000-0000-0000-000000000001'
+  ),
+  (
+    '35000000-0000-0000-0000-000000000009', 'documents',
+    '30000000-0000-0000-0000-000000000001/32000000-0000-0000-0000-000000000001/33000000-0000-0000-0000-000000000003/_/_/sibling.pdf',
+    '31000000-0000-0000-0000-000000000001'
+  );
 
 set local role authenticated;
 select set_config('request.jwt.claim.role', 'authenticated', true);
@@ -67,10 +101,22 @@ select throws_ok(
 select lives_ok(
   $$insert into storage.objects (id, bucket_id, name, owner_id) values (
     '35000000-0000-0000-0000-000000000003', 'documents',
-    '30000000-0000-0000-0000-000000000001/32000000-0000-0000-0000-000000000001/act.pdf',
+    '30000000-0000-0000-0000-000000000001/32000000-0000-0000-0000-000000000001/33000000-0000-0000-0000-000000000001/_/_/act.pdf',
     '31000000-0000-0000-0000-000000000002'
   )$$,
   'assigned ITR can upload an object document'
+);
+
+select is(
+  (select count(*)::integer from storage.objects where id = '35000000-0000-0000-0000-000000000008'),
+  1,
+  'legacy document remains readable through its authorized metadata scope'
+);
+
+select is(
+  (select count(*)::integer from storage.objects where id = '35000000-0000-0000-0000-000000000009'),
+  0,
+  'ITR cannot read a document binary from an unassigned sibling building'
 );
 
 select ok(

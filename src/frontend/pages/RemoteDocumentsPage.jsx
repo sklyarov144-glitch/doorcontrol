@@ -68,7 +68,11 @@ export default function RemoteDocumentsPage({
       });
       if (form.file) {
         await persistUploadedFile({
-          upload: () => files.uploadDocument({ companyId: user.companyId, objectId: form.objectId }, form.file),
+          upload: () => files.uploadDocument({
+            companyId: user.companyId,
+            objectId: form.objectId,
+            buildingId: form.buildingId || null,
+          }, form.file),
           persist: (uploaded) => persist(uploaded.uri),
           remove: (uploaded) => files.remove(uploaded.bucket, [uploaded.path]),
         });
