@@ -1,6 +1,6 @@
 begin;
 
-select plan(14);
+select plan(18);
 
 insert into public.companies (id, name) values
   ('30000000-0000-0000-0000-000000000001', 'Storage Company A'),
@@ -106,7 +106,41 @@ select lives_ok(
     '30000000-0000-0000-0000-000000000001/32000000-0000-0000-0000-000000000001/33000000-0000-0000-0000-000000000001/_/_/act.pdf',
     '31000000-0000-0000-0000-000000000002'
   )$$,
-  'assigned ITR can upload an object document'
+  'assigned ITR can upload a building-scoped document'
+);
+
+select is(
+  (select count(*)::integer from storage.objects where id = '35000000-0000-0000-0000-000000000003'),
+  0,
+  'an uploaded binary stays hidden until document metadata commits'
+);
+
+select lives_ok(
+  $$insert into public.document_items (
+    id, company_id, object_id, building_id, title, url
+  ) values (
+    '36000000-0000-0000-0000-000000000003',
+    '30000000-0000-0000-0000-000000000001',
+    '32000000-0000-0000-0000-000000000001',
+    '33000000-0000-0000-0000-000000000001',
+    'Committed scoped document',
+    'storage://documents/30000000-0000-0000-0000-000000000001/32000000-0000-0000-0000-000000000001/33000000-0000-0000-0000-000000000001/_/_/act.pdf'
+  )$$,
+  'assigned ITR can commit metadata for the uploaded binary'
+);
+
+select is(
+  (select count(*)::integer from storage.objects where id = '35000000-0000-0000-0000-000000000003'),
+  1,
+  'the binary becomes readable after metadata commits'
+);
+
+delete from public.document_items where id = '36000000-0000-0000-0000-000000000003';
+
+select is(
+  (select count(*)::integer from storage.objects where id = '35000000-0000-0000-0000-000000000003'),
+  0,
+  'the binary is hidden again after its metadata is deleted'
 );
 
 select is(
