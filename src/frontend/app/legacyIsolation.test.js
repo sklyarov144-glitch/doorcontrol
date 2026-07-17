@@ -1,7 +1,7 @@
 import { readFileSync } from "node:fs";
 import { describe, expect, it } from "vitest";
 
-const source = readFileSync("src/frontend/app/LegacyApp.jsx", "utf8");
+const source = readFileSync("src/frontend/app/AppRoot.jsx", "utf8");
 const documentsSource = readFileSync("src/frontend/pages/DocumentsPage.jsx", "utf8");
 
 describe("legacy production isolation", () => {
