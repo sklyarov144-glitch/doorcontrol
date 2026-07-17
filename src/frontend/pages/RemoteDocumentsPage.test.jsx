@@ -70,4 +70,33 @@ describe("RemoteDocumentsPage", () => {
     ));
     expect(open).toHaveBeenCalledWith("https://storage.example.test/signed-act", "_blank", "noopener,noreferrer");
   });
+
+  it("uploads a building document into the selected domain scope", async () => {
+    const provider = createProvider();
+    const uploaded = {
+      bucket: "documents",
+      path: "company-1/object-1/building-1/_/_/document.pdf",
+      uri: "storage://documents/company-1/object-1/building-1/_/_/document.pdf",
+    };
+    const files = {
+      uploadDocument: vi.fn(async () => uploaded),
+      remove: vi.fn(async () => undefined),
+    };
+    render(<RemoteDocumentsPage objects={[object]} user={user} provider={provider} files={files} />);
+
+    await screen.findByText("Документы пока не добавлены.");
+    const file = new File(["document"], "document.pdf", { type: "application/pdf" });
+    fireEvent.change(screen.getByLabelText("Или загрузить файл"), { target: { files: [file] } });
+    fireEvent.click(screen.getByRole("button", { name: "Добавить документ" }));
+
+    await waitFor(() => expect(files.uploadDocument).toHaveBeenCalledWith({
+      companyId: "company-1",
+      objectId: "object-1",
+      buildingId: "building-1",
+    }, file));
+    expect(provider.documents.create).toHaveBeenCalledWith(expect.objectContaining({
+      buildingId: "building-1",
+      url: uploaded.uri,
+    }));
+  });
 });
