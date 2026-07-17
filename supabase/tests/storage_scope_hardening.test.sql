@@ -1,6 +1,13 @@
 begin;
 
-select plan(18);
+select plan(20);
+
+select has_index(
+  'public',
+  'document_items',
+  'document_items_url_idx',
+  'document metadata lookup by Storage URI is indexed'
+);
 
 insert into public.companies (id, name) values
   ('30000000-0000-0000-0000-000000000001', 'Storage Company A'),
@@ -9,11 +16,13 @@ insert into public.companies (id, name) values
 insert into public.user_invitations (company_id, email, name, role) values
   ('30000000-0000-0000-0000-000000000001', 'storage-head-a@example.test', 'Storage Head A', 'company_head'),
   ('30000000-0000-0000-0000-000000000001', 'storage-itr-a@example.test', 'Storage ITR A', 'itr'),
+  ('30000000-0000-0000-0000-000000000001', 'storage-itr-peer@example.test', 'Storage ITR Peer', 'itr'),
   ('30000000-0000-0000-0000-000000000002', 'storage-head-b@example.test', 'Storage Head B', 'company_head');
 
 insert into auth.users (id, email, raw_user_meta_data) values
   ('31000000-0000-0000-0000-000000000001', 'storage-head-a@example.test', '{"company_id":"30000000-0000-0000-0000-000000000001","name":"Storage Head A","role":"company_head"}'),
   ('31000000-0000-0000-0000-000000000002', 'storage-itr-a@example.test', '{"company_id":"30000000-0000-0000-0000-000000000001","name":"Storage ITR A","role":"itr"}'),
+  ('31000000-0000-0000-0000-000000000004', 'storage-itr-peer@example.test', '{"company_id":"30000000-0000-0000-0000-000000000001","name":"Storage ITR Peer","role":"itr"}'),
   ('31000000-0000-0000-0000-000000000003', 'storage-head-b@example.test', '{"company_id":"30000000-0000-0000-0000-000000000002","name":"Storage Head B","role":"company_head"}');
 
 insert into public.objects (id, company_id, name) values
@@ -27,6 +36,8 @@ insert into public.floors (id, building_id, floor_number) values
   ('34000000-0000-0000-0000-000000000001', '33000000-0000-0000-0000-000000000001', 1),
   ('34000000-0000-0000-0000-000000000002', '33000000-0000-0000-0000-000000000002', 1),
   ('34000000-0000-0000-0000-000000000003', '33000000-0000-0000-0000-000000000003', 1);
+insert into public.building_assignments (building_id, user_id) values
+  ('33000000-0000-0000-0000-000000000001', '31000000-0000-0000-0000-000000000004');
 
 insert into public.document_items (
   id, company_id, object_id, building_id, title, url, created_by
@@ -111,9 +122,17 @@ select lives_ok(
 
 select is(
   (select count(*)::integer from storage.objects where id = '35000000-0000-0000-0000-000000000003'),
-  0,
-  'an uploaded binary stays hidden until document metadata commits'
+  1,
+  'the uploader can select an uncommitted binary for compensation cleanup'
 );
+
+select set_config('request.jwt.claim.sub', '31000000-0000-0000-0000-000000000004', true);
+select is(
+  (select count(*)::integer from storage.objects where id = '35000000-0000-0000-0000-000000000003'),
+  0,
+  'a scoped colleague cannot read an uncommitted binary'
+);
+select set_config('request.jwt.claim.sub', '31000000-0000-0000-0000-000000000002', true);
 
 select lives_ok(
   $$insert into public.document_items (
@@ -137,10 +156,11 @@ select is(
 
 delete from public.document_items where id = '36000000-0000-0000-0000-000000000003';
 
+select set_config('request.jwt.claim.sub', '31000000-0000-0000-0000-000000000004', true);
 select is(
   (select count(*)::integer from storage.objects where id = '35000000-0000-0000-0000-000000000003'),
   0,
-  'the binary is hidden again after its metadata is deleted'
+  'the binary is hidden from scoped colleagues after its metadata is deleted'
 );
 
 select is(

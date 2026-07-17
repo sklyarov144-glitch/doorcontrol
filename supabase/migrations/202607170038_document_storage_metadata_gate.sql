@@ -27,9 +27,17 @@ $$;
 revoke all on function public.can_read_document_storage_path(text) from public, anon;
 grant execute on function public.can_read_document_storage_path(text) to authenticated;
 
+create index if not exists document_items_url_idx on public.document_items(url);
+
 drop policy if exists documents_storage_select on storage.objects;
 create policy documents_storage_select on storage.objects for select to authenticated
 using (
   bucket_id = 'documents'
-  and public.can_read_document_storage_path(name)
+  and (
+    public.can_read_document_storage_path(name)
+    or (
+      public.can_access_document_storage_path(name)
+      and (owner_id = auth.uid()::text or public.has_admin_access())
+    )
+  )
 );
