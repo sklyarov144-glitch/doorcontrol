@@ -60,25 +60,7 @@ export function useAppRouteSync({
     if (route.buildingId) setSelectedBuildingId(route.buildingId);
     if (route.floorId) setSelectedFloorId(route.floorId);
     if (route.doorId) setSelectedDoorId(route.doorId);
-  }, [
-    authLoading,
-    isLoggedIn,
-    isPasswordRecovery,
-    location.pathname,
-    permissions,
-    role,
-    routerNavigate,
-    screen,
-    setSelectedBuildingId,
-    setSelectedDoorId,
-    setSelectedFloorId,
-    setSelectedObjectId,
-    selectedBuildingId,
-    selectedDoorId,
-    selectedFloorId,
-    selectedObjectId,
-    setScreen,
-  ]);
+  }, [authLoading, isLoggedIn, location.pathname, isPasswordRecovery, permissions, role]);
 
   React.useEffect(() => {
     if (authLoading || !isLoggedIn || permissions.canView(screen)) return;
