@@ -72,7 +72,7 @@ import { RemoteBrigadePlanPage, RemoteManpowerPage } from "../pages/RemoteWorkfo
 import AuditLogPage from "../pages/AuditLogPage";
 import { AuthProvider } from "../contexts/AuthContext";
 import { Detail, Metric, StatusBadge } from "../components/UiPrimitives";
-import { Header, Sidebar } from "../components/AppShell";
+import AuthenticatedAppShell from "../components/AuthenticatedAppShell";
 import LoginPage, { PasswordRecoveryPage } from "../pages/LoginPage";
 import ObjectsPage from "../pages/ObjectsPage";
 import StandaloneObjectPage from "../pages/ObjectPage";
@@ -1237,50 +1237,46 @@ export function App({ demoUsers = [], demoPassword = "" }) {
   }
 
   return (
-    <AuthProvider value={authValue}><div className={`app-shell ${sidebarCollapsed ? "sidebar-collapsed" : ""}`}>
-      <Sidebar
-        role={user.role}
-        activeScreen={screen}
-        setScreen={navigate}
-        onLogout={logoutUser}
-        taskNoticeCount={taskNoticeCount}
-        collapsed={sidebarCollapsed}
-        onToggleCollapsed={() => setSidebarCollapsed((value) => !value)}
-      />
-      <main className="content">
-        <Header
-          screen={screen}
-          setScreen={setScreen}
-          selectedObject={selectedObject}
-          selectedBuilding={selectedBuilding}
-          selectedFloor={selectedFloor}
-          selectedDoor={selectedDoor}
-          user={user}
-          users={users}
-          notifications={notifications}
-          unreadNotifications={unreadNotifications}
-          allowUserSwitch={!isRemoteAuth}
-          onOpenNotification={(notification) => {
-            readNotification(notification.id);
-            if (notification.taskId) {
-              setScreen("tasks");
-              return;
-            }
-            openProblem(notification);
-          }}
-          onMarkNotificationRead={readNotification}
-          onMarkAllNotificationsRead={readAllNotifications}
-          onOpenNotificationsPage={() => setScreen("notifications")}
-          onUserChange={(userId) => {
-            setCurrentUserId(userId);
-            dataProvider.auth.saveSession({ userId, createdAt: new Date().toISOString() });
-            const nextUser = users.find((item) => item.id === userId);
-            const nextScreen = defaultScreenForRole(nextUser?.role);
-            setScreen(nextScreen);
-            routerNavigate(buildAppPath(nextScreen));
-          }}
-        />
-        <div className="page-transition" key={screen}>
+    <AuthenticatedAppShell
+      authValue={authValue}
+      sidebarCollapsed={sidebarCollapsed}
+      role={user.role}
+      activeScreen={screen}
+      onNavigate={navigate}
+      onLogout={logoutUser}
+      taskNoticeCount={taskNoticeCount}
+      onToggleSidebar={() => setSidebarCollapsed((value) => !value)}
+      screen={screen}
+      selectedObject={selectedObject}
+      selectedBuilding={selectedBuilding}
+      selectedFloor={selectedFloor}
+      selectedDoor={selectedDoor}
+      user={user}
+      users={users}
+      notifications={notifications}
+      unreadNotifications={unreadNotifications}
+      allowUserSwitch={!isRemoteAuth}
+      onOpenNotification={(notification) => {
+        readNotification(notification.id);
+        if (notification.taskId) {
+          setScreen("tasks");
+          return;
+        }
+        openProblem(notification);
+      }}
+      onMarkNotificationRead={readNotification}
+      onMarkAllNotificationsRead={readAllNotifications}
+      onOpenNotificationsPage={() => setScreen("notifications")}
+      onUserChange={(userId) => {
+        setCurrentUserId(userId);
+        dataProvider.auth.saveSession({ userId, createdAt: new Date().toISOString() });
+        const nextUser = users.find((item) => item.id === userId);
+        const nextScreen = defaultScreenForRole(nextUser?.role);
+        setScreen(nextScreen);
+        routerNavigate(buildAppPath(nextScreen));
+      }}
+    >
+      <div className="page-transition" key={screen}>
           {persistenceError && <div className="form-error persistence-error" role="alert">{persistenceError}<button type="button" onClick={() => setPersistenceError("")}>×</button></div>}
           {screen === "admin" && (
             <AdminPanel
@@ -1449,7 +1445,6 @@ export function App({ demoUsers = [], demoPassword = "" }) {
             onSaveDoor={saveDoorDetails}
           />
         </div>
-      </main>
       {taskContext && (
         <TaskCreateModal
           context={taskContext}
@@ -1472,7 +1467,7 @@ export function App({ demoUsers = [], demoPassword = "" }) {
           }}
         />
       )}
-    </div></AuthProvider>
+    </AuthenticatedAppShell>
   );
 }
 
