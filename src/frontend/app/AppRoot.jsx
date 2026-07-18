@@ -101,6 +101,7 @@ import { applyDoorWorkflow } from "../domain/doorWorkflow";
 import { getManualTaskNoticeCount } from "../domain/tasks";
 import { visibleObjectsForUser as getVisibleObjectsForUser } from "../domain/objectAccess";
 import { buildAppPath, parseAppRoute } from "./routes";
+import AppRoutePages from "./AppRoutePages";
 import "../styles.css";
 
 const manualTaskTypes = [
@@ -1396,119 +1397,57 @@ export function App({ demoUsers = [], demoPassword = "" }) {
               }}
             />
           )}
-          {screen === "documents" && (isRemoteAuth
-            ? <RemoteDocumentsPage objects={visibleObjects} user={user} />
-            : <DocumentsPage objects={visibleObjects} user={user} />)}
-          {screen === "brigade_plan" && (isRemoteAuth ? <RemoteBrigadePlanPage objects={visibleObjects} user={user} users={users} /> : <StandaloneBrigadePlanPage objects={visibleObjects} user={user} users={users} />)}
-          {screen === "manpower" && (isRemoteAuth ? <RemoteManpowerPage objects={visibleObjects} user={user} users={users} onNotify={refreshNotifications} /> : <StandaloneManpowerPage objects={visibleObjects} user={user} users={users} onNotify={refreshNotifications} />)}
-          {screen === "notifications" && (
-            <NotificationsPage
-              notifications={notifications}
-              onOpen={(notification) => {
-                readNotification(notification.id);
-                notification.taskId ? setScreen("tasks") : openProblem(notification);
-              }}
-              onMarkRead={readNotification}
-              onMarkAll={readAllNotifications}
-              onQuickAct={(notification) => {
-                const task = manualTasks.find((item) => item.id === notification.taskId);
-                if (task) setActNotificationTask({ task, notificationId: notification.id });
-              }}
-              onQuickTn={(notification) => {
-                quickAcceptTn(notification);
-              }}
-            />
-          )}
-          {screen === "tasks" && (
-            <ManualTasksPage
-              tasks={manualTasks}
-              objects={visibleObjects}
-              user={user}
-              users={users}
-              onOpen={openProblem}
-              onCreateTask={() => openTaskModal({})}
-              onUpdateTask={changeManualTask}
-              onAddComment={commentManualTask}
-              onAddLink={linkManualTask}
-            />
-          )}
-          {screen === "custody_acts" && (isRemoteAuth
-            ? <RemoteCustodyActsPage objects={visibleObjects} users={users} onOpen={openProblem} onUpdateAct={updateCustodyAct} />
-            : <StandaloneCustodyActsPage objects={visibleObjects} user={user} users={users} onOpen={openProblem} onUpdateAct={updateCustodyAct} />)}
-          {screen === "tn_issues" && (isRemoteAuth ? <RemoteTnIssuesPage objects={visibleObjects} users={users} onOpen={openProblem} onResolve={(doorId) => updateDoor(doorId, { issue: "устранено", tnIssues: "Нет" })} /> : <StandaloneTnIssuesPage objects={visibleObjects} user={user} users={users} onOpen={openProblem} />)}
-          {screen === "today_tasks" && <TodayTasksPage tasks={manualTasks} objects={visibleObjects} user={user} users={users} onOpen={openProblem} onUpdateTask={changeManualTask} />}
-          {screen === "problem_center" && (isRemoteAuth
-            ? <RemoteProblemCenterPage objects={visibleObjects} user={user} users={users} onOpen={openProblem} onCreateTask={openTaskModal} />
-            : <StandaloneProblemCenterPage objects={visibleObjects} user={user} users={users} onOpen={openProblem} onCreateTask={openTaskModal} />)}
-          {screen === "reports" && <ReportsPage objects={visibleObjects} />}
-          {screen === "finance" && <FinancePage objects={visibleObjects} user={user} />}
-          {screen === "audit" && ["creator", "company_head", "construction_director"].includes(user.role) && <AuditLogPage objects={visibleObjects} users={users} />}
-          {screen === "audit" && !["creator", "company_head", "construction_director"].includes(user.role) && <AccessDeniedPage />}
-          {screen === "company_dashboard" && (isRemoteAuth ? <RemoteExecutiveDashboard objects={visibleObjects} users={users} onOpen={openProblem} /> : <CompanyDashboard objects={visibleObjects} users={users} onOpen={openProblem} manpowerObjects={getManpowerObjectOptions(visibleObjects)} />)}
-          {screen === "users" && <UsersPage users={users} objects={objects} currentUser={user} remoteAuth={isRemoteAuth} demoPassword={demoPassword} onSave={async (nextUsers) => {
-            if (isRemoteAuth) {
-              const rows = await dataProvider.users.getAll();
-              setUsers(rows.map(normalizeUser));
-              return;
-            }
-            setUsers(nextUsers);
-            saveUsers(nextUsers);
-          }} />}
-          {screen === "roles" && <RolesPage users={users} onOpenUsers={() => setScreen("users")} />}
-          {screen === "companies" && <CompanyPage objects={visibleObjects} users={users} user={user} onOpenObjects={() => setScreen("objects")} />}
-          {screen === "objects" && <ObjectsPage objects={visibleObjects} onOpen={goToObject} />}
-          {screen === "object" && selectedObject && (
-            <StandaloneObjectPage
-              object={selectedObject}
-              objects={objects}
-              users={users}
-              teams={isRemoteAuth ? remoteTeams : getTeams()}
-              user={user}
-              onOpenBuilding={goToBuilding}
-              onCreateTask={openTaskModal}
-              canCreateTask={canCreateManualTask}
-              onChange={async (nextObjects) => {
-                await saveObjects(nextObjects);
-                setObjects(nextObjects);
-              }}
-            />
-          )}
-          {screen === "building" && selectedBuilding && (
-            <section className="building-dashboard">
-              <BuildingVisualization
-                building={selectedBuilding}
-                objectId={selectedObject?.id}
-                selectedFloorId={selectedFloorId}
-                onSelectFloor={goToFloor}
-                onCreateTask={openTaskModal}
-                canCreateTask={canCreateManualTask}
-              />
-            </section>
-          )}
-          {screen === "floor" && selectedBuilding && selectedFloor && (
-            <FloorPlan
-              object={selectedObject}
-              building={selectedBuilding}
-              floor={selectedFloor}
-              onOpenDoor={goToDoor}
-              onBack={() => setScreen("building")}
-              onCreateTask={openTaskModal}
-              canCreateTask={canCreateManualTask}
-            />
-          )}
-          {screen === "door" && selectedDoor && (
-            <DoorDetails
-              object={selectedObject}
-              building={selectedBuilding}
-              floor={selectedFloor}
-              door={selectedDoor}
-              user={user}
-              onSave={saveDoorDetails}
-              onBack={() => setScreen("floor")}
-              onCreateTask={openTaskModal}
-              canCreateTask={canCreateManualTask}
-            />
-          )}
+          <AppRoutePages
+            screen={screen}
+            isRemoteAuth={isRemoteAuth}
+            objects={objects}
+            visibleObjects={visibleObjects}
+            user={user}
+            users={users}
+            remoteTeams={remoteTeams}
+            teams={isRemoteAuth ? remoteTeams : getTeams()}
+            manpowerObjects={isRemoteAuth ? [] : getManpowerObjectOptions(visibleObjects)}
+            demoPassword={demoPassword}
+            notifications={notifications}
+            manualTasks={manualTasks}
+            selectedObject={selectedObject}
+            selectedBuilding={selectedBuilding}
+            selectedFloorId={selectedFloorId}
+            selectedFloor={selectedFloor}
+            selectedDoor={selectedDoor}
+            canCreateManualTask={canCreateManualTask}
+            onReadNotification={readNotification}
+            onReadAllNotifications={readAllNotifications}
+            onOpenNotificationProblem={openProblem}
+            onOpenTaskModal={openTaskModal}
+            onSetScreen={setScreen}
+            onSetActNotificationTask={setActNotificationTask}
+            onQuickAcceptTn={quickAcceptTn}
+            onChangeManualTask={changeManualTask}
+            onCommentManualTask={commentManualTask}
+            onLinkManualTask={linkManualTask}
+            onNotify={refreshNotifications}
+            onUpdateCustodyAct={updateCustodyAct}
+            onUpdateDoor={updateDoor}
+            onSaveUsers={async (nextUsers) => {
+              if (isRemoteAuth) {
+                const rows = await dataProvider.users.getAll();
+                setUsers(rows.map(normalizeUser));
+                return;
+              }
+              setUsers(nextUsers);
+              saveUsers(nextUsers);
+            }}
+            onChangeObjects={async (nextObjects) => {
+              await saveObjects(nextObjects);
+              setObjects(nextObjects);
+            }}
+            onOpenObject={goToObject}
+            onOpenBuilding={goToBuilding}
+            onOpenFloor={goToFloor}
+            onOpenDoor={goToDoor}
+            onSaveDoor={saveDoorDetails}
+          />
         </div>
       </main>
       {taskContext && (
