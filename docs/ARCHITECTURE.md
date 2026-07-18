@@ -19,7 +19,7 @@ src/services/
   dataProvider/ единая граница доступа к данным
 ```
 
-`app/AppRoot.jsx` содержит текущий orchestration-слой и app shell; страницы вынесены в `pages`, а общие блоки — в `components`. `app/LegacyApp.jsx` сохранён только как тонкий compatibility re-export для внешних импортов и не является точкой входа приложения. Следующий шаг декомпозиции — вынести оставшийся shell/router из `AppRoot.jsx` в самостоятельные компоненты.
+`app/AppRoot.jsx` содержит orchestration-слой; страницы вынесены в `pages`, app shell — в `components/AuthenticatedAppShell.jsx`, а синхронизация URL и переходного маршрутизатора — в `app/useAppRouteSync.js`. `app/LegacyApp.jsx` сохранён только как тонкий compatibility re-export для внешних импортов и не является точкой входа приложения.
 
 ## Маршрутизация
 
@@ -43,11 +43,9 @@ Vercel rewrite направляет прямые запросы на `index.html
 
 ## Следующий этап
 
-1. Вынести оставшийся app shell и transition-router из `app/AppRoot.jsx` в
-   самостоятельные компоненты, не расширяя orchestration-слой.
-2. Завершить пилотную сверку реального объекта и подписать UAT для руководителя
+1. Завершить пилотную сверку реального объекта и подписать UAT для руководителя
    и ИТР.
-3. Закрыть внешние deployment gates: staging Vercel, Sentry, production MFA,
+2. Закрыть внешние deployment gates: staging Vercel, Sentry, production MFA,
    PITR, backup/restore drill, SMTP и защищённый production release.
-4. Оставить local provider только для явного demo-режима; production должен
+3. Оставить local provider только для явного demo-режима; production должен
    использовать Supabase provider и реальные environment secrets.
