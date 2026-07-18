@@ -68,6 +68,27 @@ Staging использует отдельный Vercel project и публику
 завершается ошибкой и не выдаёт отсутствие деплоя за успешный release. После
 заполнения Supabase/Vercel secrets дополнительное изменение workflow не требуется.
 
+### Если staging останавливается на Vercel
+
+Ошибка `The token provided via --token argument is not valid` означает, что
+`VERCEL_TOKEN` в GitHub Environment `staging` просрочен, отозван или относится к
+другому Vercel account. Исходный код и Supabase при этом могут быть исправны.
+
+1. Создать новый token в Vercel с доступом к staging project и проверить локально
+   только в текущем shell: `read -s VERCEL_TOKEN; export VERCEL_TOKEN; npx vercel whoami --token="$VERCEL_TOKEN"; unset VERCEL_TOKEN`.
+2. Обновить secret, не записывая значение в файл или командную историю:
+   `gh secret set VERCEL_TOKEN --env staging --repo sklyarov144-glitch/doorcontrol`.
+   Команда запросит значение через stdin.
+3. Проверить, что `VERCEL_ORG_ID` и `VERCEL_PROJECT_ID` указывают на тот же
+   staging project, затем повторно запустить workflow `Deploy staging` только
+   от успешного merge-коммита в `main`.
+4. Сохранить artifact `staging-release-<полный SHA>` и только после этого
+   продолжать UAT. Не считать зелёный backend health smoke успешным staging
+   релизом без frontend smoke и release evidence.
+
+После ротации token нельзя переиспользовать его в `production`: production
+   должен иметь отдельный Vercel project и отдельный GitHub Environment secret.
+
 Перед production проверяются вход каждой роли, RLS, создание/редактирование объекта, маршрут до двери, задачи, уведомления, документы и отчёты.
 
 ## Production release
