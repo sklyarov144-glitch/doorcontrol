@@ -68,7 +68,7 @@ Staging использует отдельный Vercel project и публику
 
 Пока secrets среды или четыре role-smoke аккаунта не настроены, staging workflow
 завершается ошибкой и не выдаёт отсутствие деплоя за успешный release. После
-заполнения Supabase/Vercel secrets дополнительное изменение workflow не требуется.
+заполнения Supabase/Vercel/Sentry secrets дополнительное изменение workflow не требуется.
 
 ### Если staging останавливается на Vercel
 
