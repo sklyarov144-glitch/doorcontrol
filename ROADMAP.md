@@ -16,7 +16,7 @@
 - [x] Базовый финансовый контур.
 - [x] Аудит, Sentry-интеграция и security hardening.
 - [x] CI с чистым database reset, lint и pgTAP/RLS-тестами.
-- [x] Staging/production workflows, backup и restore drill.
+- [x] Staging/production workflows, backup/restore automation и tooling для evidence.
 - [x] Транзакционные workflow двери, акта, документа задачи и иерархии.
 
 ## В работе: пилотная готовность
@@ -45,6 +45,10 @@
 - [ ] Завершить production-настройку MFA администраторам, PITR и алертов.
   TOTP enrollment/challenge, личный кабинет, обязательный production UI gate, серверный `aal2` write guard и MFA-aware smoke реализованы. До закрытия пункта нужно зарегистрировать реальные факторы привилегированных аккаунтов и добавить TOTP smoke secrets.
 - [ ] Выполнить restore drill на свежем backup.
+  Автоматизация и проверки готовы, но scheduled backup workflow от 2026-07-19
+  корректно остановился до подключения к БД: в production environment не заданы
+  `SUPABASE_DB_URL`, `BACKUP_ENCRYPTION_PASSWORD`, `BACKUP_SUPABASE_URL` и
+  `BACKUP_SUPABASE_SERVICE_ROLE_KEY`.
 - [ ] Согласовать SLA, владельцев поддержки и план отката.
 - [ ] Выпустить production через защищённый GitHub Environment.
 - [ ] Провести двухчасовое наблюдение после релиза.
