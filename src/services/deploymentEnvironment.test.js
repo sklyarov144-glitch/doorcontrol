@@ -14,6 +14,7 @@ function valuesFor(environment) {
   values.BACKUP_ENCRYPTION_PASSWORD = "a-secure-backup-password-123456";
   values.SUPABASE_DB_URL = "postgresql://postgres:secret@db.example.ru:5432/postgres";
   values.BACKUP_SUPABASE_URL = "https://abcdefghijklmnopqrst.supabase.co";
+  values.VITE_SENTRY_DSN = "https://public@example.ingest.sentry.io/1";
   return values;
 }
 
@@ -65,6 +66,12 @@ describe("GitHub deployment environment configuration", () => {
     const values = valuesFor("staging");
     values.AUTH_SMOKE_SUPABASE_URL = "https://bbbbbbbbbbbbbbbbbbbb.supabase.co";
     expect(validateEnvironmentValues("staging", values).errors).toContain("Auth smoke credentials must target the deployed Supabase project");
+  });
+
+  it("rejects an invalid Sentry DSN before deployment", () => {
+    const values = valuesFor("staging");
+    values.VITE_SENTRY_DSN = "not-a-sentry-dsn";
+    expect(validateEnvironmentValues("staging", values).errors[0]).toContain("VITE_SENTRY_DSN is invalid");
   });
 
   it("validates isolated backup and restore credentials", () => {

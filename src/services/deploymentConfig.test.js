@@ -92,6 +92,12 @@ describe("public runtime configuration preflight", () => {
     expect(result.stderr).toContain("VITE_SENTRY_DSN");
   });
 
+  it("rejects a malformed Sentry DSN for the hosted staging runtime", () => {
+    const result = verifyPublicEnvironment({ VITE_SENTRY_DSN: "not-a-sentry-dsn" }, "staging");
+    expect(result.status).not.toBe(0);
+    expect(result.stderr).toContain("Sentry DSN");
+  });
+
   it("rejects local providers and non-hosted database URLs", () => {
     expect(verifyPublicEnvironment({ VITE_DATA_PROVIDER: "local" }).status).not.toBe(0);
     expect(verifyPublicEnvironment({ VITE_SUPABASE_URL: "http://localhost:54321" }).status).not.toBe(0);
