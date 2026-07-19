@@ -22,12 +22,12 @@ function verify(overrides = {}) {
   });
 }
 
-function verifyPublicEnvironment(overrides = {}) {
+function verifyPublicEnvironment(overrides = {}, target = "production") {
   return spawnSync(globalThis.process.execPath, ["scripts/verify-env.mjs"], {
     cwd: globalThis.process.cwd(),
     env: {
       ...globalThis.process.env,
-      DEPLOY_ENV: "production",
+      DEPLOY_ENV: target,
       VITE_DATA_PROVIDER: "supabase",
       VITE_SUPABASE_URL: "https://abcdefghijklmnopqrst.supabase.co",
       VITE_SUPABASE_ANON_KEY: "a".repeat(100),
@@ -84,6 +84,12 @@ describe("production bundle verifier", () => {
 describe("public runtime configuration preflight", () => {
   it("accepts a hosted Supabase production runtime", () => {
     expect(verifyPublicEnvironment().status).toBe(0);
+  });
+
+  it("requires Sentry for the hosted staging runtime", () => {
+    const result = verifyPublicEnvironment({ VITE_SENTRY_DSN: "" }, "staging");
+    expect(result.status).not.toBe(0);
+    expect(result.stderr).toContain("VITE_SENTRY_DSN");
   });
 
   it("rejects local providers and non-hosted database URLs", () => {
