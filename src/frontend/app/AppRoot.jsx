@@ -102,6 +102,7 @@ import { getManualTaskNoticeCount } from "../domain/tasks";
 import { visibleObjectsForUser as getVisibleObjectsForUser } from "../domain/objectAccess";
 import { buildAppPath, parseAppRoute } from "./routes";
 import AppRoutePages from "./AppRoutePages";
+import { defaultScreenForRole, useAppRouteSync } from "./useAppRouteSync";
 import "../styles.css";
 
 const manualTaskTypes = [
@@ -485,7 +486,6 @@ function saveUsers(users) {
 export function App({ demoUsers = [], demoPassword = "" }) {
   const location = useLocation();
   const routerNavigate = useNavigate();
-  const routeSyncing = React.useRef(false);
   const initialRoute = parseAppRoute(location.pathname);
   const isRemoteAuth = dataProviderName === "supabase";
   const isPasswordRecovery = isRemoteAuth && location.pathname === "/reset-password";
@@ -1085,63 +1085,29 @@ export function App({ demoUsers = [], demoPassword = "" }) {
     setScreen(nextScreen);
   };
 
-  const defaultScreenForRole = (role) => role === "itr" ? "tasks" : "company_dashboard";
-
-  React.useEffect(() => {
-    if (authLoading) return;
-    if (isPasswordRecovery) return;
-    if (!isLoggedIn) {
-      if (location.pathname !== "/login") routerNavigate("/login", { replace: true });
-      return;
-    }
-    if (location.pathname === "/login" || location.pathname === "/") {
-      routerNavigate(buildAppPath(defaultScreenForRole(user.role)), { replace: true });
-      return;
-    }
-    const route = parseAppRoute(location.pathname);
-    if (!permissions.canView(route.screen)) {
-      const fallback = defaultScreenForRole(user.role);
-      routeSyncing.current = false;
-      setScreen(fallback);
-      routerNavigate(buildAppPath(fallback), { replace: true });
-      return;
-    }
-    const routeChanged = route.screen !== screen ||
-      Boolean(route.objectId && route.objectId !== selectedObjectId) ||
-      Boolean(route.buildingId && route.buildingId !== selectedBuildingId) ||
-      Boolean(route.floorId && route.floorId !== selectedFloorId) ||
-      Boolean(route.doorId && route.doorId !== selectedDoorId);
-    if (!routeChanged) return;
-    routeSyncing.current = true;
-    setScreen(route.screen);
-    if (route.objectId) setSelectedObjectId(route.objectId);
-    if (route.buildingId) setSelectedBuildingId(route.buildingId);
-    if (route.floorId) setSelectedFloorId(route.floorId);
-    if (route.doorId) setSelectedDoorId(route.doorId);
-  }, [authLoading, isLoggedIn, location.pathname, isPasswordRecovery, permissions, user.role]);
-
-  React.useEffect(() => {
-    if (authLoading || !isLoggedIn || permissions.canView(screen)) return;
-    const fallback = defaultScreenForRole(user.role);
-    routeSyncing.current = false;
-    setScreen(fallback);
-    routerNavigate(buildAppPath(fallback), { replace: true });
-  }, [authLoading, isLoggedIn, permissions, screen, user.role]);
-
-  React.useEffect(() => {
-    if (!isLoggedIn || location.pathname === "/login") return;
-    if (routeSyncing.current) {
-      routeSyncing.current = false;
-      return;
-    }
-    const nextPath = buildAppPath(screen, {
-      objectId: selectedObject?.id,
-      buildingId: selectedBuilding?.id,
-      floorId: selectedFloor?.id,
-      doorId: selectedDoor?.id,
-    });
-    if (location.pathname !== nextPath) routerNavigate(nextPath);
-  }, [screen, selectedObject?.id, selectedBuilding?.id, selectedFloor?.id, selectedDoor?.id, isLoggedIn]);
+  useAppRouteSync({
+    location,
+    routerNavigate,
+    authLoading,
+    isLoggedIn,
+    isPasswordRecovery,
+    permissions,
+    role: user.role,
+    screen,
+    setScreen,
+    setSelectedObjectId,
+    setSelectedBuildingId,
+    setSelectedFloorId,
+    setSelectedDoorId,
+    selectedObjectId,
+    selectedBuildingId,
+    selectedFloorId,
+    selectedDoorId,
+    selectedObject,
+    selectedBuilding,
+    selectedFloor,
+    selectedDoor,
+  });
 
   const loginUser = async (email, password) => {
     if (isRemoteAuth) {
