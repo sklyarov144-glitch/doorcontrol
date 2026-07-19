@@ -20,6 +20,7 @@ function valuesFor(environment) {
 describe("GitHub deployment environment configuration", () => {
   it("requires role smoke accounts for staging", () => {
     expect(environmentRequirements("staging").secrets).toContain("AUTH_SMOKE_ITR_PASSWORD");
+    expect(environmentRequirements("staging").secrets).toContain("VITE_SENTRY_DSN");
   });
 
   it("requires role smoke accounts for production", () => {

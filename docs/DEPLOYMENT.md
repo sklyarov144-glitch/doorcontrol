@@ -53,6 +53,8 @@ Push в `main` сначала запускает CI. Staging workflow старт
 6. собирает и публикует frontend;
 7. выполняет smoke-test опубликованного URL;
 8. входит всеми четырьмя тестовыми ролями и проверяет базовую область RLS.
+9. отправляет тестовое событие в Sentry и сохраняет evidence; без
+   `VITE_SENTRY_DSN` staging-релиз останавливается до публикации frontend.
 
 Smoke выполняется по каноническому `APP_PUBLIC_URL`, потому что одноразовые Vercel
 deployment URL могут быть закрыты Deployment Protection. HTML содержит meta

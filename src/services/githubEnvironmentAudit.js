@@ -38,10 +38,6 @@ export function auditEnvironmentInventory(environment, inventory) {
     }
   }
 
-  if (environment === "staging" && !secrets.has("VITE_SENTRY_DSN")) {
-    warnings.push("VITE_SENTRY_DSN is not configured; staging frontend errors are not monitored in Sentry.");
-  }
-
   return {
     environment,
     ready: missingSecrets.length === 0 && missingVariables.length === 0 && missingProtections.length === 0,

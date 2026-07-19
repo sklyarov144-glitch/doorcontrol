@@ -66,12 +66,19 @@ describe("auditEnvironmentInventory", () => {
     expect(result.missingProtections).toEqual(["self-review disabled"]);
   });
 
-  it("warns when optional staging monitoring is absent", () => {
+  it("requires staging monitoring before a release can proceed", () => {
     const result = auditEnvironmentInventory("staging", completeInventory("staging"));
 
     expect(result.ready).toBe(true);
-    expect(result.warnings).toHaveLength(1);
-    expect(result.warnings[0]).toContain("VITE_SENTRY_DSN");
+    expect(result.warnings).toHaveLength(0);
+
+    const withoutSentry = {
+      ...completeInventory("staging"),
+      secrets: completeInventory("staging").secrets.filter((name) => name !== "VITE_SENTRY_DSN"),
+    };
+    const missing = auditEnvironmentInventory("staging", withoutSentry);
+    expect(missing.ready).toBe(false);
+    expect(missing.missingSecrets).toContain("VITE_SENTRY_DSN");
   });
 
   it("accepts an unattended backup environment and protects restore separately", () => {

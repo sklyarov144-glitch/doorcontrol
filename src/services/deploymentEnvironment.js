@@ -9,6 +9,7 @@ const roleSmokeSecrets = [
   "AUTH_SMOKE_CONSTRUCTION_DIRECTOR_EMAIL", "AUTH_SMOKE_CONSTRUCTION_DIRECTOR_PASSWORD",
   "AUTH_SMOKE_ITR_EMAIL", "AUTH_SMOKE_ITR_PASSWORD",
 ];
+const stagingObservabilitySecrets = ["VITE_SENTRY_DSN"];
 const productionSecrets = [
   "VITE_SENTRY_DSN", "UAT_EVIDENCE_JSON",
   "PILOT_RECONCILIATION_EVIDENCE_JSON", "RESTORE_EVIDENCE_JSON",
@@ -31,7 +32,12 @@ export function environmentRequirements(environment) {
   if (environment === "production-backup") return { secrets: backupSecrets, variables: [] };
   if (environment === "production-restore") return { secrets: restoreSecrets, variables: [] };
   return {
-    secrets: [...commonSecrets, ...roleSmokeSecrets, ...(environment === "production" ? productionSecrets : [])],
+    secrets: [
+      ...commonSecrets,
+      ...roleSmokeSecrets,
+      ...(environment === "staging" ? stagingObservabilitySecrets : []),
+      ...(environment === "production" ? productionSecrets : []),
+    ],
     variables: ["APP_ALLOWED_ORIGINS", "APP_PUBLIC_URL"],
   };
 }
