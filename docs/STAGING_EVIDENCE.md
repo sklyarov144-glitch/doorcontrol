@@ -7,6 +7,12 @@ frontend smoke и immutable release evidence. Последний запуск о
 изменения инфраструктуры: Vercel отклонил `VERCEL_TOKEN`; после усиления gate
 также требуется `VITE_SENTRY_DSN`.
 
+Канонический URL сейчас отвечает `HTTP 200`, но отдаёт release SHA
+`d9469ba77372db21683d4677d7ea2ec13129793f` от 17 июля, тогда как актуальный
+`main` — `51fba03502248eeb052934730f6e1c4bb927e1ac`. Этот старый deployment не
+является evidence текущего релиза и не используется для UAT или production
+provenance.
+
 Окружение: [gross-lean-montage-staging.vercel.app](https://gross-lean-montage-staging.vercel.app/).
 
 Каждый успешный workflow `Deploy staging` создаёт неизменяемый артефакт
