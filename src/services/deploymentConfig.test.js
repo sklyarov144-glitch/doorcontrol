@@ -137,3 +137,12 @@ describe("staging smoke account bootstrap", () => {
     expect(result.stderr).toContain("STAGING_BOOTSTRAP_CONFIRM=STAGING");
   });
 });
+
+describe("staging deployment observability gate", () => {
+  it("passes the Sentry DSN to verify-env and requires a non-optional smoke", () => {
+    const workflow = readFileSync(".github/workflows/deploy-staging.yml", "utf8");
+    expect(workflow).toContain("VITE_SENTRY_DSN: ${{ secrets.VITE_SENTRY_DSN }}");
+    expect(workflow).toContain("run: npm run monitoring:smoke");
+    expect(workflow).not.toContain("run: npm run monitoring:smoke -- --optional");
+  });
+});
