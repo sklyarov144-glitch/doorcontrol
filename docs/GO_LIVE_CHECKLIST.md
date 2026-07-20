@@ -23,7 +23,9 @@
 - [ ] UAT использует staging evidence с `productionEligible: true`.
 - [x] RLS автоматически проверен в CI минимум двумя компаниями и четырьмя ролями.
 - [ ] RLS повторно проверен на staging реальными Auth JWT минимум двумя компаниями и четырьмя ролями.
-- [x] Staging `auth:smoke` прошёл четырьмя отдельными тестовыми аккаунтами.
+- [ ] Staging `auth:smoke` прошёл четырьмя отдельными тестовыми аккаунтами.
+  В CI role-smoke покрыт тестами, но полный staging workflow ещё не дошёл до
+  этого шага на актуальном release SHA.
 - [ ] Импорт прошёл preflight, а post-import reconciliation сохранён и не содержит расхождений.
 - [ ] Production secrets заданы, MFA включена у администраторов.
 - [ ] Auth Site URL и redirect allowlist содержат production-домен.
