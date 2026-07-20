@@ -22,12 +22,12 @@ function verify(overrides = {}) {
   });
 }
 
-function verifyPublicEnvironment(overrides = {}) {
+function verifyPublicEnvironment(overrides = {}, target = "production") {
   return spawnSync(globalThis.process.execPath, ["scripts/verify-env.mjs"], {
     cwd: globalThis.process.cwd(),
     env: {
       ...globalThis.process.env,
-      DEPLOY_ENV: "production",
+      DEPLOY_ENV: target,
       VITE_DATA_PROVIDER: "supabase",
       VITE_SUPABASE_URL: "https://abcdefghijklmnopqrst.supabase.co",
       VITE_SUPABASE_ANON_KEY: "a".repeat(100),
@@ -86,6 +86,18 @@ describe("public runtime configuration preflight", () => {
     expect(verifyPublicEnvironment().status).toBe(0);
   });
 
+  it("requires Sentry for the hosted staging runtime", () => {
+    const result = verifyPublicEnvironment({ VITE_SENTRY_DSN: "" }, "staging");
+    expect(result.status).not.toBe(0);
+    expect(result.stderr).toContain("VITE_SENTRY_DSN");
+  });
+
+  it("rejects a malformed Sentry DSN for the hosted staging runtime", () => {
+    const result = verifyPublicEnvironment({ VITE_SENTRY_DSN: "not-a-sentry-dsn" }, "staging");
+    expect(result.status).not.toBe(0);
+    expect(result.stderr).toContain("Sentry DSN");
+  });
+
   it("rejects local providers and non-hosted database URLs", () => {
     expect(verifyPublicEnvironment({ VITE_DATA_PROVIDER: "local" }).status).not.toBe(0);
     expect(verifyPublicEnvironment({ VITE_SUPABASE_URL: "http://localhost:54321" }).status).not.toBe(0);
@@ -123,5 +135,14 @@ describe("staging smoke account bootstrap", () => {
     });
     expect(result.status).not.toBe(0);
     expect(result.stderr).toContain("STAGING_BOOTSTRAP_CONFIRM=STAGING");
+  });
+});
+
+describe("staging deployment observability gate", () => {
+  it("passes the Sentry DSN to verify-env and requires a non-optional smoke", () => {
+    const workflow = readFileSync(".github/workflows/deploy-staging.yml", "utf8");
+    expect(workflow).toContain("VITE_SENTRY_DSN: ${{ secrets.VITE_SENTRY_DSN }}");
+    expect(workflow).toContain("run: npm run monitoring:smoke");
+    expect(workflow).not.toContain("run: npm run monitoring:smoke -- --optional");
   });
 });

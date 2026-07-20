@@ -5,9 +5,12 @@
 - [x] CI зелёный на release SHA.
 - [ ] `main` защищена и `npm run deployment:audit-branch -- --strict` успешен.
 - [ ] Изменения в `main` проходят только через PR с обязательными `verify`, `database`, `e2e`.
-- [x] Staging deployment и smoke успешны.
+- [ ] Staging deployment и smoke успешны.
+  Текущий запуск остановлен до публикации frontend: в staging отсутствуют
+  `VITE_SENTRY_DSN`, а последний Vercel token был отклонён. Нужен новый полный
+  staging release и immutable evidence.
 - [x] Staging workflow сохраняет immutable release evidence и связывает его с CI run того же SHA; production повторно скачивает и валидирует artifact.
-- [x] Все migrations применены к staging.
+- [ ] Все migrations применены к staging.
 - [ ] Структура production сверена со staging перед выпуском.
 - [ ] UAT evidence прошёл `npm run pilot:uat` и подписан владельцем продукта и представителем ИТР.
 - [ ] Production secret `UAT_EVIDENCE_JSON` содержит протокол именно для выпускаемого staging SHA.
@@ -20,7 +23,9 @@
 - [ ] UAT использует staging evidence с `productionEligible: true`.
 - [x] RLS автоматически проверен в CI минимум двумя компаниями и четырьмя ролями.
 - [ ] RLS повторно проверен на staging реальными Auth JWT минимум двумя компаниями и четырьмя ролями.
-- [x] Staging `auth:smoke` прошёл четырьмя отдельными тестовыми аккаунтами.
+- [ ] Staging `auth:smoke` прошёл четырьмя отдельными тестовыми аккаунтами.
+  В CI role-smoke покрыт тестами, но полный staging workflow ещё не дошёл до
+  этого шага на актуальном release SHA.
 - [ ] Импорт прошёл preflight, а post-import reconciliation сохранён и не содержит расхождений.
 - [ ] Production secrets заданы, MFA включена у администраторов.
 - [ ] Auth Site URL и redirect allowlist содержат production-домен.
@@ -31,7 +36,7 @@
 - [ ] Restore drill выполнен не более 30 дней назад.
 - [x] Restore drill автоматизирован и создаёт проверяемый evidence-артефакт в изолированном окружении.
 - [ ] Последний encrypted backup содержит роли, схему, данные и приватные Storage-объекты и прошёл обе manifest verification.
-- [x] Authenticated domain load smoke под ИТР прошёл с p95 не более 2,5 секунд.
+- [ ] Authenticated domain load smoke под ИТР прошёл с p95 не более 2,5 секунд.
 - [ ] Sentry alert и контакт ответственного проверены.
 - [ ] Runbook доступен техническому и бизнес-ответственному и подтверждён в handoff.
 - [ ] План отката и окно выпуска согласованы.

@@ -38,7 +38,7 @@ Service role key, пароль БД и токены деплоя никогда 
 - `VERCEL_PROJECT_ID`
 - `VITE_SUPABASE_URL`
 - `VITE_SUPABASE_ANON_KEY`
-- `VITE_SENTRY_DSN` (обязателен для production)
+- `VITE_SENTRY_DSN` (обязателен для staging и production)
 
 GitHub Environment variable (не secret):
 
@@ -121,8 +121,8 @@ npm run deployment:audit -- production --strict
 Второй вариант завершается ошибкой, пока обязательный production inventory не
 собран полностью. Для production также проверяются required reviewer, запрет
 self-review и отключённый admin bypass; наличие одних только secrets больше не считается
-готовой release-защитой. Отдельное предупреждение сообщает об отсутствии Sentry
-в staging, где DSN пока не является блокирующим deployment secret.
+готовой release-защитой. Для staging `VITE_SENTRY_DSN` входит в обязательный inventory:
+без него deployment и Sentry smoke останавливаются до публикации frontend.
 
 Required reviewers и запрет self-review можно настроить поддерживаемым GitHub REST
 API, не передавая секреты. ID пользователя узнаётся через `gh api users/<login>

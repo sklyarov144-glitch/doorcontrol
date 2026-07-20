@@ -1,6 +1,8 @@
+import { parseSentryDsn } from "../src/services/monitoring/sentryEnvelope.js";
+
 const environments = {
   local: ["VITE_DATA_PROVIDER"],
-  staging: ["VITE_DATA_PROVIDER", "VITE_SUPABASE_URL", "VITE_SUPABASE_ANON_KEY"],
+  staging: ["VITE_DATA_PROVIDER", "VITE_SUPABASE_URL", "VITE_SUPABASE_ANON_KEY", "VITE_SENTRY_DSN"],
   production: ["VITE_DATA_PROVIDER", "VITE_SUPABASE_URL", "VITE_SUPABASE_ANON_KEY", "VITE_SENTRY_DSN"],
 };
 
@@ -34,5 +36,6 @@ if (target !== "local") {
     throw new Error("VITE_SUPABASE_ANON_KEY has an unexpected format");
   }
 }
+if (["staging", "production"].includes(target)) parseSentryDsn(process.env.VITE_SENTRY_DSN);
 
 console.log(`${target} environment contains all required public configuration values.`);

@@ -33,7 +33,7 @@ describe("staging release evidence", () => {
     expect(Object.values(result.checks).every((value) => value === "passed")).toBe(true);
   });
 
-  it("marks manual staging and missing optional Sentry explicitly", () => {
+  it("marks manual staging and missing Sentry explicitly", () => {
     const result = createStagingReleaseEvidence({
       ...valid,
       sourceCiRunId: "",
