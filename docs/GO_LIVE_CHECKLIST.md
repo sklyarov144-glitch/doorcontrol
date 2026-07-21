@@ -3,8 +3,8 @@
 ## Обязательные условия
 
 - [x] CI зелёный на release SHA.
-- [ ] `main` защищена и `npm run deployment:audit-branch -- --strict` успешен.
-- [ ] Изменения в `main` проходят только через PR с обязательными `verify`, `database`, `e2e`.
+- [x] `main` защищена и `npm run deployment:audit-branch -- --strict` успешен.
+- [x] Изменения в `main` проходят только через PR с обязательными `verify`, `database`, `e2e`.
 - [x] Staging deployment и smoke успешны.
   Release SHA `3741973988bbf95a1b4646bd4c97a7fe44c2d841` прошёл полный staging
   workflow, включая frontend, четыре роли, authenticated domain load и Sentry.
