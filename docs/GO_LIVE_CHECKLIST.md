@@ -5,12 +5,12 @@
 - [x] CI зелёный на release SHA.
 - [ ] `main` защищена и `npm run deployment:audit-branch -- --strict` успешен.
 - [ ] Изменения в `main` проходят только через PR с обязательными `verify`, `database`, `e2e`.
-- [ ] Staging deployment и smoke успешны.
-  Текущий запуск остановлен до публикации frontend: в staging отсутствуют
-  `VITE_SENTRY_DSN`, а последний Vercel token был отклонён. Нужен новый полный
-  staging release и immutable evidence.
+- [x] Staging deployment и smoke успешны.
+  Release SHA `d40c8f5000b18dd067e778a93cd862e128ca5908` прошёл полный staging
+  workflow, включая frontend, четыре роли, authenticated domain load и Sentry.
+  Immutable evidence: [run #29841628582](https://github.com/sklyarov144-glitch/doorcontrol/actions/runs/29841628582).
 - [x] Staging workflow сохраняет immutable release evidence и связывает его с CI run того же SHA; production повторно скачивает и валидирует artifact.
-- [ ] Все migrations применены к staging.
+- [x] Все migrations применены к staging.
 - [ ] Структура production сверена со staging перед выпуском.
 - [ ] UAT evidence прошёл `npm run pilot:uat` и подписан владельцем продукта и представителем ИТР.
 - [ ] Production secret `UAT_EVIDENCE_JSON` содержит протокол именно для выпускаемого staging SHA.
@@ -23,9 +23,8 @@
 - [ ] UAT использует staging evidence с `productionEligible: true`.
 - [x] RLS автоматически проверен в CI минимум двумя компаниями и четырьмя ролями.
 - [ ] RLS повторно проверен на staging реальными Auth JWT минимум двумя компаниями и четырьмя ролями.
-- [ ] Staging `auth:smoke` прошёл четырьмя отдельными тестовыми аккаунтами.
-  В CI role-smoke покрыт тестами, но полный staging workflow ещё не дошёл до
-  этого шага на актуальном release SHA.
+- [x] Staging `auth:smoke` прошёл четырьмя отдельными тестовыми аккаунтами.
+  Полный staging workflow подтвердил вход и UI-маршрут для всех четырёх ролей.
 - [ ] Импорт прошёл preflight, а post-import reconciliation сохранён и не содержит расхождений.
 - [ ] Production secrets заданы, MFA включена у администраторов.
 - [ ] Auth Site URL и redirect allowlist содержат production-домен.

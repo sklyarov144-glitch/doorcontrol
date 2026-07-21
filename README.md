@@ -76,4 +76,9 @@ Production-сборка обязана использовать `VITE_DATA_PROVI
 
 ## Текущий статус
 
-Проект находится на переходе от функционального MVP к пилотной рабочей системе. Технический production-контур подготовлен, но реальный запуск требует настроенных проектов Supabase/Vercel, домена, SMTP, Sentry, backup/PITR, импорта данных и подписанного UAT.
+Проект находится на переходе от функционального MVP к пилотной рабочей системе.
+Staging-контур уже развернут и проверен: миграции, hosted Auth, Edge Functions,
+четыре роли, Vercel, canonical smoke, authenticated load и Sentry ingestion
+подтверждены immutable release evidence. Production-запуск всё ещё требует
+отдельного production-проекта/домена, корпоративного SMTP, MFA-факторов,
+backup/PITR, restore drill, импорта пилотных данных и подписанного UAT.

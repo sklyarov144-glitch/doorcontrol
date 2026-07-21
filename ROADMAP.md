@@ -29,10 +29,16 @@
   E2E фиксирует маршрут ИТР с сохранением статуса, доступ к админ-панели, tenant/роли creator, финансовый контур руководителя и управленческий маршрут директора до назначенного корпуса. Staging и production дополнительно блокируют релиз, если любая из четырёх ролей не может войти через опубликованную форму или получает runtime-ошибку.
 - [x] Провести performance-аудит больших объектов и списков.
   Каждый staging-релиз проходит HTTP smoke и 200 аутентифицированных запросов к основным доменным таблицам с ограничением p95; последний релиз подтвердил gate на hosted Supabase.
-- [ ] Настроить реальные staging Supabase и Vercel, включая канонический alias и release smoke.
-  Backend-проверки hosted Supabase, миграции, auth smoke и load smoke проходят. Однако последний staging-релиз не прошёл на шаге Vercel: GitHub secret `VERCEL_TOKEN` недействителен, поэтому frontend smoke и полное release evidence ещё не подтверждены. После замены токена нужно повторно выпустить staging с полным SHA и связанным CI run.
-- [ ] Настроить и проверить staging Sentry с тестовым событием и alert contact.
-  Deployment gate и release evidence для Sentry ingestion реализованы. Текущий аудит GitHub Environment подтверждает, что `VITE_SENTRY_DSN` в staging ещё не задан; после его добавления следующий релиз отправит тестовое событие, но alert contact всё равно нужно подтвердить в Sentry.
+- [x] Настроить реальные staging Supabase и Vercel, включая канонический alias и release smoke.
+  Staging-релиз `d40c8f5000b18dd067e778a93cd862e128ca5908` прошёл миграции,
+  hosted Auth, Edge Functions, backend health, Vercel deploy, canonical smoke,
+  четыре role smoke и authenticated domain load. Immutable evidence признан
+  `production-eligible` в ручном запуске
+  [#29841628582](https://github.com/sklyarov144-glitch/doorcontrol/actions/runs/29841628582).
+- [x] Настроить и проверить staging Sentry тестовым событием.
+  Sentry ingestion smoke включён в staging evidence и успешно прошёл для
+  релиза `d40c8f5000b18dd067e778a93cd862e128ca5908`. Подтверждение alert contact
+  остаётся операционным действием в Sentry перед production.
 - [x] Создать четыре staging-аккаунта и выполнить auth smoke.
 - [ ] Импортировать пилотный объект и сверить контрольные количества.
   Подготовка назначений по проверенным UUID, strict preflight, атомарный импорт и reconciliation готовы. Контракт переносит статусы, фактические размеры и даты монтажа/ТН/АОХ; для закрытия пункта нужны согласованный реальный файл пилота и контрольные количества владельца данных.
@@ -45,10 +51,10 @@
 - [ ] Завершить production-настройку MFA администраторам, PITR и алертов.
   TOTP enrollment/challenge, личный кабинет, обязательный production UI gate, серверный `aal2` write guard и MFA-aware smoke реализованы. До закрытия пункта нужно зарегистрировать реальные факторы привилегированных аккаунтов и добавить TOTP smoke secrets.
 - [ ] Выполнить restore drill на свежем backup.
-  Автоматизация и проверки готовы, но scheduled backup workflow от 2026-07-19
-  корректно остановился до подключения к БД: в production environment не заданы
+  Автоматизация и проверки готовы, но production environment пока не содержит
   `SUPABASE_DB_URL`, `BACKUP_ENCRYPTION_PASSWORD`, `BACKUP_SUPABASE_URL` и
-  `BACKUP_SUPABASE_SERVICE_ROLE_KEY`.
+  `BACKUP_SUPABASE_SERVICE_ROLE_KEY`. До их добавления backup/restore нельзя
+  считать доказанными.
 - [ ] Согласовать SLA, владельцев поддержки и план отката.
 - [ ] Выпустить production через защищённый GitHub Environment.
 - [ ] Провести двухчасовое наблюдение после релиза.
