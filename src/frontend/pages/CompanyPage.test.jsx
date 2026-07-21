@@ -45,4 +45,13 @@ describe("CompanyPage", () => {
     expect(await screen.findByRole("alert")).toHaveTextContent("Профиль не связан с доступной компанией");
     expect(screen.queryByRole("heading", { name: "ГРОСС" })).not.toBeInTheDocument();
   });
+
+  it("does not invent a tenant for a remote profile without company binding", async () => {
+    const provider = { companies: { getAll: vi.fn().mockResolvedValue([]) } };
+
+    render(<CompanyPage objects={objects} users={users} user={{}} isRemote provider={provider} onOpenObjects={vi.fn()} />);
+
+    expect(await screen.findByRole("alert")).toHaveTextContent("Профиль не связан с доступной компанией");
+    expect(screen.queryByRole("heading", { name: "ГРОСС" })).not.toBeInTheDocument();
+  });
 });
