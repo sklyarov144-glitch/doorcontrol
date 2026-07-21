@@ -6,9 +6,9 @@
 - [ ] `main` защищена и `npm run deployment:audit-branch -- --strict` успешен.
 - [ ] Изменения в `main` проходят только через PR с обязательными `verify`, `database`, `e2e`.
 - [x] Staging deployment и smoke успешны.
-  Release SHA `d40c8f5000b18dd067e778a93cd862e128ca5908` прошёл полный staging
+  Release SHA `3741973988bbf95a1b4646bd4c97a7fe44c2d841` прошёл полный staging
   workflow, включая frontend, четыре роли, authenticated domain load и Sentry.
-  Immutable evidence: [run #29841628582](https://github.com/sklyarov144-glitch/doorcontrol/actions/runs/29841628582).
+  Immutable evidence: [run #29846650383](https://github.com/sklyarov144-glitch/doorcontrol/actions/runs/29846650383).
 - [x] Staging workflow сохраняет immutable release evidence и связывает его с CI run того же SHA; production повторно скачивает и валидирует artifact.
 - [x] Все migrations применены к staging.
 - [ ] Структура production сверена со staging перед выпуском.

@@ -30,14 +30,14 @@
 - [x] Провести performance-аудит больших объектов и списков.
   Каждый staging-релиз проходит HTTP smoke и 200 аутентифицированных запросов к основным доменным таблицам с ограничением p95; последний релиз подтвердил gate на hosted Supabase.
 - [x] Настроить реальные staging Supabase и Vercel, включая канонический alias и release smoke.
-  Staging-релиз `d40c8f5000b18dd067e778a93cd862e128ca5908` прошёл миграции,
+  Staging-релиз `3741973988bbf95a1b4646bd4c97a7fe44c2d841` прошёл миграции,
   hosted Auth, Edge Functions, backend health, Vercel deploy, canonical smoke,
   четыре role smoke и authenticated domain load. Immutable evidence признан
   `production-eligible` в ручном запуске
-  [#29841628582](https://github.com/sklyarov144-glitch/doorcontrol/actions/runs/29841628582).
+  [#29846650383](https://github.com/sklyarov144-glitch/doorcontrol/actions/runs/29846650383).
 - [x] Настроить и проверить staging Sentry тестовым событием.
   Sentry ingestion smoke включён в staging evidence и успешно прошёл для
-  релиза `d40c8f5000b18dd067e778a93cd862e128ca5908`. Подтверждение alert contact
+  релиза `3741973988bbf95a1b4646bd4c97a7fe44c2d841`. Подтверждение alert contact
   остаётся операционным действием в Sentry перед production.
 - [x] Создать четыре staging-аккаунта и выполнить auth smoke.
 - [ ] Импортировать пилотный объект и сверить контрольные количества.
