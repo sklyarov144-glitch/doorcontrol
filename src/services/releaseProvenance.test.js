@@ -21,11 +21,19 @@ describe("production release provenance", () => {
     ] }, sha)).toThrow("No successful staging deployment");
   });
 
-  it("rejects a manually dispatched staging run as production provenance", () => {
+  it("rejects a manually dispatched staging run without verified evidence", () => {
     expect(() => findVerifiedStagingRun({ workflow_runs: [{
       id: 42, head_sha: sha, head_branch: "main", event: "workflow_dispatch",
       status: "completed", conclusion: "success", html_url: "https://github.example/runs/42",
     }] }, sha)).toThrow("No successful staging deployment");
+  });
+
+  it("accepts a manual run only when its evidence was verified for the exact SHA", () => {
+    const result = findVerifiedStagingRun({ workflow_runs: [{
+      id: 42, head_sha: sha, head_branch: "main", event: "workflow_dispatch",
+      status: "completed", conclusion: "success", html_url: "https://github.example/runs/42",
+    }] }, sha, { verifiedManualRunIds: [42] });
+    expect(result).toEqual({ id: 42, url: "https://github.example/runs/42", sha });
   });
 
   it("requires an immutable full commit SHA", () => {
