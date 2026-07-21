@@ -43,6 +43,13 @@ describe("staging deployment workflow", () => {
     expect(stagingWorkflow).toContain("vercel build --prod");
     expect(stagingWorkflow).toContain("vercel deploy --prebuilt --prod");
   });
+
+  it("resolves CI provenance when staging is dispatched manually", () => {
+    expect(stagingWorkflow).toContain("actions: read");
+    expect(stagingWorkflow).toContain("Resolve source CI run for manual dispatch");
+    expect(stagingWorkflow).toContain('echo "SOURCE_CI_RUN_ID=$source_ci_run_id" >> "$GITHUB_ENV"');
+    expect(stagingWorkflow).toContain("No successful CI run found for $RELEASE_SHA");
+  });
 });
 
 describe("GitHub Actions runtime", () => {
