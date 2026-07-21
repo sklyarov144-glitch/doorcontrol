@@ -2,11 +2,11 @@
 
 Статус: **подтверждено для staging**.
 
-Полный `Deploy staging` успешно выполнен для release SHA
-`d40c8f5000b18dd067e778a93cd862e128ca5908`:
-[ручной запуск #29841628582](https://github.com/sklyarov144-glitch/doorcontrol/actions/runs/29841628582).
+Полный `Deploy staging` успешно выполнен для текущего release SHA
+`3741973988bbf95a1b4646bd4c97a7fe44c2d841`:
+[ручной запуск #29846650383](https://github.com/sklyarov144-glitch/doorcontrol/actions/runs/29846650383).
 Автоматический запуск по CI для того же SHA также успешен:
-[run #29841559176](https://github.com/sklyarov144-glitch/doorcontrol/actions/runs/29841559176).
+[run #29845333507](https://github.com/sklyarov144-glitch/doorcontrol/actions/runs/29845333507).
 Immutable artifact ручного запуска повторно проверен и имеет
 `productionEligible: true`.
 
