@@ -4,6 +4,7 @@ import { BrowserRouter } from "react-router-dom";
 import App from "./app/App";
 import { ErrorBoundary } from "./components/ErrorBoundary";
 import { initMonitoring } from "../services/monitoring";
+import { safeErrorMessage } from "../services/safeErrorMessage";
 
 const rootElement = document.getElementById("root");
 
@@ -56,7 +57,7 @@ function renderBootstrapScreen({ failed = false, error } = {}) {
 
   if (failed) {
     const details = document.createElement("pre");
-    details.textContent = error instanceof Error ? error.message : String(error || "Неизвестная ошибка");
+    details.textContent = safeErrorMessage(error);
     details.style.cssText = [
       "margin:20px 0 0",
       "padding:12px",
