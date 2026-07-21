@@ -12,5 +12,8 @@ describe("data provider selection", () => {
     expect(selectDataProvider("supabase", true)).toBe(supabaseProvider);
     expect(() => selectDataProvider("supabase", false)).toThrow(/requires/);
   });
-});
 
+  it("fails closed for an unknown provider instead of silently using demo storage", () => {
+    expect(() => selectDataProvider("supabse", true)).toThrow(/Unsupported data provider/);
+  });
+});
