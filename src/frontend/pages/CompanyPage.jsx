@@ -1,10 +1,10 @@
 import React, { useEffect, useMemo, useState } from "react";
-import { dataProvider } from "../../services/dataProvider";
+import { dataProvider, dataProviderName } from "../../services/dataProvider";
 import { roleLabels } from "../domain/roles";
 
 const fallbackCompany = (user) => ({ id: user.companyId || "demo-company", name: "ГРОСС", status: "active" });
 
-export default function CompanyPage({ objects = [], users = [], user, onOpenObjects, provider = dataProvider }) {
+export default function CompanyPage({ objects = [], users = [], user, onOpenObjects, provider = dataProvider, isRemote = dataProviderName === "supabase" }) {
   const [company, setCompany] = useState(null);
   const [draftName, setDraftName] = useState("");
   const [editing, setEditing] = useState(false);
@@ -18,7 +18,8 @@ export default function CompanyPage({ objects = [], users = [], user, onOpenObje
     Promise.resolve(provider.companies.getAll())
       .then((rows) => {
         if (!active) return;
-        const current = (rows ?? []).find((item) => !user.companyId || item.id === user.companyId) ?? (user.companyId ? null : (rows ?? [])[0] ?? fallbackCompany(user));
+        const current = (rows ?? []).find((item) => !user.companyId || item.id === user.companyId)
+          ?? (user.companyId || isRemote ? null : (rows ?? [])[0] ?? fallbackCompany(user));
         if (!current) {
           setCompany(null);
           setError("Профиль не связан с доступной компанией. Обратитесь к администратору.");
