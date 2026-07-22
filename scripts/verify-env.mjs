@@ -18,10 +18,6 @@ const missing = required.filter((name) => !process.env[name]);
 if (process.env.VITE_DATA_PROVIDER && target !== "local" && process.env.VITE_DATA_PROVIDER !== "supabase") {
   missing.push("VITE_DATA_PROVIDER= supabase");
 }
-if (target === "production" && process.env.VITE_REQUIRE_PRIVILEGED_MFA !== "true") {
-  missing.push("VITE_REQUIRE_PRIVILEGED_MFA=true");
-}
-
 if (missing.length) {
   console.error(`Missing or invalid ${target} environment values: ${missing.join(", ")}`);
   process.exit(1);

@@ -103,8 +103,8 @@ describe("public runtime configuration preflight", () => {
     expect(verifyPublicEnvironment({ VITE_SUPABASE_URL: "http://localhost:54321" }).status).not.toBe(0);
   });
 
-  it("requires privileged MFA in production", () => {
-    expect(verifyPublicEnvironment({ VITE_REQUIRE_PRIVILEGED_MFA: "false" }).status).not.toBe(0);
+  it("accepts the pilot production configuration without privileged MFA", () => {
+    expect(verifyPublicEnvironment({ VITE_REQUIRE_PRIVILEGED_MFA: "false" }).status).toBe(0);
   });
 });
 

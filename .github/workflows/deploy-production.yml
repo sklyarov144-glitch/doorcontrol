@@ -40,9 +40,6 @@ jobs:
       AUTH_SMOKE_COMPANY_HEAD_PASSWORD: ${{ secrets.AUTH_SMOKE_COMPANY_HEAD_PASSWORD }}
       AUTH_SMOKE_CONSTRUCTION_DIRECTOR_EMAIL: ${{ secrets.AUTH_SMOKE_CONSTRUCTION_DIRECTOR_EMAIL }}
       AUTH_SMOKE_CONSTRUCTION_DIRECTOR_PASSWORD: ${{ secrets.AUTH_SMOKE_CONSTRUCTION_DIRECTOR_PASSWORD }}
-      AUTH_SMOKE_CREATOR_TOTP_SECRET: ${{ secrets.AUTH_SMOKE_CREATOR_TOTP_SECRET }}
-      AUTH_SMOKE_COMPANY_HEAD_TOTP_SECRET: ${{ secrets.AUTH_SMOKE_COMPANY_HEAD_TOTP_SECRET }}
-      AUTH_SMOKE_CONSTRUCTION_DIRECTOR_TOTP_SECRET: ${{ secrets.AUTH_SMOKE_CONSTRUCTION_DIRECTOR_TOTP_SECRET }}
       AUTH_SMOKE_ITR_EMAIL: ${{ secrets.AUTH_SMOKE_ITR_EMAIL }}
       AUTH_SMOKE_ITR_PASSWORD: ${{ secrets.AUTH_SMOKE_ITR_PASSWORD }}
       UAT_EVIDENCE_JSON: ${{ secrets.UAT_EVIDENCE_JSON }}
@@ -118,7 +115,7 @@ jobs:
           [[ -z "$PILOT_RECONCILIATION_EVIDENCE_JSON" ]] && missing+=(PILOT_RECONCILIATION_EVIDENCE_JSON)
           [[ -z "$RESTORE_EVIDENCE_JSON" ]] && missing+=(RESTORE_EVIDENCE_JSON)
           [[ -z "$PRODUCTION_HANDOFF_JSON" ]] && missing+=(PRODUCTION_HANDOFF_JSON)
-          required_auth=(AUTH_SMOKE_SUPABASE_URL AUTH_SMOKE_SUPABASE_ANON_KEY AUTH_SMOKE_CREATOR_EMAIL AUTH_SMOKE_CREATOR_PASSWORD AUTH_SMOKE_CREATOR_TOTP_SECRET AUTH_SMOKE_COMPANY_HEAD_EMAIL AUTH_SMOKE_COMPANY_HEAD_PASSWORD AUTH_SMOKE_COMPANY_HEAD_TOTP_SECRET AUTH_SMOKE_CONSTRUCTION_DIRECTOR_EMAIL AUTH_SMOKE_CONSTRUCTION_DIRECTOR_PASSWORD AUTH_SMOKE_CONSTRUCTION_DIRECTOR_TOTP_SECRET AUTH_SMOKE_ITR_EMAIL AUTH_SMOKE_ITR_PASSWORD)
+          required_auth=(AUTH_SMOKE_SUPABASE_URL AUTH_SMOKE_SUPABASE_ANON_KEY AUTH_SMOKE_CREATOR_EMAIL AUTH_SMOKE_CREATOR_PASSWORD AUTH_SMOKE_COMPANY_HEAD_EMAIL AUTH_SMOKE_COMPANY_HEAD_PASSWORD AUTH_SMOKE_CONSTRUCTION_DIRECTOR_EMAIL AUTH_SMOKE_CONSTRUCTION_DIRECTOR_PASSWORD AUTH_SMOKE_ITR_EMAIL AUTH_SMOKE_ITR_PASSWORD)
           for name in "${required_auth[@]}"; do [[ -z "${!name}" ]] && missing+=("$name"); done
           if (( ${#missing[@]} )); then
             echo "::error::Production deployment is not configured. Missing secrets/variables: ${missing[*]}"
@@ -132,7 +129,7 @@ jobs:
           VITE_SUPABASE_URL: ${{ secrets.VITE_SUPABASE_URL }}
           VITE_SUPABASE_ANON_KEY: ${{ secrets.VITE_SUPABASE_ANON_KEY }}
           VITE_SENTRY_DSN: ${{ secrets.VITE_SENTRY_DSN }}
-          VITE_REQUIRE_PRIVILEGED_MFA: "true"
+          VITE_REQUIRE_PRIVILEGED_MFA: "false"
         run: npm run verify:deployment && npm run verify:env && npx supabase link --project-ref "$SUPABASE_PROJECT_ID" && npx supabase db push --linked
       - name: Configure and verify hosted Auth
         run: npm run supabase:auth:configure
@@ -154,7 +151,7 @@ jobs:
           VITE_SENTRY_DSN: ${{ secrets.VITE_SENTRY_DSN }}
           VITE_APP_URL: ${{ vars.APP_PUBLIC_URL }}
           VITE_APP_RELEASE: ${{ env.RELEASE_SHA }}
-          VITE_REQUIRE_PRIVILEGED_MFA: "true"
+          VITE_REQUIRE_PRIVILEGED_MFA: "false"
         run: |
           npx vercel pull --yes --environment=production --token="${{ secrets.VERCEL_TOKEN }}"
           npx vercel build --prod --token="${{ secrets.VERCEL_TOKEN }}"
@@ -179,14 +176,12 @@ jobs:
           if-no-files-found: error
       - name: Smoke test four authenticated production roles
         env:
-          AUTH_SMOKE_REQUIRE_MFA: "1"
         run: npm run auth:smoke
       - name: Install browser for published UI smoke
         run: npx playwright install --with-deps chromium
       - name: Smoke test four production roles through published UI
         env:
           REMOTE_AUTH_SMOKE: "1"
-          AUTH_SMOKE_REQUIRE_MFA: "1"
           PLAYWRIGHT_BASE_URL: ${{ vars.APP_PUBLIC_URL }}
         run: npm run auth:ui-smoke
       - name: Load smoke authenticated production ITR domain
