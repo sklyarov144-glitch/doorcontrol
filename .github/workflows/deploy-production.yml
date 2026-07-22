@@ -176,6 +176,16 @@ jobs:
           if-no-files-found: error
       - name: Smoke test four authenticated production roles
         env:
+          AUTH_SMOKE_SUPABASE_URL: ${{ secrets.VITE_SUPABASE_URL }}
+          AUTH_SMOKE_SUPABASE_ANON_KEY: ${{ secrets.VITE_SUPABASE_ANON_KEY }}
+          AUTH_SMOKE_CREATOR_EMAIL: ${{ secrets.AUTH_SMOKE_CREATOR_EMAIL }}
+          AUTH_SMOKE_CREATOR_PASSWORD: ${{ secrets.AUTH_SMOKE_CREATOR_PASSWORD }}
+          AUTH_SMOKE_COMPANY_HEAD_EMAIL: ${{ secrets.AUTH_SMOKE_COMPANY_HEAD_EMAIL }}
+          AUTH_SMOKE_COMPANY_HEAD_PASSWORD: ${{ secrets.AUTH_SMOKE_COMPANY_HEAD_PASSWORD }}
+          AUTH_SMOKE_CONSTRUCTION_DIRECTOR_EMAIL: ${{ secrets.AUTH_SMOKE_CONSTRUCTION_DIRECTOR_EMAIL }}
+          AUTH_SMOKE_CONSTRUCTION_DIRECTOR_PASSWORD: ${{ secrets.AUTH_SMOKE_CONSTRUCTION_DIRECTOR_PASSWORD }}
+          AUTH_SMOKE_ITR_EMAIL: ${{ secrets.AUTH_SMOKE_ITR_EMAIL }}
+          AUTH_SMOKE_ITR_PASSWORD: ${{ secrets.AUTH_SMOKE_ITR_PASSWORD }}
         run: npm run auth:smoke
       - name: Install browser for published UI smoke
         run: npx playwright install --with-deps chromium
