@@ -3,7 +3,8 @@ import { createRoot } from "react-dom/client";
 import { BrowserRouter } from "react-router-dom";
 import App from "./app/App";
 import { ErrorBoundary } from "./components/ErrorBoundary";
-import { initMonitoring } from "../services/monitoring";
+import { captureApplicationError, initMonitoring } from "../services/monitoring";
+import { safeErrorMessage } from "../services/safeErrorMessage";
 
 const rootElement = document.getElementById("root");
 
@@ -56,7 +57,7 @@ function renderBootstrapScreen({ failed = false, error } = {}) {
 
   if (failed) {
     const details = document.createElement("pre");
-    details.textContent = error instanceof Error ? error.message : String(error || "Неизвестная ошибка");
+    details.textContent = safeErrorMessage(error);
     details.style.cssText = [
       "margin:20px 0 0",
       "padding:12px",
@@ -92,13 +93,13 @@ function renderBootstrapScreen({ failed = false, error } = {}) {
 
 async function bootstrap() {
   renderBootstrapScreen();
+  initMonitoring();
 
   try {
     const demo = import.meta.env.VITE_DATA_PROVIDER === "supabase"
       ? { mockUsers: [], demoPassword: "" }
       : await import("./mocks/demoUsers");
 
-    initMonitoring();
     createRoot(rootElement).render(
       <React.StrictMode>
         <ErrorBoundary>
@@ -110,6 +111,7 @@ async function bootstrap() {
     );
   } catch (error) {
     console.error("Application bootstrap failed", error);
+    captureApplicationError(error, { phase: "bootstrap" });
     renderBootstrapScreen({ failed: true, error });
   }
 }
