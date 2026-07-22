@@ -2,6 +2,10 @@ name: Apply production database migrations
 
 on:
   workflow_dispatch:
+    inputs:
+      release_sha:
+        description: Full commit SHA of the successful staging release
+        required: true
 
 permissions:
   contents: read
@@ -12,6 +16,7 @@ jobs:
     timeout-minutes: 20
     environment: production
     env:
+      RELEASE_SHA: ${{ inputs.release_sha }}
       SUPABASE_ACCESS_TOKEN: ${{ secrets.SUPABASE_ACCESS_TOKEN }}
       SUPABASE_PROJECT_ID: ${{ secrets.SUPABASE_PROJECT_ID }}
     steps:
@@ -23,6 +28,14 @@ jobs:
           node-version-file: .nvmrc
           cache: npm
       - run: npm ci
+      - name: Require successful staging release
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: |
+          node scripts/verify-release-provenance.mjs
+          git fetch --no-tags origin "$RELEASE_SHA"
+          git checkout --detach "$RELEASE_SHA"
+          test "$(git rev-parse HEAD)" = "$RELEASE_SHA"
       - name: Validate migration inputs
         run: |
           test -n "$SUPABASE_ACCESS_TOKEN"
