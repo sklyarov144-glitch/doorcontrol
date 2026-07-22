@@ -1,7 +1,7 @@
 import { createClient } from "@supabase/supabase-js";
 
-const url = process.env.AUTH_SMOKE_SUPABASE_URL?.trim();
-const anonKey = process.env.AUTH_SMOKE_SUPABASE_ANON_KEY?.trim();
+const url = (process.env.AUTH_SMOKE_SUPABASE_URL ?? process.env.VITE_SUPABASE_URL)?.trim();
+const anonKey = (process.env.AUTH_SMOKE_SUPABASE_ANON_KEY ?? process.env.VITE_SUPABASE_ANON_KEY)?.trim();
 const email = process.env.AUTH_SMOKE_ITR_EMAIL?.trim();
 const password = process.env.AUTH_SMOKE_ITR_PASSWORD;
 if (!url || !anonKey || !email || !password) {

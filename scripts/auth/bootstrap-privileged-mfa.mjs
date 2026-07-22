@@ -26,10 +26,10 @@ export function parseMfaBootstrapConfig(argv = process.argv.slice(2), values = p
   if (enroll && !outputPath) throw new Error("MFA_BOOTSTRAP_OUTPUT is required for --enroll");
   if (outputPath && !path.isAbsolute(outputPath)) throw new Error("MFA_BOOTSTRAP_OUTPUT must be an absolute path");
 
-  const url = required(values, "AUTH_SMOKE_SUPABASE_URL");
+  const url = required({ ...values, AUTH_SMOKE_SUPABASE_URL: values.AUTH_SMOKE_SUPABASE_URL ?? values.VITE_SUPABASE_URL }, "AUTH_SMOKE_SUPABASE_URL");
   const parsedUrl = new URL(url);
   if (parsedUrl.protocol !== "https:" || !parsedUrl.hostname.endsWith(".supabase.co")) {
-    throw new Error("AUTH_SMOKE_SUPABASE_URL must be a hosted Supabase HTTPS URL");
+    throw new Error("VITE_SUPABASE_URL must be a hosted Supabase HTTPS URL");
   }
 
   const accounts = privilegedSmokeRoles.map((role) => {
@@ -49,7 +49,7 @@ export function parseMfaBootstrapConfig(argv = process.argv.slice(2), values = p
     outputPath: outputPath || "",
     overwrite: values.MFA_BOOTSTRAP_OVERWRITE === "1",
     url,
-    anonKey: required(values, "AUTH_SMOKE_SUPABASE_ANON_KEY"),
+    anonKey: required({ ...values, AUTH_SMOKE_SUPABASE_ANON_KEY: values.AUTH_SMOKE_SUPABASE_ANON_KEY ?? values.VITE_SUPABASE_ANON_KEY }, "AUTH_SMOKE_SUPABASE_ANON_KEY"),
     accounts,
   };
 }

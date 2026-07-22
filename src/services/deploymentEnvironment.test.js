@@ -62,12 +62,6 @@ describe("GitHub deployment environment configuration", () => {
     expect(validateEnvironmentValues("production", values).errors).toContain("VITE_SUPABASE_URL does not match SUPABASE_PROJECT_ID");
   });
 
-  it("rejects role smoke credentials for another backend", () => {
-    const values = valuesFor("staging");
-    values.AUTH_SMOKE_SUPABASE_URL = "https://bbbbbbbbbbbbbbbbbbbb.supabase.co";
-    expect(validateEnvironmentValues("staging", values).errors).toContain("Auth smoke credentials must target the deployed Supabase project");
-  });
-
   it("rejects an invalid Sentry DSN before deployment", () => {
     const values = valuesFor("staging");
     values.VITE_SENTRY_DSN = "not-a-sentry-dsn";

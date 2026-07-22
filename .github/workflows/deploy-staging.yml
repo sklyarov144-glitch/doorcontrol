@@ -29,8 +29,8 @@ jobs:
       APP_PUBLIC_URL: ${{ vars.APP_PUBLIC_URL }}
       VERCEL_ORG_ID: ${{ secrets.VERCEL_ORG_ID }}
       VERCEL_PROJECT_ID: ${{ secrets.VERCEL_PROJECT_ID }}
-      AUTH_SMOKE_SUPABASE_URL: ${{ secrets.AUTH_SMOKE_SUPABASE_URL }}
-      AUTH_SMOKE_SUPABASE_ANON_KEY: ${{ secrets.AUTH_SMOKE_SUPABASE_ANON_KEY }}
+      AUTH_SMOKE_SUPABASE_URL: ${{ secrets.VITE_SUPABASE_URL }}
+      AUTH_SMOKE_SUPABASE_ANON_KEY: ${{ secrets.VITE_SUPABASE_ANON_KEY }}
       AUTH_SMOKE_CREATOR_EMAIL: ${{ secrets.AUTH_SMOKE_CREATOR_EMAIL }}
       AUTH_SMOKE_CREATOR_PASSWORD: ${{ secrets.AUTH_SMOKE_CREATOR_PASSWORD }}
       AUTH_SMOKE_COMPANY_HEAD_EMAIL: ${{ secrets.AUTH_SMOKE_COMPANY_HEAD_EMAIL }}
@@ -131,8 +131,6 @@ jobs:
               exit 1
             fi
           done
-          [[ "$AUTH_SMOKE_SUPABASE_URL" = "$VITE_SUPABASE_URL" ]] || { echo "::error::Auth smoke URL does not match deployed Supabase project."; exit 1; }
-          [[ "$AUTH_SMOKE_SUPABASE_ANON_KEY" = "$VITE_SUPABASE_ANON_KEY" ]] || { echo "::error::Auth smoke anon key does not match deployed Supabase project."; exit 1; }
       - name: Smoke test four authenticated roles
         run: npm run auth:smoke
       - name: Install browser for published UI smoke

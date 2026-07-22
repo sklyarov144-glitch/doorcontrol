@@ -2,9 +2,9 @@ import { createClient } from "@supabase/supabase-js";
 import { generateTotp } from "./totp.mjs";
 
 const roles = ["creator", "company_head", "construction_director", "itr"];
-const url = process.env.AUTH_SMOKE_SUPABASE_URL?.trim();
-const anonKey = process.env.AUTH_SMOKE_SUPABASE_ANON_KEY?.trim();
-if (!url || !anonKey) throw new Error("AUTH_SMOKE_SUPABASE_URL and AUTH_SMOKE_SUPABASE_ANON_KEY are required");
+const url = (process.env.AUTH_SMOKE_SUPABASE_URL ?? process.env.VITE_SUPABASE_URL)?.trim();
+const anonKey = (process.env.AUTH_SMOKE_SUPABASE_ANON_KEY ?? process.env.VITE_SUPABASE_ANON_KEY)?.trim();
+if (!url || !anonKey) throw new Error("VITE_SUPABASE_URL and VITE_SUPABASE_ANON_KEY are required for Auth smoke");
 const results = new Map();
 const requireMfa = process.env.AUTH_SMOKE_REQUIRE_MFA === "1";
 
