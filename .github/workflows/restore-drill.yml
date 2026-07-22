@@ -60,6 +60,7 @@ jobs:
           mv supabase/seed.sql supabase/project-seed.sql
           touch supabase/seed.sql
           npx supabase start --exclude studio,imgproxy,inbucket,edge-runtime,functions,analytics,vector,realtime
+          sudo rm -f /etc/apt/sources.list.d/google-chrome.list /etc/apt/sources.list.d/google-chrome.sources
           sudo apt-get update -qq
           sudo apt-get install -y -qq postgresql-client
       - name: Restore roles, schema and data
