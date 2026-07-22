@@ -36,9 +36,9 @@ describe("GitHub deployment environment configuration", () => {
     expect(secrets).toContain("UAT_EVIDENCE_JSON");
     expect(secrets).toContain("PILOT_RECONCILIATION_EVIDENCE_JSON");
     expect(secrets).toContain("RESTORE_EVIDENCE_JSON");
-    expect(secrets).toContain("AUTH_SMOKE_CREATOR_TOTP_SECRET");
-    expect(secrets).toContain("AUTH_SMOKE_COMPANY_HEAD_TOTP_SECRET");
-    expect(secrets).toContain("AUTH_SMOKE_CONSTRUCTION_DIRECTOR_TOTP_SECRET");
+    expect(secrets).not.toContain("AUTH_SMOKE_CREATOR_TOTP_SECRET");
+    expect(secrets).not.toContain("AUTH_SMOKE_COMPANY_HEAD_TOTP_SECRET");
+    expect(secrets).not.toContain("AUTH_SMOKE_CONSTRUCTION_DIRECTOR_TOTP_SECRET");
     expect(environmentRequirements("production-backup")).toEqual({
       secrets: [
         "SUPABASE_DB_URL", "BACKUP_ENCRYPTION_PASSWORD",
