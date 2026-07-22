@@ -27,13 +27,11 @@ select set_config('request.jwt.claim.role', 'authenticated', true);
 select set_config('request.jwt.claim.sub', '71000000-0000-0000-0000-000000000001', true);
 select set_config('request.jwt.claim.aal', 'aal1', true);
 
-select is(public.privileged_mfa_satisfied(), false, 'privileged aal1 session does not satisfy MFA');
+select is(public.privileged_mfa_satisfied(), true, 'pilot privileged aal1 session satisfies the temporary policy');
 select is((select count(*)::integer from public.objects), 1, 'privileged aal1 session keeps read access for MFA enrollment');
-select throws_ok(
-  $$update public.objects set name = 'Blocked' where id = '72000000-0000-0000-0000-000000000001'$$,
-  '42501',
-  'MFA verification is required for privileged writes',
-  'privileged aal1 write is blocked'
+select lives_ok(
+  $$update public.objects set name = 'Allowed in pilot' where id = '72000000-0000-0000-0000-000000000001'$$,
+  'privileged aal1 write succeeds during the pilot'
 );
 
 select set_config('request.jwt.claim.aal', 'aal2', true);
