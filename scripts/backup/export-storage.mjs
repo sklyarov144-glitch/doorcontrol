@@ -74,7 +74,14 @@ for (const bucket of existingBuckets) {
         continue;
       }
       const { data, error } = await client.storage.from(bucket).download(objectPath);
-      if (error) throw error;
+      if (error) {
+        const code = error.statusCode ?? error.code;
+        if (error.status === 404 || code === "PGRST1025") {
+          console.log(`Skipping unavailable storage object: ${bucket}/${objectPath}`);
+          continue;
+        }
+        throw error;
+      }
       const content = Buffer.from(await data.arrayBuffer());
       const target = safeTarget(bucket, objectPath);
       await mkdir(dirname(target), { recursive: true });
