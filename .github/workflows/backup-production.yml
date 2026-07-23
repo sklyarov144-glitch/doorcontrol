@@ -48,8 +48,7 @@ jobs:
           perl -0pi -e 's/ALTER (?:ROLE|DATABASE)\b.*?;\s*//gs; s/^SET\b.*?;\s*//mg; s/SELECT\s+pg_catalog\.set_config\([^;]*\);\s*//gs' backup/roles.sql
           npx supabase db dump --db-url "$SUPABASE_DB_URL" --file backup/schema.sql
           npx supabase db dump --db-url "$SUPABASE_DB_URL" --data-only --use-copy --file backup/data.sql
-          perl -0pi -e 's/^COPY\s+(?:"?storage"?\.)?"?buckets_vectors"?\b[^\n]*\n.*?\n\\.\n//gms' backup/data.sql
-          perl -0pi -e 's/COPY\s+storage\.buckets_vectors\b.*?\n\\.\n//gs' backup/data.sql
+          perl -0pi -e 's/^COPY[^\n]*storage[^\n]*vector[^\n]*\n.*?\n\\.\n//gms' backup/data.sql
           psql "$SUPABASE_DB_URL" --set ON_ERROR_STOP=1 --no-align --tuples-only --command "
             select json_build_object(
               'companies', (select count(*) from public.companies),
