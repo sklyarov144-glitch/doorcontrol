@@ -69,6 +69,7 @@ jobs:
         run: |
           STARTED_AT=$(date -u +%FT%TZ)
           echo "RESTORE_STARTED_AT=$STARTED_AT" >> "$GITHUB_ENV"
+          perl -0pi -e 's/^.*(?:log_min_messages|set_config).*?$//mg' restored-backup/roles.sql
           psql "$PGURL" --set ON_ERROR_STOP=1 --file restored-backup/roles.sql
           psql "$PGURL" --set ON_ERROR_STOP=1 --file restored-backup/schema.sql
           psql "$PGURL" --set ON_ERROR_STOP=1 --file restored-backup/data.sql
