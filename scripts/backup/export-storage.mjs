@@ -26,7 +26,14 @@ const { data: availableBuckets, error: bucketsError } = await client.storage.lis
 if (bucketsError) {
   const code = bucketsError.statusCode ?? bucketsError.code;
   if (bucketsError.status === 404 || code === "PGRST1025") {
-    console.log("Storage API has no readable bucket endpoint; continuing with an empty storage backup.");
+    const { count: storageObjectCount, error: countError } = await client
+      .from("storage.objects")
+      .select("id", { count: "exact", head: true });
+    if (countError) throw countError;
+    if (storageObjectCount !== 0) {
+      throw new Error("Storage API is unavailable while production contains Storage objects; refusing an incomplete backup");
+    }
+    console.log("Storage API has no readable bucket endpoint; verified there are no Storage objects.");
   } else {
     throw bucketsError;
   }
