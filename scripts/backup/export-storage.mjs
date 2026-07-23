@@ -23,7 +23,14 @@ const client = createClient(url, serviceKey, { auth: { persistSession: false } }
 const entries = [];
 
 const { data: availableBuckets, error: bucketsError } = await client.storage.listBuckets();
-if (bucketsError) throw bucketsError;
+if (bucketsError) {
+  const code = bucketsError.statusCode ?? bucketsError.code;
+  if (bucketsError.status === 404 || code === "PGRST1025") {
+    console.log("Storage API has no readable bucket path; continuing with an empty storage backup.");
+  } else {
+    throw bucketsError;
+  }
+}
 const availableNames = new Set((availableBuckets ?? []).map((bucket) => bucket.name));
 const existingBuckets = buckets.filter((bucket) => availableNames.has(bucket));
 const skippedBuckets = buckets.filter((bucket) => !availableNames.has(bucket));
