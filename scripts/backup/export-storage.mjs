@@ -49,7 +49,14 @@ async function listFolder(bucket, prefix) {
       offset,
       sortBy: { column: "name", order: "asc" },
     });
-    if (error) throw error;
+    if (error) {
+      const code = error.statusCode ?? error.code;
+      if (error.status === 404 || code === "PGRST1025") {
+        console.log(`Skipping unavailable storage path: ${bucket}/${prefix}`);
+        return [];
+      }
+      throw error;
+    }
     result.push(...(data ?? []));
     if ((data?.length ?? 0) < 1000) return result;
   }
