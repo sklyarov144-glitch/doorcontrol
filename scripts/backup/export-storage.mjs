@@ -22,6 +22,15 @@ const root = resolve(outputRoot);
 const client = createClient(url, serviceKey, { auth: { persistSession: false } });
 const entries = [];
 
+const { data: availableBuckets, error: bucketsError } = await client.storage.listBuckets();
+if (bucketsError) throw bucketsError;
+const availableNames = new Set((availableBuckets ?? []).map((bucket) => bucket.name));
+const existingBuckets = buckets.filter((bucket) => availableNames.has(bucket));
+const skippedBuckets = buckets.filter((bucket) => !availableNames.has(bucket));
+if (skippedBuckets.length) {
+  console.log(`Skipping unavailable storage buckets: ${skippedBuckets.join(", ")}`);
+}
+
 function safeTarget(bucket, objectPath) {
   const segments = [bucket, ...objectPath.split("/")];
   if (segments.some((segment) => !segment || segment === "." || segment === "..")) {
@@ -46,7 +55,7 @@ async function listFolder(bucket, prefix) {
   }
 }
 
-for (const bucket of buckets) {
+for (const bucket of existingBuckets) {
   const folders = [""];
   while (folders.length) {
     const prefix = folders.shift();
@@ -76,5 +85,5 @@ for (const bucket of buckets) {
 
 entries.sort((left, right) => `${left.bucket}/${left.path}`.localeCompare(`${right.bucket}/${right.path}`));
 await mkdir(dirname(resolve(manifestPath)), { recursive: true });
-await writeFile(manifestPath, `${JSON.stringify({ version: 1, createdAt: new Date().toISOString(), buckets, entries }, null, 2)}\n`, { mode: 0o600 });
-console.log(`Storage export completed: ${entries.length} objects from ${buckets.length} buckets.`);
+await writeFile(manifestPath, `${JSON.stringify({ version: 1, createdAt: new Date().toISOString(), buckets: existingBuckets, skippedBuckets, entries }, null, 2)}\n`, { mode: 0o600 });
+console.log(`Storage export completed: ${entries.length} objects from ${existingBuckets.length} buckets.`);
