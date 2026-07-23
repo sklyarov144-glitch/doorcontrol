@@ -23,7 +23,21 @@ const client = createClient(url, serviceKey, { auth: { persistSession: false } }
 const entries = [];
 
 const { data: availableBuckets, error: bucketsError } = await client.storage.listBuckets();
-if (bucketsError) throw bucketsError;
+if (bucketsError) {
+  const code = bucketsError.statusCode ?? bucketsError.code;
+  if (bucketsError.status === 404 || code === "PGRST1025") {
+    const { count: storageObjectCount, error: countError } = await client
+      .from("storage.objects")
+      .select("id", { count: "exact", head: true });
+    if (countError) throw countError;
+    if (storageObjectCount !== 0) {
+      throw new Error("Storage API is unavailable while production contains Storage objects; refusing an incomplete backup");
+    }
+    console.log("Storage API has no readable bucket endpoint; verified there are no Storage objects.");
+  } else {
+    throw bucketsError;
+  }
+}
 const availableNames = new Set((availableBuckets ?? []).map((bucket) => bucket.name));
 const existingBuckets = buckets.filter((bucket) => availableNames.has(bucket));
 const skippedBuckets = buckets.filter((bucket) => !availableNames.has(bucket));
