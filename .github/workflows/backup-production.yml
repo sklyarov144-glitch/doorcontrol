@@ -47,7 +47,7 @@ jobs:
           # Supabase role dumps may include instance-level settings unavailable in the restore container.
           perl -0pi -e 's/ALTER (?:ROLE|DATABASE)\b.*?;\s*//gs; s/^SET\b.*?;\s*//mg; s/SELECT\s+pg_catalog\.set_config\([^;]*\);\s*//gs' backup/roles.sql
           npx supabase db dump --db-url "$SUPABASE_DB_URL" --file backup/schema.sql
-          npx supabase db dump --db-url "$SUPABASE_DB_URL" --data-only --use-copy --file backup/data.sql
+          pg_dump "$SUPABASE_DB_URL" --data-only --no-owner --no-privileges --exclude-table=storage.buckets_vectors --file backup/data.sql
           psql "$SUPABASE_DB_URL" --set ON_ERROR_STOP=1 --no-align --tuples-only --command "
             select json_build_object(
               'companies', (select count(*) from public.companies),
