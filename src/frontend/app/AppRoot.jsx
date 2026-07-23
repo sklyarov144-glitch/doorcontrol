@@ -488,7 +488,11 @@ export function App({ demoUsers = [], demoPassword = "" }) {
   const routerNavigate = useNavigate();
   const initialRoute = parseAppRoute(location.pathname);
   const isRemoteAuth = dataProviderName === "supabase";
-  const isPasswordRecovery = isRemoteAuth && location.pathname === "/reset-password";
+  const recoveryParams = new URLSearchParams(`${location.search}${location.hash.replace(/^#/, "&")}`);
+  const isPasswordRecovery = isRemoteAuth && (
+    location.pathname === "/reset-password" ||
+    recoveryParams.get("type") === "recovery"
+  );
   const [objects, setObjects] = useState(() => isRemoteAuth ? [] : loadObjects());
   const localSession = isRemoteAuth ? null : dataProvider.auth.getSession();
   const [isLoggedIn, setIsLoggedIn] = useState(() => Boolean(localSession?.userId));
