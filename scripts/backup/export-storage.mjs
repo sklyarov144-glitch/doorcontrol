@@ -19,6 +19,7 @@ const buckets = (process.env.BACKUP_STORAGE_BUCKETS ?? "documents,floor-plans,av
 if (!buckets.length) throw new Error("At least one storage bucket is required");
 
 const root = resolve(outputRoot);
+await mkdir(root, { recursive: true });
 const client = createClient(url, serviceKey, { auth: { persistSession: false } });
 const entries = [];
 
