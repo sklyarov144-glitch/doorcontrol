@@ -18,7 +18,9 @@ export function buildHostedAuthConfiguration(appPublicUrl) {
     external_email_enabled: true,
     external_phone_enabled: false,
     mailer_autoconfirm: false,
-    security_update_password_require_reauthentication: true,
+    // Recovery links already prove possession of the account email. Requiring
+    // a second recent login here invalidates the recovery session on update.
+    security_update_password_require_reauthentication: false,
   };
 }
 
