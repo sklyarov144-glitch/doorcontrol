@@ -16,6 +16,7 @@ async function hydratePrivateAvatar(profile) {
 
 const asUuid = (value) => /^[0-9a-f]{8}-[0-9a-f]{4}-[1-5][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i.test(value ?? "") ? value : null;
 const PAGE_SIZE = 1000;
+let recoverySession = null;
 
 export function normalizeMfaStatus(assurance = {}, factorData = {}) {
   const factors = factorData.all ?? [
@@ -316,6 +317,7 @@ export const supabaseProvider = {
     async signOut() {
       const { error } = await requireSupabase().auth.signOut();
       if (error) throw error;
+      recoverySession = null;
     },
     async updatePassword(password) {
       const { data, error } = await requireSupabase().auth.updateUser({ password });
@@ -327,10 +329,16 @@ export const supabaseProvider = {
       const searchParams = new URLSearchParams(search);
       const hashParams = new URLSearchParams(hash.replace(/^#/, "").replace(/^\?/, ""));
       const code = searchParams.get("code");
+      const current = await client.auth.getSession();
+      if (recoverySession) return recoverySession;
       if (code) {
         const { data, error } = await client.auth.exchangeCodeForSession(code);
-        if (error) throw error;
-        return data.session;
+        if (!error && data.session) {
+          recoverySession = data.session;
+          return recoverySession;
+        }
+        if (current.data.session) return current.data.session;
+        throw error ?? new Error("Recovery session is missing or expired");
       }
 
       const accessToken = hashParams.get("access_token");
@@ -341,10 +349,10 @@ export const supabaseProvider = {
           refresh_token: refreshToken,
         });
         if (error) throw error;
-        return data.session;
+        recoverySession = data.session;
+        return recoverySession;
       }
 
-      const current = await client.auth.getSession();
       if (current.data.session) return current.data.session;
 
       throw new Error("Recovery session is missing or expired");
