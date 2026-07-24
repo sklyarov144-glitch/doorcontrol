@@ -10,7 +10,9 @@ export const supabase = isSupabaseConfigured
       auth: {
         persistSession: true,
         autoRefreshToken: true,
-        detectSessionInUrl: true,
+        // Recovery links are restored explicitly by the app so the code is
+        // exchanged exactly once before the password form is submitted.
+        detectSessionInUrl: false,
       },
     })
   : null;
@@ -23,4 +25,3 @@ export function requireSupabase() {
   }
   return supabase;
 }
-

@@ -324,9 +324,6 @@ export const supabaseProvider = {
     },
     async ensureRecoverySession(search = window.location.search, hash = window.location.hash) {
       const client = requireSupabase();
-      const current = await client.auth.getSession();
-      if (current.data.session) return current.data.session;
-
       const searchParams = new URLSearchParams(search);
       const hashParams = new URLSearchParams(hash.replace(/^#/, "").replace(/^\?/, ""));
       const code = searchParams.get("code");
@@ -346,6 +343,9 @@ export const supabaseProvider = {
         if (error) throw error;
         return data.session;
       }
+
+      const current = await client.auth.getSession();
+      if (current.data.session) return current.data.session;
 
       throw new Error("Recovery session is missing or expired");
     },
