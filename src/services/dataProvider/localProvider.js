@@ -16,6 +16,7 @@ const keys = {
   objectWorkPlans: "gross-lean-montage.object-work-plans.v1",
   dailyWorkReports: "gross-lean-montage.daily-work-reports.v1",
   manpowerRequests: "gross-lean-montage.manpower-requests.v1",
+  tnIssues: "gross-lean-montage.tn-issues.v1",
   activityLogs: "gross-lean-montage.activity-logs.v1",
   custodyActs: "gross-lean-montage.custody-acts.v1",
   session: "gross-lean-montage.auth-session.v1",
@@ -128,6 +129,7 @@ export const localProvider = {
   objectWorkPlans: makeCrud(keys.objectWorkPlans, "work-plan"),
   dailyWorkReports: makeCrud(keys.dailyWorkReports, "daily-report"),
   manpowerRequests: makeCrud(keys.manpowerRequests, "manpower"),
+  tnIssues: makeCrud(keys.tnIssues, "tn-issue"),
   activityLogs: {
     ...makeCrud(keys.activityLogs, "activity"),
     getRecent(limit = 200) {
