@@ -488,10 +488,14 @@ export function App({ demoUsers = [], demoPassword = "" }) {
   const routerNavigate = useNavigate();
   const initialRoute = parseAppRoute(location.pathname);
   const isRemoteAuth = dataProviderName === "supabase";
-  const recoveryParams = new URLSearchParams(`${location.search}${location.hash.replace(/^#/, "&")}`);
+  const searchParams = new URLSearchParams(location.search);
+  const hashParams = new URLSearchParams(location.hash.replace(/^#/, "").replace(/^\?/, ""));
+  const hasRecoveryMarker = searchParams.get("type") === "recovery" || hashParams.get("type") === "recovery";
+  const [recoveryEvent, setRecoveryEvent] = useState(false);
   const isPasswordRecovery = isRemoteAuth && (
     location.pathname === "/reset-password" ||
-    recoveryParams.get("type") === "recovery"
+    hasRecoveryMarker ||
+    recoveryEvent
   );
   const [objects, setObjects] = useState(() => isRemoteAuth ? [] : loadObjects());
   const localSession = isRemoteAuth ? null : dataProvider.auth.getSession();
@@ -635,6 +639,7 @@ export function App({ demoUsers = [], demoPassword = "" }) {
       try {
         const session = await dataProvider.auth.getSession();
         if (!session) return;
+        if (hasRecoveryMarker || location.pathname === "/reset-password") return;
         const profile = await dataProvider.auth.getCurrentProfile();
         if (!profile || profile.status === "disabled") {
           await dataProvider.auth.signOut();
@@ -650,14 +655,19 @@ export function App({ demoUsers = [], demoPassword = "" }) {
     };
 
     restoreSession();
-    const subscription = dataProvider.auth.onAuthStateChange((_event, session) => {
+    const subscription = dataProvider.auth.onAuthStateChange((event, session) => {
+      if (event === "PASSWORD_RECOVERY" && active) {
+        setRecoveryEvent(true);
+        setAuthLoading(false);
+        return;
+      }
       if (!session && active) setIsLoggedIn(false);
     });
     return () => {
       active = false;
       subscription?.data?.subscription?.unsubscribe();
     };
-  }, [admitRemoteProfile, isRemoteAuth]);
+  }, [admitRemoteProfile, hasRecoveryMarker, isRemoteAuth, location.pathname]);
 
   React.useEffect(() => {
     if (!isRemoteAuth || !isLoggedIn) return;
@@ -1169,7 +1179,7 @@ export function App({ demoUsers = [], demoPassword = "" }) {
     permissions,
   };
 
-  if (authLoading || !isPasswordRecovery && isLoggedIn && domainLoading) {
+  if ((authLoading && !isPasswordRecovery) || (!isPasswordRecovery && isLoggedIn && domainLoading)) {
     return <main className="auth-loading" aria-live="polite">{authLoading ? "Проверяем сессию..." : "Загружаем объекты..."}</main>;
   }
 
