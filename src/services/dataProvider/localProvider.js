@@ -42,6 +42,22 @@ function writeCollection(key, rows) {
   return rows;
 }
 
+function getLocalTnIssues() {
+  return readCollection(keys.objects).flatMap((object) => (object.buildings ?? []).flatMap((building) => (building.floors ?? []).flatMap((floor) => (floor.doors ?? [])
+    .filter((door) => door.issue === "есть замечание" || door.issue === "устранено" || door.tnIssues === "Да")
+    .map((door) => ({
+      id: `local-tn-${door.id}`,
+      doorId: door.id,
+      title: door.issue === "есть замечание" || door.tnIssues === "Да" ? "Замечание ТН" : "Замечание ТН устранено",
+      description: door.openingComment || door.comment || "Проверить замечание технадзора",
+      status: door.issue === "устранено" || door.tnIssues !== "Да" ? "устранено" : "открыто",
+      priority: door.issue === "есть замечание" || door.tnIssues === "Да" ? "высокий" : "средний",
+      responsibleId: door.assignedUserId ?? null,
+      createdAt: door.updatedAt ?? new Date().toISOString(),
+      updatedAt: door.updatedAt ?? new Date().toISOString(),
+    })))));
+}
+
 function makeCrud(key, idPrefix) {
   return {
     getAll: () => readCollection(key),
@@ -129,7 +145,14 @@ export const localProvider = {
   objectWorkPlans: makeCrud(keys.objectWorkPlans, "work-plan"),
   dailyWorkReports: makeCrud(keys.dailyWorkReports, "daily-report"),
   manpowerRequests: makeCrud(keys.manpowerRequests, "manpower"),
-  tnIssues: makeCrud(keys.tnIssues, "tn-issue"),
+  tnIssues: {
+    getAll: getLocalTnIssues,
+    getById: (id) => getLocalTnIssues().find((item) => item.id === id) ?? null,
+    replaceAll: (rows) => writeCollection(keys.tnIssues, rows),
+    create: (data) => makeCrud(keys.tnIssues, "tn-issue").create(data),
+    update: (id, data) => makeCrud(keys.tnIssues, "tn-issue").update(id, data),
+    syncForDoor: async () => null,
+  },
   activityLogs: {
     ...makeCrud(keys.activityLogs, "activity"),
     getRecent(limit = 200) {
