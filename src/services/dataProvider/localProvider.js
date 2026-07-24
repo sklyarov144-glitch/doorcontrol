@@ -16,6 +16,7 @@ const keys = {
   objectWorkPlans: "gross-lean-montage.object-work-plans.v1",
   dailyWorkReports: "gross-lean-montage.daily-work-reports.v1",
   manpowerRequests: "gross-lean-montage.manpower-requests.v1",
+  tnIssues: "gross-lean-montage.tn-issues.v1",
   activityLogs: "gross-lean-montage.activity-logs.v1",
   custodyActs: "gross-lean-montage.custody-acts.v1",
   session: "gross-lean-montage.auth-session.v1",
@@ -39,6 +40,22 @@ function writeCollection(key, rows) {
   const compressed = `${COMPRESSED_PREFIX}${LZString.compressToUTF16(json)}`;
   localStorage.setItem(key, compressed);
   return rows;
+}
+
+function getLocalTnIssues() {
+  return readCollection(keys.objects).flatMap((object) => (object.buildings ?? []).flatMap((building) => (building.floors ?? []).flatMap((floor) => (floor.doors ?? [])
+    .filter((door) => door.issue === "есть замечание" || door.issue === "устранено" || door.tnIssues === "Да")
+    .map((door) => ({
+      id: `local-tn-${door.id}`,
+      doorId: door.id,
+      title: door.issue === "есть замечание" || door.tnIssues === "Да" ? "Замечание ТН" : "Замечание ТН устранено",
+      description: door.openingComment || door.comment || "Проверить замечание технадзора",
+      status: door.issue === "устранено" || door.tnIssues !== "Да" ? "устранено" : "открыто",
+      priority: door.issue === "есть замечание" || door.tnIssues === "Да" ? "высокий" : "средний",
+      responsibleId: door.assignedUserId ?? null,
+      createdAt: door.updatedAt ?? new Date().toISOString(),
+      updatedAt: door.updatedAt ?? new Date().toISOString(),
+    })))));
 }
 
 function makeCrud(key, idPrefix) {
@@ -128,6 +145,14 @@ export const localProvider = {
   objectWorkPlans: makeCrud(keys.objectWorkPlans, "work-plan"),
   dailyWorkReports: makeCrud(keys.dailyWorkReports, "daily-report"),
   manpowerRequests: makeCrud(keys.manpowerRequests, "manpower"),
+  tnIssues: {
+    getAll: getLocalTnIssues,
+    getById: (id) => getLocalTnIssues().find((item) => item.id === id) ?? null,
+    replaceAll: (rows) => writeCollection(keys.tnIssues, rows),
+    create: (data) => makeCrud(keys.tnIssues, "tn-issue").create(data),
+    update: (id, data) => makeCrud(keys.tnIssues, "tn-issue").update(id, data),
+    syncForDoor: async () => null,
+  },
   activityLogs: {
     ...makeCrud(keys.activityLogs, "activity"),
     getRecent(limit = 200) {
