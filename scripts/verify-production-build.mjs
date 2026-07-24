@@ -12,6 +12,7 @@ const env = {
   VITE_SUPABASE_URL: supabaseUrl,
   VITE_SUPABASE_ANON_KEY: "a".repeat(100),
   VITE_APP_URL: "https://staging.example.ru",
+  VITE_STAGING_DEMO_MODE: "true",
 };
 
 try {
