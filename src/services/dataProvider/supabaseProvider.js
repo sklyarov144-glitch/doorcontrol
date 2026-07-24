@@ -322,6 +322,33 @@ export const supabaseProvider = {
       if (error) throw error;
       return data.user;
     },
+    async ensureRecoverySession(search = window.location.search, hash = window.location.hash) {
+      const client = requireSupabase();
+      const current = await client.auth.getSession();
+      if (current.data.session) return current.data.session;
+
+      const searchParams = new URLSearchParams(search);
+      const hashParams = new URLSearchParams(hash.replace(/^#/, "").replace(/^\?/, ""));
+      const code = searchParams.get("code");
+      if (code) {
+        const { data, error } = await client.auth.exchangeCodeForSession(code);
+        if (error) throw error;
+        return data.session;
+      }
+
+      const accessToken = hashParams.get("access_token");
+      const refreshToken = hashParams.get("refresh_token");
+      if (accessToken && refreshToken) {
+        const { data, error } = await client.auth.setSession({
+          access_token: accessToken,
+          refresh_token: refreshToken,
+        });
+        if (error) throw error;
+        return data.session;
+      }
+
+      throw new Error("Recovery session is missing or expired");
+    },
     async requestPasswordReset(email, redirectTo = `${window.location.origin}/reset-password`) {
       const { error } = await requireSupabase().auth.resetPasswordForEmail(email, {
         redirectTo,

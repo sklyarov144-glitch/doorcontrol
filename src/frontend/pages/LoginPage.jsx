@@ -63,10 +63,10 @@ export function PasswordRecoveryPage({ onSave }) {
   const [error, setError] = useState("");
   const [saving, setSaving] = useState(false);
 
-  return <main className="login-page"><section className="password-recovery-card"><BrandMark variant="login" /><span>Безопасность аккаунта</span><h1>Задайте новый пароль</h1><p>Не менее 10 символов: заглавная и строчная латинские буквы и цифра.</p><form onSubmit={async (event) => {
+  return <main className="login-page"><section className="password-recovery-card"><BrandMark variant="login" /><span>Безопасность аккаунта</span><h1>Задайте новый пароль</h1><p>Используйте пароль, который будет удобно и безопасно хранить.</p><form onSubmit={async (event) => {
     event.preventDefault();
     setError("");
-    if (!/^(?=.*[a-z])(?=.*[A-Z])(?=.*\d).{10,}$/.test(password)) return setError("Пароль не соответствует требованиям безопасности.");
+    if (!password) return setError("Введите новый пароль.");
     if (password !== confirmation) return setError("Пароли не совпадают.");
     setSaving(true);
     try {
