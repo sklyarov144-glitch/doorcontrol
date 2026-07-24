@@ -1185,6 +1185,7 @@ export function App({ demoUsers = [], demoPassword = "" }) {
 
   if (isPasswordRecovery) {
     return <PasswordRecoveryPage onSave={async (password) => {
+      await dataProvider.auth.ensureRecoverySession(location.search, location.hash);
       await dataProvider.auth.updatePassword(password);
       await dataProvider.auth.signOut();
       setIsLoggedIn(false);
