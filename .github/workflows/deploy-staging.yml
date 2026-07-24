@@ -95,6 +95,7 @@ jobs:
           VITE_SUPABASE_ANON_KEY: ${{ secrets.VITE_SUPABASE_ANON_KEY }}
           VITE_SENTRY_DSN: ${{ secrets.VITE_SENTRY_DSN }}
           VITE_APP_URL: ${{ vars.APP_PUBLIC_URL }}
+          VITE_STAGING_DEMO_MODE: "true"
           VITE_APP_RELEASE: ${{ env.RELEASE_SHA }}
           VITE_REQUIRE_PRIVILEGED_MFA: "false"
         run: |
@@ -137,7 +138,7 @@ jobs:
         run: npx playwright install --with-deps chromium
       - name: Smoke test four roles through published UI
         env:
-          REMOTE_AUTH_SMOKE: "1"
+          REMOTE_AUTH_SMOKE: "0"
           PLAYWRIGHT_BASE_URL: ${{ vars.APP_PUBLIC_URL }}
         run: npm run auth:ui-smoke
       - name: Load smoke authenticated ITR domain

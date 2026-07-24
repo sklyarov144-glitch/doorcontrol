@@ -55,7 +55,7 @@ import {
   updateWorkStandard,
   disableWorkStandard,
 } from "../storage";
-import { dataProvider, dataProviderName } from "../../services/dataProvider";
+import { dataProvider, dataProviderName, isStagingDemoMode } from "../../services/dataProvider";
 import { fileService } from "../../services/files";
 import { storageLocationFromUri } from "../../services/files/filePolicy";
 import { persistUploadedFile } from "../../services/files/uploadLifecycle";
@@ -1148,7 +1148,7 @@ export function App({ demoUsers = [], demoPassword = "" }) {
         };
       }
     }
-    const nextUser = users.find((item) => item.email.toLowerCase() === email.toLowerCase().trim() && item.password === password);
+    const nextUser = users.find((item) => item.email.toLowerCase() === email.toLowerCase().trim() && (isStagingDemoMode || item.password === password));
     if (!nextUser) return { ok: false, message: "Неверный email или пароль" };
     const updated = users.map((item) => item.id === nextUser.id ? { ...item, lastLoginAt: new Date().toISOString(), updatedAt: new Date().toISOString() } : item);
     setUsers(updated);

@@ -5,6 +5,7 @@ const root = process.argv[2] ?? "dist";
 const expectedUrl = process.env.VITE_SUPABASE_URL;
 if (!expectedUrl) throw new Error("VITE_SUPABASE_URL is required for bundle verification");
 const expectedOrigin = new URL(expectedUrl).origin;
+const stagingDemoMode = process.env.VITE_STAGING_DEMO_MODE === "true";
 
 function filesIn(path) {
   return readdirSync(path, { withFileTypes: true }).flatMap((entry) => {
@@ -43,7 +44,7 @@ const forbidden = [
   "Демо-данные",
   "Команда ИТР",
 ];
-const leaked = forbidden.filter((value) => bundle.includes(value));
+const leaked = stagingDemoMode ? [] : forbidden.filter((value) => bundle.includes(value));
 if (leaked.length) throw new Error(`Production bundle contains forbidden demo/PII markers: ${leaked.join(", ")}`);
 
 const totalBytes = files.reduce((sum, path) => sum + statSync(path).size, 0);

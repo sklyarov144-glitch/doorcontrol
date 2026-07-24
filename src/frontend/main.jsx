@@ -96,7 +96,7 @@ async function bootstrap() {
   initMonitoring();
 
   try {
-    const demo = import.meta.env.VITE_DATA_PROVIDER === "supabase"
+    const demo = import.meta.env.VITE_DATA_PROVIDER === "supabase" && import.meta.env.VITE_STAGING_DEMO_MODE !== "true"
       ? { mockUsers: [], demoPassword: "" }
       : await import("./mocks/demoUsers");
 

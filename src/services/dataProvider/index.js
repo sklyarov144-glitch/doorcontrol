@@ -2,7 +2,8 @@ import { localProvider } from "./localProvider";
 import { supabaseProvider } from "./supabaseProvider";
 import { isSupabaseConfigured } from "../supabase/client";
 
-const requestedProvider = import.meta.env.VITE_DATA_PROVIDER ?? "local";
+const stagingDemoMode = import.meta.env.VITE_STAGING_DEMO_MODE === "true";
+const requestedProvider = stagingDemoMode ? "local" : (import.meta.env.VITE_DATA_PROVIDER ?? "local");
 
 export function selectDataProvider(name, configured = isSupabaseConfigured) {
   if (name !== "local" && name !== "supabase") {
@@ -18,3 +19,4 @@ export function selectDataProvider(name, configured = isSupabaseConfigured) {
 
 export const dataProvider = selectDataProvider(requestedProvider);
 export const dataProviderName = requestedProvider;
+export const isStagingDemoMode = stagingDemoMode;

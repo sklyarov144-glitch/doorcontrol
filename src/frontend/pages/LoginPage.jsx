@@ -24,7 +24,7 @@ export default function LoginPage({ users, onLogin, onResetPassword, isDemo = tr
         <form className="login-form" onSubmit={async (event) => {
           event.preventDefault();
           setSubmitting(true);
-          const result = await onLogin(email, password);
+    const result = await onLogin(email, password);
           setSubmitting(false);
           if (result.ok) {
             setError("");
